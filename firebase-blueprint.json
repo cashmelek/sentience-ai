@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Humanization Project",
+      "description": "A single text humanization task and its results.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the owner." },
+        "title": { "type": "string", "description": "Auto-generated title for the project." },
+        "originalText": { "type": "string", "description": "The input text." },
+        "humanizedText": { "type": "string", "description": "The AI-transformed output." },
+        "tone": { "type": "string", "description": "Selected tone or custom tone name." },
+        "intensity": { "type": "number", "description": "Humanization depth (0-100)." },
+        "aiScore": { "type": "number", "description": "Probability of being AI-generated (0.0-1.0)." },
+        "plagiarismScore": { "type": "number", "description": "Similarity score (0-100)." },
+        "sources": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "similarity": { "type": "number" },
+              "title": { "type": "string" }
+            }
+          }
+        },
+        "grammarSuggestions": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "original": { "type": "string" },
+              "suggestion": { "type": "string" },
+              "explanation": { "type": "string" }
+            }
+          }
+        },
+        "isDraft": { "type": "boolean", "description": "Whether this is a saved draft or a finalized project." },
+        "insights": { "type": "array", "description": "Sentence-level breakdown." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "originalText", "createdAt"]
+    },
+    "CustomTone": {
+      "title": "Custom Humanization Tone",
+      "description": "User-defined style for AI humanization.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["userId", "name", "description"]
+    }
+  },
+  "firestore": {
+    "projects/{projectId}": {
+      "schema": "Project",
+      "description": "Collection of humanization projects."
+    },
+    "customTones/{toneId}": {
+      "schema": "CustomTone",
+      "description": "Collection of user-defined tones."
+    }
+  }
+}
