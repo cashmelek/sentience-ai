@@ -230,8 +230,9 @@ export default function App() {
         insights: result.insights,
         createdAt: serverTimestamp()
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('İnsanileştirme başarısız', error);
+      alert(`İnsanileştirme başarısız: ${error.message || 'Hata oluştu'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -293,15 +294,19 @@ export default function App() {
       const suggestions = await checkGrammar(inputText, grammarPrefs);
       setGrammarSuggestions(suggestions);
       setLastCheckTime(new Date());
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert("Yazım denetimi başarısız oldu.");
     } finally {
       setCheckingStatus({ type: 'Dilbilgisi', active: false });
     }
   };
 
   const saveDraft = async () => {
-    if (!inputText.trim() || !user) return;
+    if (!inputText.trim() || !user) {
+      alert("Lütfen önce bir metin girin.");
+      return;
+    }
     setIsDrafting(true);
     try {
       await addDoc(collection(db, 'projects'), {
@@ -318,9 +323,10 @@ export default function App() {
         insights: [],
         createdAt: serverTimestamp()
       });
-      alert("Taslak kaydedildi.");
-    } catch (err) {
+      alert("Taslak başarıyla kaydedildi.");
+    } catch (err: any) {
       console.error(err);
+      alert(`Taslak kaydedilemedi: ${err.message}`);
     } finally {
       setIsDrafting(false);
     }

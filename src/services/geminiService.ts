@@ -1,12 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+// Vite ortamında import.meta.env kullanılır
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
+const DEFAULT_MODEL = "gemini-1.5-flash";
 
 const assertApiKey = () => {
   if (!apiKey) {
-    console.error("GEMINI_API_KEY is missing!");
-    throw new Error("GEMINI_API_KEY bulunamadı. Lütfen Vercel ayarlarına ekleyin.");
+    console.error("KRİTİK: VITE_GEMINI_API_KEY eksik!");
+    throw new Error("Gemini API anahtarı bulunamadı. Lütfen Vercel ayarlarından VITE_GEMINI_API_KEY değişkenini kontrol edin.");
   }
 };
 
@@ -42,28 +44,32 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
   assertApiKey();
   try {
     const styleInstruction = options.customToneDescription 
-      ? `Custom Refinement Logic: ${options.customToneDescription}`
-      : `Target Reader Profile: ${options.tone}`;
+      ? `Özel Tarz: ${options.customToneDescription}`
+      : `Ton: ${options.tone}`;
 
     const prompt = `
-      TASK: Humanize the provided text for bypassing advanced AI detectors and perform an exhaustive plagiarism check.
+      GÖREV: Metni insanileştir ve Google Arama ile intihal kontrolü yap.
       
-      1. Humanize: Rewrite the text to exhibit high 'perplexity' and 'burstiness'.
-         - Logic: ${styleInstruction}
-         - Intensity Scale: ${options.intensity}/100.
+      1. İnsanileştirme: Metni daha doğal ve akıcı hale getir.
+         - Mantık: ${styleInstruction}
+         - Yoğunluk: ${options.intensity}/100.
          
-      2. AI Integrity Check: Provide an AI Detection Score (0.0 to 1.0).
+      2. YZ Tespiti: YZ tarafından yazılma olasılığını (0.0 - 1.0) hesapla.
       
-      3. PLAGIARISM CHECK: Identify any potential matches.
+      3. İNTİHAL: Google Search aracını kullanarak internetteki benzer metinleri bul.
+         - 'sources': [{ title, url, similarity, matchedSnippet }]
       
-      Output JSON. Ensure 'humanizedText' is polished.
+      Çıktıyı kesinlikle JSON formatında ver.
     `;
 
-    const response = await ai.models.generateContent({
+    const model = ai.getGenerativeModel({
       model: DEFAULT_MODEL,
-      contents: [{ role: "user", parts: [{ text: `Orijinal Metin: ${text}\n\n${prompt}` }] }],
-      config: {
-        // Removed googleSearch temporarily to ensure basic humanize works first
+      tools: [{ googleSearch: {} } as any],
+    });
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -103,9 +109,10 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
       }
     });
 
-    return JSON.parse(response.text);
+    const responseText = result.response.text();
+    return JSON.parse(responseText);
   } catch (error) {
-    console.error("analyzeAndHumanize Error:", error);
+    console.error("analyzeAndHumanize hatası:", error);
     throw error;
   }
 };
@@ -113,20 +120,16 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
 export const checkGrammar = async (text: string, options?: GrammarOptions): Promise<GrammarSuggestion[]> => {
   assertApiKey();
   try {
-    const priorityInfo = options?.prioritize?.length ? `Prioritize these types: ${options.prioritize.join(', ')}.` : '';
-    const ignoreInfo = options?.ignore?.length ? `Ignore these types: ${options.ignore.join(', ')}.` : '';
-    
     const prompt = `
-      Analyze the text for Turkish grammar, nuance, spelling, and professional style. 
-      ${priorityInfo}
-      ${ignoreInfo}
-      Text: ${text}
+      Aşağıdaki metni Türkçe dilbilgisi ve yazım kuralları açısından denetle.
+      Metin: ${text}
+      Sonucu 'suggestions' dizisi içeren bir JSON olarak dön.
     `;
 
-    const response = await ai.models.generateContent({
-      model: DEFAULT_MODEL,
+    const model = ai.getGenerativeModel({ model: DEFAULT_MODEL });
+    const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -148,9 +151,9 @@ export const checkGrammar = async (text: string, options?: GrammarOptions): Prom
         }
       }
     });
-    return JSON.parse(response.text).suggestions;
+    return JSON.parse(result.response.text()).suggestions;
   } catch (error) {
-    console.error("checkGrammar Error:", error);
+    console.error("checkGrammar hatası:", error);
     return [];
   }
 };
@@ -158,10 +161,10 @@ export const checkGrammar = async (text: string, options?: GrammarOptions): Prom
 export const detectAI = async (text: string) => {
   assertApiKey();
   try {
-    const response = await ai.models.generateContent({
-      model: DEFAULT_MODEL,
-      contents: [{ role: "user", parts: [{ text: `Detect AI probability (0-1). Text: ${text}` }] }],
-      config: {
+    const model = ai.getGenerativeModel({ model: DEFAULT_MODEL });
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: `Metnin YZ olasılığını (0-1) hesapla: ${text}` }] }],
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -173,10 +176,10 @@ export const detectAI = async (text: string) => {
         }
       }
     });
-    return JSON.parse(response.text);
+    return JSON.parse(result.response.text());
   } catch (error) {
-    console.error("detectAI Error:", error);
-    return { score: 0.5, reasoning: "Error during detection" };
+    console.error("detectAI hatası:", error);
+    return { score: 0.5, reasoning: "Hata" };
   }
 };
 
