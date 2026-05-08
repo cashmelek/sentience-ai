@@ -1,13 +1,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-// Use gemini-1.5-flash for maximum stability and tool compatibility
-const DEFAULT_MODEL = "gemini-1.5-flash";
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+const ai = new GoogleGenAI({ apiKey });
 
 const assertApiKey = () => {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!apiKey) {
     console.error("GEMINI_API_KEY is missing!");
-    throw new Error("GEMINI_API_KEY eksik. .env.local dosyasina ekleyin.");
+    throw new Error("GEMINI_API_KEY bulunamadı. Lütfen Vercel ayarlarına ekleyin.");
   }
 };
 
