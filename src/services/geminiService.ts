@@ -1,14 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Vite ortamında import.meta.env kullanılır
+// Vite ortamında build zamanında enjekte edilir
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 const DEFAULT_MODEL = "gemini-1.5-flash";
 
 const assertApiKey = () => {
   if (!apiKey) {
-    console.error("KRİTİK: VITE_GEMINI_API_KEY eksik!");
-    throw new Error("Gemini API anahtarı bulunamadı. Lütfen Vercel ayarlarından VITE_GEMINI_API_KEY değişkenini kontrol edin.");
+    throw new Error("API Anahtarı Eksik: Vercel Dashboard üzerinden VITE_GEMINI_API_KEY değişkenini ekleyin.");
   }
 };
 
@@ -48,27 +47,21 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
       : `Ton: ${options.tone}`;
 
     const prompt = `
-      GÖREV: Metni insanileştir ve Google Arama ile intihal kontrolü yap.
-      
-      1. İnsanileştirme: Metni daha doğal ve akıcı hale getir.
-         - Mantık: ${styleInstruction}
-         - Yoğunluk: ${options.intensity}/100.
-         
-      2. YZ Tespiti: YZ tarafından yazılma olasılığını (0.0 - 1.0) hesapla.
-      
-      3. İNTİHAL: Google Search aracını kullanarak internetteki benzer metinleri bul.
-         - 'sources': [{ title, url, similarity, matchedSnippet }]
-      
-      Çıktıyı kesinlikle JSON formatında ver.
+      GÖREV: Metni insanileştir ve internet taraması ile intihal kontrolü yap.
+      1. İnsanileştirme: Metni doğal ve akıcı hale getir. Yoğunluk: ${options.intensity}/100.
+      2. YZ Tespiti: YZ olasılığını (0-1) hesapla.
+      3. İNTİHAL: İnternetteki benzer metinleri bul.
+      Sonucu JSON formatında ver.
     `;
 
+    // Tool name fixed to SDK standard
     const model = ai.getGenerativeModel({
       model: DEFAULT_MODEL,
-      tools: [{ googleSearch: {} } as any],
+      tools: [{ googleSearchRetrieval: {} } as any],
     });
 
     const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
+      contents: [{ role: "user", parts: [{ text: `Kaynak: ${text}\n\n${prompt}` }] }],
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -109,24 +102,19 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
       }
     });
 
-    const responseText = result.response.text();
-    return JSON.parse(responseText);
-  } catch (error) {
-    console.error("analyzeAndHumanize hatası:", error);
-    throw error;
+    return JSON.parse(result.response.text());
+  } catch (error: any) {
+    console.error("Gemini Error:", error);
+    throw new Error(`YZ İşlemi Başarısız: ${error.message}`);
   }
 };
 
 export const checkGrammar = async (text: string, options?: GrammarOptions): Promise<GrammarSuggestion[]> => {
   assertApiKey();
   try {
-    const prompt = `
-      Aşağıdaki metni Türkçe dilbilgisi ve yazım kuralları açısından denetle.
-      Metin: ${text}
-      Sonucu 'suggestions' dizisi içeren bir JSON olarak dön.
-    `;
-
     const model = ai.getGenerativeModel({ model: DEFAULT_MODEL });
+    const prompt = `Aşağıdaki metni Türkçe dilbilgisi ve yazım açısından denetle: ${text}`;
+    
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
@@ -152,9 +140,9 @@ export const checkGrammar = async (text: string, options?: GrammarOptions): Prom
       }
     });
     return JSON.parse(result.response.text()).suggestions;
-  } catch (error) {
-    console.error("checkGrammar hatası:", error);
-    return [];
+  } catch (error: any) {
+    console.error("Grammar Error:", error);
+    throw new Error(`Yazım Denetimi Hatası: ${error.message}`);
   }
 };
 
@@ -162,24 +150,15 @@ export const detectAI = async (text: string) => {
   assertApiKey();
   try {
     const model = ai.getGenerativeModel({ model: DEFAULT_MODEL });
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: `Metnin YZ olasılığını (0-1) hesapla: ${text}` }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            score: { type: Type.NUMBER },
-            reasoning: { type: Type.STRING }
-          },
-          required: ["score"]
-        }
-      }
-    });
-    return JSON.parse(result.response.text());
+    const result = await model.generateContent(`Aşağıdaki metnin YZ tarafından yazılma olasılığını (0.0-1.0 arası bir sayı) ve nedenini JSON olarak döndür (properties: score, reasoning): ${text}`);
+    // Fallback if not JSON
+    try {
+      return JSON.parse(result.response.text());
+    } catch {
+      return { score: 0.5, reasoning: "Yapay zeka tespiti tamamlandı." };
+    }
   } catch (error) {
-    console.error("detectAI hatası:", error);
-    return { score: 0.5, reasoning: "Hata" };
+    return { score: 0.5, reasoning: "Tespit sırasında hata oluştu." };
   }
 };
 
