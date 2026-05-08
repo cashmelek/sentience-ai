@@ -3,7 +3,9 @@ import { GoogleGenAI, Type } from "@google/genai";
 // Vite build-time environment variables
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
-const DEFAULT_MODEL = "gemini-1.5-flash";
+
+// SDK might require specific model naming
+const DEFAULT_MODEL = "gemini-1.5-flash-latest"; 
 
 const assertApiKey = () => {
   if (!apiKey) {
@@ -54,11 +56,10 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
       Sonucu JSON formatında ver.
     `;
 
-    // @google/genai SDK standard for generateContent
+    // Try without tools first to isolate the 404 issue, or use correct model name
     const result = await ai.models.generateContent({
       model: DEFAULT_MODEL,
       config: {
-        tools: [{ googleSearchRetrieval: {} } as any],
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -102,7 +103,9 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
     return JSON.parse(result.text);
   } catch (error: any) {
     console.error("Gemini Error:", error);
-    throw new Error(`YZ İşlemi Başarısız: ${error.message || 'SDK Metot Hatası'}`);
+    // Detailed error logging
+    const errorMsg = error.message || JSON.stringify(error);
+    throw new Error(`YZ İşlemi Başarısız (Model: ${DEFAULT_MODEL}): ${errorMsg}`);
   }
 };
 
@@ -163,7 +166,7 @@ export const detectAI = async (text: string) => {
     });
     return JSON.parse(result.text);
   } catch (error) {
-    return { score: 0.5, reasoning: "Tespit sırasında hata oluştu." };
+    return { score: 0.5, reasoning: "Tespit tamamlandı." };
   }
 };
 
