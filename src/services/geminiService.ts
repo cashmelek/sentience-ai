@@ -1,13 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Vite ortamında build zamanında enjekte edilir
+// Vite build-time environment variables
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 const DEFAULT_MODEL = "gemini-1.5-flash";
 
 const assertApiKey = () => {
   if (!apiKey) {
-    throw new Error("API Anahtarı Eksik: Vercel Dashboard üzerinden VITE_GEMINI_API_KEY değişkenini ekleyin.");
+    throw new Error("API Anahtarı Eksik: Vercel üzerinden VITE_GEMINI_API_KEY değişkenini ekleyin.");
   }
 };
 
@@ -54,15 +54,11 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
       Sonucu JSON formatında ver.
     `;
 
-    // Tool name fixed to SDK standard
-    const model = ai.getGenerativeModel({
+    // @google/genai SDK standard for generateContent
+    const result = await ai.models.generateContent({
       model: DEFAULT_MODEL,
-      tools: [{ googleSearchRetrieval: {} } as any],
-    });
-
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: `Kaynak: ${text}\n\n${prompt}` }] }],
-      generationConfig: {
+      config: {
+        tools: [{ googleSearchRetrieval: {} } as any],
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -99,25 +95,25 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
           },
           required: ["humanizedText", "aiScore", "isPlagiarized", "similarityScore", "sources", "insights"]
         }
-      }
+      },
+      contents: [{ role: "user", parts: [{ text: `Kaynak: ${text}\n\n${prompt}` }] }]
     });
 
-    return JSON.parse(result.response.text());
+    return JSON.parse(result.text);
   } catch (error: any) {
     console.error("Gemini Error:", error);
-    throw new Error(`YZ İşlemi Başarısız: ${error.message}`);
+    throw new Error(`YZ İşlemi Başarısız: ${error.message || 'SDK Metot Hatası'}`);
   }
 };
 
 export const checkGrammar = async (text: string, options?: GrammarOptions): Promise<GrammarSuggestion[]> => {
   assertApiKey();
   try {
-    const model = ai.getGenerativeModel({ model: DEFAULT_MODEL });
     const prompt = `Aşağıdaki metni Türkçe dilbilgisi ve yazım açısından denetle: ${text}`;
     
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
+    const result = await ai.models.generateContent({
+      model: DEFAULT_MODEL,
+      config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -137,9 +133,10 @@ export const checkGrammar = async (text: string, options?: GrammarOptions): Prom
           },
           required: ["suggestions"]
         }
-      }
+      },
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
     });
-    return JSON.parse(result.response.text()).suggestions;
+    return JSON.parse(result.text).suggestions;
   } catch (error: any) {
     console.error("Grammar Error:", error);
     throw new Error(`Yazım Denetimi Hatası: ${error.message}`);
@@ -149,14 +146,22 @@ export const checkGrammar = async (text: string, options?: GrammarOptions): Prom
 export const detectAI = async (text: string) => {
   assertApiKey();
   try {
-    const model = ai.getGenerativeModel({ model: DEFAULT_MODEL });
-    const result = await model.generateContent(`Aşağıdaki metnin YZ tarafından yazılma olasılığını (0.0-1.0 arası bir sayı) ve nedenini JSON olarak döndür (properties: score, reasoning): ${text}`);
-    // Fallback if not JSON
-    try {
-      return JSON.parse(result.response.text());
-    } catch {
-      return { score: 0.5, reasoning: "Yapay zeka tespiti tamamlandı." };
-    }
+    const result = await ai.models.generateContent({
+      model: DEFAULT_MODEL,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            score: { type: Type.NUMBER },
+            reasoning: { type: Type.STRING }
+          },
+          required: ["score"]
+        }
+      },
+      contents: [{ role: "user", parts: [{ text: `Metnin YZ olasılığını (0-1) hesapla: ${text}` }] }]
+    });
+    return JSON.parse(result.text);
   } catch (error) {
     return { score: 0.5, reasoning: "Tespit sırasında hata oluştu." };
   }
