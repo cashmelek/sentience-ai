@@ -60,74 +60,87 @@ export interface GrammarOptions {
 
 export const analyzeAndHumanize = async (text: string, options: HumanizeOptions): Promise<AnalysisResult> => {
   assertApiKey();
-  try {
-    const styleInstruction = options.customToneDescription 
-      ? `Özel Tarz: ${options.customToneDescription}`
-      : `Ton: ${options.tone}`;
+  
+  // Try models in order of preference
+  const modelsToTry = [DEFAULT_MODEL, "gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-pro"];
+  let lastError: any = null;
 
-    let intensityInstruction = "";
-    let temp = 0.5;
-    if (options.tone === 'Özet') {
-      intensityInstruction = "ÖZETLEME GÖREVİ: Metnin ana fikirlerini koruyarak kısa ve öz bir özet oluştur. Gereksiz detayları at, ancak önemli bilgileri ve tonu muhafaza et.";
-      temp = 0.3;
-    } else if (options.intensity >= 70) {
-      intensityInstruction = "RADİKAL İNSANLAŞTIRMA (Yüksek Yoğunluk): Cümle yapılarını ve uzunluklarını tamamen değiştir, güçlü eşanlamlı kelimeler kullan, paragrafları böl veya birleştir. Orijinal anlamı koruyarak yepyeni, yaratıcı ve tamamen farklı bir metin yarat. Asla kelime kelime aynı bırakma.";
-      temp = 1.0;
-    } else if (options.intensity >= 30) {
-      intensityInstruction = "DENGELİ DÖNÜŞÜM (Orta Yoğunluk): Cümleleri daha akıcı hale getir, kelime tekrarlarını azalt, sentaks varyasyonları ekle.";
-      temp = 0.7;
-    } else {
-      intensityInstruction = "DOĞAL İYİLEŞTİRME (Düşük Yoğunluk): Sadece gramer hatalarını düzelt ve küçük akıcılık dokunuşları yap. Orijinal yapıya sadık kal.";
-      temp = 0.4;
-    }
+  for (const modelName of modelsToTry) {
+    try {
+      const styleInstruction = options.customToneDescription 
+        ? `Özel Tarz: ${options.customToneDescription}`
+        : `Ton: ${options.tone}`;
 
-    const prompt = `
-      GÖREV: Metni insanileştir ve analiz et.
-      1. İNSANİLEŞTİRME: Metni YZ tespitinden kaçacak şekilde yeniden yaz.
-         - ${styleInstruction}
-         - ${intensityInstruction}
-      2. YZ TESPİTİ: Metnin orijinal halinin YZ tarafından yazılma olasılığını (0 ile 1 arası) hesapla.
-      3. İNTİHAL: Metnin özgünlüğünü kontrol et.
-         - SEN BİR DİL MODELİSİN. Eğer %100 emin olduğun GERÇEK ve ÇALIŞAN bir URL yoksa ASLA uydurma (halüsinasyon) link üretme!
-         - Gerçekten var olan, bilindik bir kaynak (örneğin Wikipedia vb.) yoksa 'sources' dizisini KESİNLİKLE BOŞ BIRAK ([]). Uydurma domainler yaratma.
-      
-      ÖNEMLİ: Yanıtını SADECE aşağıdaki JSON formatında ver.
-      JSON ŞEMASI:
-      {
-        "humanizedText": "...",
-        "aiScore": 0.15,
-        "isPlagiarized": false,
-        "similarityScore": 0,
-        "sources": [{"title": "...", "url": "...", "similarity": 10, "matchedSnippet": "..."}],
-        "insights": [{"sentence": "...", "score": 0.2, "detail": "..."}]
+      let intensityInstruction = "";
+      let temp = 0.5;
+      if (options.tone === 'Özet') {
+        intensityInstruction = "ÖZETLEME GÖREVİ: Metnin ana fikirlerini koruyarak kısa ve öz bir özet oluştur. Gereksiz detayları at, ancak önemli bilgileri ve tonu muhafaza et.";
+        temp = 0.3;
+      } else if (options.intensity >= 70) {
+        intensityInstruction = "RADİKAL İNSANLAŞTIRMA (Yüksek Yoğunluk): Cümle yapılarını ve uzunluklarını tamamen değiştir, güçlü eşanlamlı kelimeler kullan, paragrafları böl veya birleştir. Orijinal anlamı koruyarak yepyeni, yaratıcı ve tamamen farklı bir metin yarat. Asla kelime kelime aynı bırakma.";
+        temp = 1.0;
+      } else if (options.intensity >= 30) {
+        intensityInstruction = "DENGELİ DÖNÜŞÜM (Orta Yoğunluk): Cümleleri daha akıcı hale getir, kelime tekrarlarını azalt, sentaks varyasyonları ekle.";
+        temp = 0.7;
+      } else {
+        intensityInstruction = "DOĞAL İYİLEŞTİRME (Düşük Yoğunluk): Sadece gramer hatalarını düzelt ve küçük akıcılık dokunuşları yap. Orijinal yapıya sadık kal.";
+        temp = 0.4;
       }
-    `;
 
-    const result = await ai.models.generateContent({
-      model: DEFAULT_MODEL,
-      contents: [{ role: "user", parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
-      config: {
-        responseMimeType: "application/json",
-        temperature: temp,
-        maxOutputTokens: 2048,
-      } as any
-    });
+      const prompt = `
+        GÖREV: Metni insanileştir ve analiz et.
+        1. İNSANİLEŞTİRME: Metni YZ tespitinden kaçacak şekilde yeniden yaz.
+           - ${styleInstruction}
+           - ${intensityInstruction}
+        2. YZ TESPİTİ: Metnin orijinal halinin YZ tarafından yazılma olasılığını (0 ile 1 arası) hesapla.
+        3. İNTİHAL: Metnin özgünlüğünü kontrol et.
+           - SEN BİR DİL MODELİSİN. Eğer %100 emin olduğun GERÇEK ve ÇALIŞAN bir URL yoksa ASLA uydurma (halüsinasyon) link üretme!
+           - Gerçekten var olan, bilindik bir kaynak (örneğin Wikipedia vb.) yoksa 'sources' dizisini KESİNLİKLE BOŞ BIRAK ([]). Uydurma domainler yaratma.
+        
+        ÖNEMLİ: Yanıtını SADECE aşağıdaki JSON formatında ver.
+        JSON ŞEMASI:
+        {
+          "humanizedText": "...",
+          "aiScore": 0.15,
+          "isPlagiarized": false,
+          "similarityScore": 0,
+          "sources": [{"title": "...", "url": "...", "similarity": 10, "matchedSnippet": "..."}],
+          "insights": [{"sentence": "...", "score": 0.2, "detail": "..."}]
+        }
+      `;
 
-    const responseText = result.text;
-    const parsed = JSON.parse(responseText);
-    
-    return {
-      humanizedText: parsed.humanizedText || text,
-      aiScore: typeof parsed.aiScore === 'number' ? parsed.aiScore : 0.5,
-      isPlagiarized: !!parsed.isPlagiarized,
-      similarityScore: typeof parsed.similarityScore === 'number' ? parsed.similarityScore : 0,
-      sources: parsed.sources || [],
-      insights: parsed.insights || []
-    };
-  } catch (error: any) {
-    console.error("Gemini Error:", error);
-    throw new Error(`YZ İşlemi Başarısız: ${error.message}`);
+      const result = await ai.models.generateContent({
+        model: modelName,
+        contents: [{ role: "user", parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
+        config: {
+          responseMimeType: "application/json",
+          temperature: temp,
+          maxOutputTokens: 2048,
+        } as any
+      });
+
+      const responseText = result.text;
+      const parsed = JSON.parse(responseText);
+      
+      return {
+        humanizedText: parsed.humanizedText || text,
+        aiScore: typeof parsed.aiScore === 'number' ? parsed.aiScore : 0.5,
+        isPlagiarized: !!parsed.isPlagiarized,
+        similarityScore: typeof parsed.similarityScore === 'number' ? parsed.similarityScore : 0,
+        sources: parsed.sources || [],
+        insights: parsed.insights || []
+      };
+    } catch (error: any) {
+      console.warn(`Model ${modelName} failed:`, error.message);
+      lastError = error;
+      if (!error.message?.includes('404') && !error.message?.includes('not found')) {
+        break; 
+      }
+    }
   }
+
+  console.error("Gemini Error (All Fallbacks Failed):", lastError);
+  throw new Error(`YZ İşlemi Başarısız: ${lastError?.message || "Bilinmeyen Hata"}`);
 };
 
 export const checkGrammar = async (text: string, _options?: GrammarOptions): Promise<GrammarSuggestion[]> => {
