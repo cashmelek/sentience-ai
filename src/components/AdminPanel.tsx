@@ -23,7 +23,7 @@ import {
   Trash2, RefreshCw, MessageSquare, History 
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ADMIN_EMAIL = 'ismail.kaleci@gmail.com';
 
@@ -536,15 +536,15 @@ export function AdminPanel() {
                               defaultValue={u.role}
                               onChange={(e) => handleUpdateUser(u.uid, { role: e.target.value as 'admin' | 'user' })}
                             >
-                              <option value="user">User</option>
-                              <option value="admin">Admin</option>
+                              <option value="user">Kullanıcı</option>
+                              <option value="admin">Yönetici</option>
                             </select>
                           ) : (
                             <span className={cn(
                               "px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md",
                               u.role === 'admin' ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-gray-500/10 text-gray-400 border border-gray-500/20"
                             )}>
-                              {u.role}
+                              {u.role === 'admin' ? "Yönetici" : "Kullanıcı"}
                             </span>
                           )}
                         </td>
@@ -555,7 +555,7 @@ export function AdminPanel() {
                               defaultValue={u.plan}
                               onChange={(e) => handleUpdateUser(u.uid, { plan: e.target.value as SubscriptionPlan })}
                             >
-                              <option value="free">Free</option>
+                              <option value="free">Ücretsiz</option>
                               <option value="pro">Pro</option>
                               <option value="premium">Premium</option>
                             </select>
@@ -566,7 +566,7 @@ export function AdminPanel() {
                               u.plan === 'pro' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
                               "bg-gray-500/10 text-gray-400 border-gray-500/20"
                             )}>
-                              {u.plan}
+                              {u.plan === 'premium' ? "Premium" : u.plan === 'pro' ? "Pro" : "Ücretsiz"}
                             </span>
                           )}
                         </td>

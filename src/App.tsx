@@ -27,9 +27,13 @@ import {
   Layers,
   ExternalLink,
   MessageSquarePlus,
-  X
+  X,
+  Mail,
+  Lock,
+  Github,
+  Twitter
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   collection,
   query,
@@ -45,7 +49,17 @@ import {
   getDoc,
   setDoc
 } from 'firebase/firestore';
-import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  GithubAuthProvider,
+  TwitterAuthProvider,
+  onAuthStateChanged, 
+  signOut, 
+  User,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
+} from 'firebase/auth';
 import { db, auth } from './lib/firebase';
 import { analyzeAndHumanize, detectAI, HumanizeOptions, AnalysisResult, checkGrammar, GrammarSuggestion, GrammarOptions } from './services/geminiService';
 import { performDeepMLAnalysis, MLAnalysisResult } from './services/mlService';
@@ -55,6 +69,7 @@ import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { saveAs } from 'file-saver';
 import { PlansModal } from './components/PlansModal';
 import { AdminPanel } from './components/AdminPanel';
+import toast, { Toaster } from 'react-hot-toast';
 
 import { SubscriptionPlan, AppUser, PLAN_LIMITS, CustomTone, Project } from './types';
 
@@ -91,6 +106,10 @@ export default function App() {
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [isShowingSummary, setIsShowingSummary] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoginView, setIsLoginView] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [systemSettings, setSystemSettings] = useState({ 
     maintenanceMode: false, 
     maintenanceMessage: '',
@@ -250,11 +269,31 @@ export default function App() {
     };
   }, [inputText, aiSettings.enabled, aiSettings.sensitivity]);
 
-  const handleLogin = async () => {
+  const handleSocialLogin = async (providerName: 'google' | 'github' | 'twitter') => {
+    let provider;
+    if (providerName === 'google') provider = new GoogleAuthProvider();
+    else if (providerName === 'github') provider = new GithubAuthProvider();
+    else provider = new TwitterAuthProvider();
+
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
+      await signInWithPopup(auth, provider);
     } catch (error) {
-      console.error('Giriş başarısız', error);
+      console.error(`${providerName} girişi başarısız`, error);
+    }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    try {
+      if (isLoginView) {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+    } catch (error: any) {
+      console.error('Kimlik doğrulama hatası', error);
+      alert(`Hata: ${error.message}`);
     }
   };
 
@@ -472,41 +511,163 @@ export default function App() {
       alert("Eğitim verisi (JSONL) başarıyla indirildi. Bunu Google AI Studio'da model eğitmek (Tuned Model) için kullanabilirsiniz.");
     } catch (error) {
       console.error("Veri dışa aktarılırken hata oluştu", error);
-      alert("Veri indirilemedi.");
     }
   };
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(humanizedText);
+    toast.success("Metin panoya kopyalandı!");
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
-
   const isAdmin = user?.email?.toLowerCase() === 'ismail.kaleci@gmail.com';
+
 
   if (!user) {
     return (
-      <div className="min-h-screen grid place-items-center bg-brand-bg p-4">
+      <div className="min-h-screen grid place-items-center bg-mesh relative overflow-hidden p-4 font-sans selection:bg-emerald-500/30">
+        {/* Dinamik Arkaplan Efektleri */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/20 rounded-full blur-[120px] animate-pulse-soft" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px] animate-pulse-soft" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none" />
+
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full text-center space-y-8"
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="max-w-[480px] w-full login-card rounded-[40px] p-10 md:p-12 relative z-10 border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]"
         >
-          <div className="flex justify-center">
-            <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20">
-              <Fingerprint className="w-8 h-8 text-emerald-500" />
+          {/* Üst Işıltı Efekti */}
+          <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-[60%] h-[2px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+          
+          {/* Logo Bölümü */}
+          <div className="text-center space-y-6 mb-12">
+            <div className="flex justify-center">
+              <motion.div 
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                className="w-24 h-24 bg-gradient-to-br from-emerald-500/20 to-blue-500/10 rounded-[32px] flex items-center justify-center border border-white/10 backdrop-blur-2xl shadow-[0_20px_40px_rgba(0,0,0,0.3)] group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <Fingerprint className="w-12 h-12 text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]" />
+              </motion.div>
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-4xl font-black tracking-tighter text-white">
+                {isLoginView ? 'Tekrar Hoş Geldiniz' : 'Hesabınızı Oluşturun'}
+              </h1>
+              <p className="text-gray-400 text-base font-medium leading-relaxed max-w-[280px] mx-auto">
+                {isLoginView 
+                  ? 'Sentience AI ile metinlerinize hayat verin.' 
+                  : 'Yapay zekayı insan yaratıcılığıyla buluşturun.'}
+              </p>
             </div>
           </div>
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold tracking-tighter text-white">SENTIENCE AI</h1>
-            <p className="text-gray-400">Üst Düzey YZ İnsanlaştırma ve Düzeltme Motoru</p>
+
+          {/* Sosyal Girişler */}
+          <div className="space-y-4 mb-10">
+            <button
+              onClick={() => handleSocialLogin('google')}
+              className="w-full flex items-center justify-center gap-4 px-6 py-4 bg-white text-black font-bold rounded-2xl hover:bg-gray-100 transition-all duration-300 active:scale-[0.98] shadow-[0_10px_20px_rgba(255,255,255,0.1)] group"
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <span className="text-[15px]">Google ile {isLoginView ? 'Giriş Yap' : 'Devam Et'}</span>
+            </button>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => handleSocialLogin('github')}
+                className="flex items-center justify-center gap-3 px-4 py-4 bg-white/[0.03] hover:bg-white/[0.08] text-white font-bold rounded-2xl border border-white/10 transition-all duration-300 active:scale-[0.98] group"
+              >
+                <Github className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                <span className="text-sm">GitHub</span>
+              </button>
+              <button
+                onClick={() => handleSocialLogin('twitter')}
+                className="flex items-center justify-center gap-3 px-4 py-4 bg-white/[0.03] hover:bg-white/[0.08] text-white font-bold rounded-2xl border border-white/10 transition-all duration-300 active:scale-[0.98] group"
+              >
+                <Twitter className="w-5 h-5 text-gray-400 group-hover:text-[#1DA1F2] transition-colors" />
+                <span className="text-sm">X / Twitter</span>
+              </button>
+            </div>
           </div>
-          <button
-            onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-2 bg-white text-black py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
-          >
-            Google ile Giriş Yap
-          </button>
+
+          {/* Ayırıcı */}
+          <div className="relative mb-10">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/5"></div>
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-[#0a0a0a]/80 backdrop-blur-md px-6 text-[10px] uppercase tracking-[0.4em] font-black text-gray-600">
+                veya e-posta
+              </span>
+            </div>
+          </div>
+
+          {/* Form Bölümü */}
+          <form onSubmit={handleEmailAuth} className="space-y-4">
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                <Mail className="h-5 w-5 text-gray-500 group-focus-within:text-emerald-500 transition-colors" />
+              </div>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="E-posta Adresi"
+                className="input-premium pl-14"
+                required
+              />
+            </div>
+            
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-500 group-focus-within:text-emerald-500 transition-colors" />
+              </div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Şifre"
+                className="input-premium pl-14"
+                required
+              />
+            </div>
+
+            <div className="flex items-center justify-between px-2 pt-2">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className={cn(
+                  "w-5 h-5 rounded-md border border-white/10 flex items-center justify-center transition-all",
+                  rememberMe ? "bg-emerald-500 border-emerald-500" : "bg-white/5"
+                )} onClick={() => setRememberMe(!rememberMe)}>
+                  {rememberMe && <Check className="w-3 h-3 text-black font-bold" />}
+                </div>
+                <span className="text-xs text-gray-500 group-hover:text-gray-300 transition-colors">Beni Hatırla</span>
+              </label>
+              <button type="button" className="text-xs font-bold text-emerald-500/80 hover:text-emerald-400 transition-colors">
+                Şifremi Unuttum
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full btn-premium bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_20px_40px_rgba(16,185,129,0.25)] mt-4 group"
+            >
+              <span className="relative z-10">{isLoginView ? 'Giriş Yap' : 'Kayıt Ol'}</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+            </button>
+          </form>
+
+          {/* Alt Link */}
+          <div className="mt-10 text-center">
+            <p className="text-gray-500 text-sm">
+              {isLoginView ? 'Henüz hesabınız yok mu?' : 'Zaten bir hesabınız var mı?'}
+              <button
+                onClick={() => setIsLoginView(!isLoginView)}
+                className="ml-2 text-white font-bold hover:text-emerald-400 transition-colors underline underline-offset-4 decoration-emerald-500/30"
+              >
+                {isLoginView ? 'Hemen Kayıt Ol' : 'Giriş Yapın'}
+              </button>
+            </p>
+          </div>
         </motion.div>
       </div>
     );
@@ -653,7 +814,7 @@ export default function App() {
               <img src={user.photoURL || ''} alt="" className="w-8 h-8 rounded-full border border-emerald-500/20" />
               <div className="flex flex-col truncate">
                 <span className="text-xs font-semibold text-gray-300 truncate">{user.displayName}</span>
-                <span className="text-[10px] text-gray-500 font-mono truncate uppercase">{appUser?.role === 'admin' ? 'ADMIN' : `${appUser?.plan || 'FREE'} PLAN`}</span>
+                <span className="text-[10px] text-gray-500 font-mono truncate uppercase">{appUser?.role === 'admin' ? 'YÖNETİCİ' : `${appUser?.plan === 'premium' ? 'PREMIUM' : appUser?.plan === 'pro' ? 'PRO' : 'ÜCRETSİZ'} PLAN`}</span>
               </div>
             </div>
             <button onClick={handleLogout} className="p-2 hover:bg-white/5 rounded-md transition-colors">

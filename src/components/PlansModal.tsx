@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { X, Check, Zap, Crown, Shield } from 'lucide-react';
 import { AppUser, SubscriptionPlan, PLAN_LIMITS } from '../types';
 import { cn } from '../lib/utils';

@@ -5,10 +5,10 @@ import * as dotenv from "dotenv";
 // Load env variables
 dotenv.config({ path: ".env.local" });
 
-const apiKey = process.env.VITE_GEMINI_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
 if (!apiKey) {
-  console.error("HATA: VITE_GEMINI_API_KEY bulunamadı. Lütfen .env.local dosyanızı kontrol edin.");
+  console.error("HATA: GEMINI_API_KEY veya VITE_GEMINI_API_KEY bulunamadı. Lütfen .env.local dosyanızı kontrol edin.");
   process.exit(1);
 }
 
@@ -25,6 +25,8 @@ async function main() {
 
   console.log("1. Eğitim dosyası (JSONL) yükleniyor...");
   try {
+    // Note: The new SDK might use ai.files.upload or similar
+    // @ts-ignore
     const file = await ai.files.upload({
       file: filePath,
       config: {
@@ -35,14 +37,12 @@ async function main() {
     console.log(`Dosya yüklendi! URI: ${file.uri}`);
 
     console.log("2. Model eğitimi (Tuning) başlatılıyor...");
-    const tuningJob = await (ai.tunings as any).tune({
-      baseModel: "models/gemini-1.5-flash-001-tuning",
-      trainingDataset: {
-        // @ts-ignore: 'name' might be available in runtime or specific API version
-        name: file.name
-      },
-      config: {
-        tunedModelDisplayName: "Sentience-AI-Tuned",
+    // @ts-ignore
+    const tuningJob = await ai.tunings.create({
+      baseModel: "models/gemini-1.5-flash-001",
+      displayName: "Sentience-AI-Tuned",
+      trainingData: {
+        fileId: file.name
       }
     });
 
