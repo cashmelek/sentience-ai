@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Plus, 
-  History, 
-  Zap, 
-  ShieldCheck, 
-  Gauge, 
-  Trash2, 
-  Copy, 
-  Check, 
-  MoreVertical, 
+import {
+  Plus,
+  History,
+  Zap,
+  ShieldCheck,
+  Gauge,
+  Trash2,
+  Copy,
+  Check,
+  MoreVertical,
   Sparkles,
   Search,
   Settings2,
@@ -30,53 +30,37 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  deleteDoc,
+  doc,
   serverTimestamp,
   getDocs,
-  updateDoc
+  updateDoc,
+  getDoc,
+  setDoc
 } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { db, auth } from './lib/firebase';
 import { analyzeAndHumanize, detectAI, HumanizeOptions, AnalysisResult, checkGrammar, GrammarSuggestion, GrammarOptions } from './services/geminiService';
+import { performDeepMLAnalysis, MLAnalysisResult } from './services/mlService';
 import { cn } from './lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { saveAs } from 'file-saver';
+import { PlansModal } from './components/PlansModal';
+import { AdminPanel } from './components/AdminPanel';
 
-// --- Tipler ---
-interface CustomTone {
-  id: string;
-  name: string;
-  description: string;
-  userId: string;
-}
-
-interface Project {
-  id: string;
-  title: string;
-  originalText: string;
-  humanizedText: string;
-  tone: string;
-  intensity: number;
-  aiScore: number;
-  plagiarismScore: number;
-  sources: { title: string; url: string; similarity: number; matchedSnippet: string }[];
-  grammarSuggestions: GrammarSuggestion[];
-  isDraft: boolean;
-  createdAt: any;
-  insights: any[];
-}
+import { SubscriptionPlan, AppUser, PLAN_LIMITS, CustomTone, Project } from './types';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [customTones, setCustomTones] = useState<CustomTone[]>([]);
   const [inputText, setInputText] = useState('');
@@ -84,13 +68,16 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCheckingRT, setIsCheckingRT] = useState(false);
   const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<'editor' | 'drafts' | 'history'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'drafts' | 'history' | 'admin' | 'plans'>('editor');
   const [options, setOptions] = useState<HumanizeOptions>({ tone: 'Profesyonel', intensity: 80 });
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [mlAnalysis, setMlAnalysis] = useState<MLAnalysisResult | null>(null);
   const [grammarSuggestions, setGrammarSuggestions] = useState<GrammarSuggestion[]>([]);
   const [realtimeScore, setRealtimeScore] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summary, setSummary] = useState('');
   const [showCustomToneModal, setShowCustomToneModal] = useState(false);
   const [showGrammarPrefsModal, setShowGrammarPrefsModal] = useState(false);
   const [grammarPrefs, setGrammarPrefs] = useState<GrammarOptions>({ prioritize: [], ignore: [] });
@@ -102,6 +89,13 @@ export default function App() {
   const [showAiSettingsModal, setShowAiSettingsModal] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState<{ type: 'Dilbilgisi' | 'YZ' | 'Hepsi'; active: boolean }>({ type: 'Hepsi', active: false });
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [showPlansModal, setShowPlansModal] = useState(false);
+  const [isShowingSummary, setIsShowingSummary] = useState(false);
+  const [systemSettings, setSystemSettings] = useState({ 
+    maintenanceMode: false, 
+    maintenanceMessage: '',
+    defaultIntensity: 80 
+  });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -119,9 +113,70 @@ export default function App() {
     return onAuthStateChanged(auth, (u) => setUser(u));
   }, []);
 
+  // --- Sistem Ayarları Senkronizasyonu ---
+  useEffect(() => {
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'system'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setSystemSettings({
+          maintenanceMode: data.maintenanceMode || false,
+          maintenanceMessage: data.maintenanceMessage || '',
+          defaultIntensity: data.defaultIntensity || 80
+        });
+      }
+    });
+    return () => unsubSettings();
+  }, []);
+
+  // --- Kullanıcı Bilgisi (AppUser) Senkronizasyonu ---
+  useEffect(() => {
+    if (!user) {
+      setAppUser(null);
+      return;
+    }
+
+    const userRef = doc(db, 'users', user.uid);
+    const today = new Date().toISOString().split('T')[0];
+
+    const unsubscribe = onSnapshot(userRef, async (docSnap) => {
+      const isEmailAdmin = user.email?.toLowerCase() === 'ismail.kaleci@gmail.com';
+      
+      if (!docSnap.exists()) {
+        const newUser: AppUser = {
+          uid: user.uid,
+          email: user.email,
+          role: isEmailAdmin ? 'admin' : 'user',
+          plan: 'free',
+          dailyUsage: 0,
+          lastResetDate: today
+        };
+        await setDoc(userRef, newUser);
+      } else {
+        const data = docSnap.data() as AppUser;
+        
+        // Admin yetkisi e-postaya göre zorunlu tutuluyor
+        if (isEmailAdmin && data.role !== 'admin') {
+          await updateDoc(userRef, { role: 'admin' });
+          setAppUser({ ...data, role: 'admin', lastResetDate: data.lastResetDate === today ? today : data.lastResetDate });
+        } else if (data.lastResetDate !== today) {
+          const resetData = {
+            dailyUsage: 0,
+            lastResetDate: today,
+            role: isEmailAdmin ? 'admin' : data.role
+          };
+          await updateDoc(userRef, resetData);
+        } else {
+          setAppUser(data);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
-    
+
     const qProjects = query(
       collection(db, 'projects'),
       where('userId', '==', user.uid),
@@ -156,7 +211,7 @@ export default function App() {
       setQuotaExceeded(false);
       return;
     }
-    
+
     setCheckingStatus({ type: 'Hepsi', active: true });
     const timer = setTimeout(async () => {
       try {
@@ -165,7 +220,7 @@ export default function App() {
         promises.push(checkGrammar(inputText, grammarPrefs));
 
         const results = await Promise.all(promises);
-        
+
         let detection;
         let grammar;
         if (aiSettings.enabled) {
@@ -177,7 +232,7 @@ export default function App() {
           grammar = results[0];
           setGrammarSuggestions(grammar);
         }
-        
+
         setLastCheckTime(new Date());
         setQuotaExceeded(false);
       } catch (err: any) {
@@ -188,7 +243,7 @@ export default function App() {
       } finally {
         setCheckingStatus({ type: 'Hepsi', active: false });
       }
-    }, 8000); // Gecikme süresi artırıldı
+    }, 2000); // Gecikme süresi optimize edildi
 
     return () => {
       clearTimeout(timer);
@@ -206,13 +261,27 @@ export default function App() {
   const handleLogout = () => signOut(auth);
 
   const handleHumanize = async () => {
-    if (!inputText.trim() || !user) return;
+    if (!inputText.trim() || !user || !appUser) return;
+    
+    const limit = PLAN_LIMITS[appUser.plan] || 10;
+    if (appUser.role !== 'admin' && appUser.dailyUsage >= limit) {
+      alert("Günlük kullanım kotanızı doldurdunuz. Lütfen planınızı yükseltin veya yarın tekrar deneyin.");
+      setShowPlansModal(true);
+      return;
+    }
+
     setIsProcessing(true);
+    setIsShowingSummary(false);
     try {
       const customToneData = customTones.find(t => t.name === options.tone);
       const opt = { ...options, customToneDescription: customToneData?.description };
-      
+
       const result = await analyzeAndHumanize(inputText, opt);
+
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, { dailyUsage: appUser.dailyUsage + 1 });
+      setAppUser({...appUser, dailyUsage: appUser.dailyUsage + 1});
+
       setHumanizedText(result.humanizedText);
       setAnalysis(result);
 
@@ -340,6 +409,24 @@ export default function App() {
     setActiveSuggestion(null);
   };
 
+  const handleSummarize = async () => {
+    if (!inputText.trim()) return;
+    setIsSummarizing(true);
+    setIsShowingSummary(true);
+    try {
+      // Not: Normalde Genkit flow'u bir API üzerinden çağrılır. 
+      // Burada altyapının hazır olduğunu simüle ediyoruz.
+      const res = await analyzeAndHumanize(inputText, { tone: 'Özet', intensity: 50 });
+      setHumanizedText(res.humanizedText);
+      setSummary(res.humanizedText.slice(0, 200) + '...');
+    } catch (err) {
+      console.error(err);
+      setIsShowingSummary(false);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
   const deleteProject = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -356,16 +443,51 @@ export default function App() {
     snapshot.docs.forEach(async (d) => await deleteDoc(d.ref));
   };
 
+  const exportTuningData = async () => {
+    if (!user) return;
+    try {
+      const q = query(collection(db, 'projects'), where('userId', '==', user.uid), where('isDraft', '==', false));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        alert("Eğitim için yeterli veri bulunamadı. Lütfen önce metinleri insanileştirip geçmiş oluşturun.");
+        return;
+      }
+
+      let jsonlContent = '';
+      snapshot.forEach((doc) => {
+        const data = doc.data() as Project;
+        // Google AI Studio (Gemini) tuning format:
+        const entry = {
+          messages: [
+            { role: "user", content: `Metni insanlaştır (Ton: ${data.tone}, Yoğunluk: ${data.intensity}):\n\n${data.originalText}` },
+            { role: "model", content: data.humanizedText }
+          ]
+        };
+        jsonlContent += JSON.stringify(entry) + '\n';
+      });
+
+      const blob = new Blob([jsonlContent], { type: 'application/jsonl' });
+      saveAs(blob, 'sentience_tuning_data.jsonl');
+      alert("Eğitim verisi (JSONL) başarıyla indirildi. Bunu Google AI Studio'da model eğitmek (Tuned Model) için kullanabilirsiniz.");
+    } catch (error) {
+      console.error("Veri dışa aktarılırken hata oluştu", error);
+      alert("Veri indirilemedi.");
+    }
+  };
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(humanizedText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const isAdmin = user?.email?.toLowerCase() === 'ismail.kaleci@gmail.com';
+
   if (!user) {
     return (
       <div className="min-h-screen grid place-items-center bg-brand-bg p-4">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="max-w-md w-full text-center space-y-8"
@@ -379,7 +501,7 @@ export default function App() {
             <h1 className="text-4xl font-bold tracking-tighter text-white">SENTIENCE AI</h1>
             <p className="text-gray-400">Üst Düzey YZ İnsanlaştırma ve Düzeltme Motoru</p>
           </div>
-          <button 
+          <button
             onClick={handleLogin}
             className="w-full flex items-center justify-center gap-2 bg-white text-black py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
           >
@@ -392,6 +514,26 @@ export default function App() {
 
   const drafts = projects.filter(p => p.isDraft);
   const history = projects.filter(p => !p.isDraft);
+
+  // Bakım Modu Ekranı
+  if (systemSettings.maintenanceMode && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-brand-bg flex items-center justify-center p-4 text-center">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-md space-y-6">
+          <div className="flex justify-center">
+            <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center border border-amber-500/20 animate-pulse">
+              <Settings2 className="w-10 h-10 text-amber-500" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-black text-white tracking-tighter">SİSTEM BAKIMDA</h1>
+          <p className="text-gray-400">{systemSettings.maintenanceMessage || 'Size daha iyi bir deneyim sunmak için sistemimizi güncelliyoruz. Lütfen kısa bir süre sonra tekrar deneyin.'}</p>
+          <div className="pt-4">
+            <button onClick={handleLogout} className="text-xs font-bold text-gray-500 hover:text-white transition-colors uppercase tracking-widest">Çıkış Yap</button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-brand-bg overflow-hidden font-sans">
@@ -407,7 +549,7 @@ export default function App() {
           </button>
         </div>
 
-        <div className="p-4 flex gap-2 border-b border-brand-border">
+        <div className="p-4 flex gap-2 border-b border-brand-border flex-wrap">
           <button onClick={() => setActiveTab('history')} className={cn("flex-1 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-all", activeTab === 'history' ? "bg-emerald-500/10 text-emerald-500" : "text-gray-500")}>Geçmiş</button>
           <button onClick={() => setActiveTab('drafts')} className={cn("flex-1 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase transition-all", activeTab === 'drafts' ? "bg-emerald-500/10 text-emerald-500" : "text-gray-500")}>Taslaklar ({drafts.length})</button>
         </div>
@@ -418,19 +560,19 @@ export default function App() {
               <div className="p-4 text-center text-gray-600 text-sm italic">Henüz içerik yok</div>
             ) : (
               (activeTab === 'history' ? history : drafts).map(p => (
-                <div 
+                <div
                   key={p.id}
                   onClick={() => {
                     setInputText(p.originalText);
                     setHumanizedText(p.humanizedText);
                     setOptions({ tone: p.tone, intensity: p.intensity });
-                    if (!p.isDraft) setAnalysis({ 
-                      humanizedText: p.humanizedText, 
-                      aiScore: p.aiScore, 
-                      isPlagiarized: p.plagiarismScore > 30, 
+                    if (!p.isDraft) setAnalysis({
+                      humanizedText: p.humanizedText,
+                      aiScore: p.aiScore,
+                      isPlagiarized: p.plagiarismScore > 30,
                       similarityScore: p.plagiarismScore,
-                      sources: p.sources, 
-                      insights: p.insights 
+                      sources: p.sources,
+                      insights: p.insights
                     });
                     setActiveTab('editor');
                   }}
@@ -443,9 +585,9 @@ export default function App() {
                     </button>
                   </div>
                   <div className="flex items-center gap-3 text-[10px] text-gray-500 font-mono uppercase">
-                      <span className="text-emerald-500/70">{p.tone}</span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(p.createdAt?.toDate?.() || Date.now()).toLocaleDateString('tr-TR')}</span>
+                    <span className="text-emerald-500/70">{p.tone}</span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(p.createdAt?.toDate?.() || Date.now()).toLocaleDateString('tr-TR')}</span>
                   </div>
                 </div>
               ))
@@ -454,18 +596,64 @@ export default function App() {
         </div>
 
         <div className="p-4 border-t border-brand-border space-y-4">
-          <button 
+          <button
+            onClick={exportTuningData}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-emerald-500/70 hover:text-emerald-500 hover:bg-emerald-500/5 rounded-md transition-all font-medium"
+          >
+            <Download className="w-4 h-4" /> Eğitim Verisi İndir
+          </button>
+          <button
             onClick={clearAllData}
             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500/70 hover:text-red-500 hover:bg-red-500/5 rounded-md transition-all font-medium"
           >
             <AlertCircle className="w-4 h-4" /> Tüm Verileri Sil
           </button>
+
+          {isAdmin && (
+             <motion.button 
+              initial={{ opacity: 0.8 }}
+              animate={{ opacity: 1 }}
+              whileHover={{ scale: 1.02 }}
+              onClick={() => {
+                if (isAdmin) setActiveTab('admin');
+                else setActiveTab('editor');
+              }} 
+              className={cn(
+                "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black tracking-[0.2em] uppercase transition-all border relative overflow-hidden group", 
+                activeTab === 'admin' 
+                  ? "bg-emerald-500 border-emerald-500 text-black shadow-[0_0_30px_rgba(16,185,129,0.4)]" 
+                  : "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/40"
+              )}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+              <ShieldCheck className={cn("w-4 h-4", activeTab === 'admin' ? "animate-pulse" : "")} /> 
+              Yönetim Paneli
+            </motion.button>
+          )}
+
+          {appUser && (
+            <div className="bg-brand-bg p-3 rounded-lg border border-brand-border">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Günlük Kota</span>
+                <span className="text-xs font-mono text-emerald-500">{appUser.role === 'admin' ? 'Sınırsız' : `${appUser.dailyUsage} / ${PLAN_LIMITS[appUser.plan]}`}</span>
+              </div>
+              <div className="h-1.5 w-full bg-brand-border rounded-full overflow-hidden">
+                <div 
+                  className={cn("h-full rounded-full transition-all duration-500", appUser.role === 'admin' ? "bg-emerald-500 w-full" : (appUser.dailyUsage >= PLAN_LIMITS[appUser.plan] ? "bg-red-500" : "bg-emerald-500"))} 
+                  style={{ width: appUser.role === 'admin' ? '100%' : `${Math.min(100, (appUser.dailyUsage / PLAN_LIMITS[appUser.plan]) * 100)}%` }}
+                />
+              </div>
+              {appUser.role !== 'admin' && (
+                <button onClick={() => setShowPlansModal(true)} className="w-full mt-3 text-[10px] uppercase font-bold text-gray-500 hover:text-emerald-500 transition-colors">Planı Yükselt</button>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2 p-2 bg-brand-bg rounded-lg">
             <div className="flex items-center gap-2 overflow-hidden">
               <img src={user.photoURL || ''} alt="" className="w-8 h-8 rounded-full border border-emerald-500/20" />
               <div className="flex flex-col truncate">
                 <span className="text-xs font-semibold text-gray-300 truncate">{user.displayName}</span>
-                <span className="text-[10px] text-gray-500 font-mono truncate">PROFESYONEL PLAN</span>
+                <span className="text-[10px] text-gray-500 font-mono truncate uppercase">{appUser?.role === 'admin' ? 'ADMIN' : `${appUser?.plan || 'FREE'} PLAN`}</span>
               </div>
             </div>
             <button onClick={handleLogout} className="p-2 hover:bg-white/5 rounded-md transition-colors">
@@ -477,13 +665,17 @@ export default function App() {
 
       {/* --- Ana İçerik --- */}
       <main className="flex-1 flex flex-col bg-brand-bg relative">
-        <header className="h-20 border-b border-brand-border flex items-center justify-between px-8 bg-brand-card/50 backdrop-blur-md sticky top-0 z-10">
+        {activeTab === 'admin' && isAdmin ? (
+          <AdminPanel />
+        ) : (
+          <>
+            <header className="h-20 border-b border-brand-border flex items-center justify-between px-8 bg-brand-card/50 backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center gap-8">
             <div className="flex flex-col gap-1">
               <label className="text-[9px] uppercase tracking-widest text-gray-600 font-bold flex items-center gap-1"><Settings2 className="w-3 h-3" /> Üst Ton Seçimi</label>
               <div className="flex items-center gap-2">
-                <select 
-                  value={options.tone} 
+                <select
+                  value={options.tone}
                   onChange={(e) => setOptions({ ...options, tone: e.target.value })}
                   className="bg-transparent border-none text-sm font-bold outline-none focus:ring-0 text-gray-300 hover:text-emerald-500 transition-colors uppercase tracking-widest p-0 cursor-pointer"
                 >
@@ -511,9 +703,9 @@ export default function App() {
             <div className="flex flex-col gap-1 w-48">
               <label className="text-[9px] uppercase tracking-widest text-gray-600 font-bold flex items-center gap-1"><Zap className="w-3 h-3" /> {getIntensityFeedback(options.intensity).label} ({options.intensity}%)</label>
               <div className="flex flex-col">
-                <input 
-                  type="range" 
-                  min="0" max="100" 
+                <input
+                  type="range"
+                  min="0" max="100"
                   value={options.intensity}
                   onChange={(e) => setOptions({ ...options, intensity: parseInt(e.target.value) })}
                   className="w-full h-1 bg-brand-border rounded-lg appearance-none cursor-pointer accent-emerald-500 shadow-xl"
@@ -524,14 +716,26 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button 
+            <button
+              onClick={handleSummarize}
+              disabled={isSummarizing || !inputText.trim()}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2 rounded-full border text-xs font-bold transition-all",
+                isShowingSummary 
+                  ? "bg-emerald-500/20 border-emerald-500 text-emerald-500" 
+                  : "border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/5"
+              )}
+            >
+              {isSummarizing ? 'ÖZETLENİYOR...' : 'METNİ ÖZETLE'}
+            </button>
+            <button
               onClick={saveDraft}
               disabled={isDrafting || !inputText.trim()}
               className="flex items-center gap-2 px-5 py-2 rounded-full border border-brand-border text-xs font-bold hover:bg-white/5 transition-all text-gray-400 disabled:opacity-50"
             >
               <Save className="w-4 h-4" /> TASLAK KAYDET
             </button>
-            <button 
+            <button
               onClick={handleHumanize}
               disabled={isProcessing || !inputText.trim()}
               className={cn(
@@ -553,14 +757,14 @@ export default function App() {
                   <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 flex items-center gap-2">
                     <ChevronRight className="w-3 h-3 text-emerald-500" /> Kaynak Metin
                   </span>
-                  
+
                   {realtimeScore !== null && aiSettings.enabled && (
                     <button onClick={() => setShowAiSettingsModal(true)} className="flex items-center gap-2 group/score">
-                       <span className="text-[9px] text-gray-500 uppercase font-black">Canlı YZ Tespiti:</span>
-                       <div className="w-16 h-1 bg-brand-border rounded-full overflow-hidden">
-                          <motion.div animate={{ width: `${realtimeScore * 100}%` }} className={cn("h-full", realtimeScore > 0.5 ? "bg-red-500" : "bg-emerald-500")} />
-                       </div>
-                       <span className="text-[10px] font-mono text-gray-400">{Math.round(realtimeScore * 100)}%</span>
+                      <span className="text-[9px] text-gray-500 uppercase font-black">Canlı YZ Tespiti:</span>
+                      <div className="w-16 h-1 bg-brand-border rounded-full overflow-hidden">
+                        <motion.div animate={{ width: `${realtimeScore * 100}%` }} className={cn("h-full", realtimeScore > 0.5 ? "bg-red-500" : "bg-emerald-500")} />
+                      </div>
+                      <span className="text-[10px] font-mono text-gray-400">{Math.round(realtimeScore * 100)}%</span>
                     </button>
                   )}
 
@@ -579,7 +783,7 @@ export default function App() {
                       <span className="text-[9px] text-yellow-500 font-bold uppercase tracking-widest leading-none">Kota Sınırı - Bekleniyor</span>
                     </div>
                   )}
-                  
+
                   {lastCheckTime && !checkingStatus.active && !quotaExceeded && (
                     <div className="flex items-center gap-1.5 ml-4">
                       <Check className="w-3 h-3 text-emerald-500/40" />
@@ -598,7 +802,7 @@ export default function App() {
                 </div>
               </div>
               <div className="relative flex-1 group">
-                <textarea 
+                <textarea
                   ref={textareaRef}
                   value={inputText}
                   onScroll={handleScroll}
@@ -688,7 +892,13 @@ export default function App() {
 
             <div className="relative group flex flex-col bg-brand-card rounded-2xl border border-brand-border hover:border-emerald-500/20 transition-all overflow-hidden shadow-2xl">
               <div className="px-6 py-3 border-b border-brand-border flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500 flex items-center gap-2"><Sparkles className="w-3 h-3" /> İnsanlaştırılmış Metin</span>
+                <span className={cn(
+                  "text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2",
+                  isShowingSummary ? "text-emerald-400" : "text-emerald-500"
+                )}>
+                  {isShowingSummary ? <BookOpen className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                  {isShowingSummary ? 'Yapay Zeka Özet Sonucu' : 'İnsanlaştırılmış Metin'}
+                </span>
                 <div className="flex items-center gap-2">
                   <div className="flex bg-brand-bg rounded-lg border border-brand-border p-0.5">
                     <button onClick={exportTxt} disabled={!humanizedText} className="p-1.5 hover:bg-emerald-500/10 rounded-md transition-colors text-gray-400 hover:text-emerald-500 disabled:opacity-50" title="Metin Olarak Dışa Aktar"><Download className="w-3.5 h-3.5" /></button>
@@ -706,6 +916,17 @@ export default function App() {
           <div className="w-96 flex flex-col gap-6 shrink-0 h-full overflow-y-auto custom-scrollbar pr-2 pb-12">
             <div className="p-6 bg-brand-card rounded-2xl border border-brand-border space-y-6 shadow-xl">
               <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 flex items-center gap-2"><Gauge className="w-4 h-4 text-emerald-500" /> Analitik Rapor</h3>
+
+              {mlAnalysis && (
+                <div className="p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/10 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">ML Okunabilirlik</span>
+                    <span className="text-xs font-mono text-white">{Math.round(mlAnalysis.readabilityScore * 100)}%</span>
+                  </div>
+                  <div className="text-[10px] text-gray-400 italic">Karmaşıklık: <span className="text-emerald-400">{mlAnalysis.complexity}</span></div>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-end"><span className="text-xs text-gray-400">İnsan Benzerliği</span><span className={cn("text-xl font-mono font-bold", (analysis?.aiScore || 0) < 0.2 ? "text-emerald-500" : "text-amber-500")}>{analysis ? Math.round((1 - analysis.aiScore) * 100) : '--'}%</span></div>
@@ -717,21 +938,21 @@ export default function App() {
                 </div>
                 {analysis?.sources && analysis.sources.length > 0 ? (
                   <div className="p-4 bg-red-500/5 rounded-2xl border border-red-500/20 space-y-4 shadow-[0_10px_30px_rgba(239,68,68,0.05)]">
-                     <div className="flex items-center justify-between px-1">
-                        <div className="flex items-center gap-3"><div className="p-2 bg-red-500/10 rounded-lg"><ShieldCheck className="w-5 h-5 text-red-500" /></div><div><h4 className="text-[11px] font-black text-red-500 uppercase tracking-tighter">İntihal Kanıt Merkezi</h4><p className="text-[9px] text-gray-500 font-medium">Tespit edilen eşleşmeler</p></div></div>
-                        <div className="text-right"><span className="text-[14px] font-mono font-bold text-red-500">%{analysis.similarityScore}</span><p className="text-[8px] text-gray-500 uppercase tracking-widest font-black">Genel Risk</p></div>
-                     </div>
-                     <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
-                        {analysis.sources.map((s, i) => (
-                          <div key={i} className="group relative bg-brand-bg/40 rounded-2xl border border-brand-border/40 hover:border-red-500/40 hover:bg-brand-bg/60 transition-all duration-300 p-4">
-                            <div className="flex items-start justify-between gap-4 mb-4">
-                               <div className="flex-1 min-w-0"><h5 className="text-[12px] font-bold text-gray-100 truncate mb-1">{s.title}</h5><div className="flex items-center gap-2"><ExternalLink className="w-3 h-3 text-red-500/50" /><a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[9px] text-gray-500 hover:text-red-400 transition-colors truncate block">{s.url}</a></div></div>
-                               <div className="flex flex-col items-end"><div className="px-2 py-1 bg-red-500/10 rounded-md border border-red-500/20"><span className="text-[10px] font-mono font-black text-red-500">%{s.similarity}</span></div></div>
-                            </div>
-                            <div className="relative"><div className="absolute -left-3 top-0 bottom-0 w-1 bg-red-500/20 rounded-full group-hover:bg-red-500/40 transition-colors" /><div className="bg-black/40 rounded-xl p-3 border border-white/5"><div className="flex items-center gap-2 mb-2"><Fingerprint className="w-3 h-3 text-red-500/50" /><span className="text-[8px] font-black text-red-400/80 uppercase tracking-widest">Eşleşen Metin Bloğu</span></div><p className="text-[11px] text-gray-400 italic leading-relaxed">"...{s.matchedSnippet}..."</p></div></div>
+                    <div className="flex items-center justify-between px-1">
+                      <div className="flex items-center gap-3"><div className="p-2 bg-red-500/10 rounded-lg"><ShieldCheck className="w-5 h-5 text-red-500" /></div><div><h4 className="text-[11px] font-black text-red-500 uppercase tracking-tighter">İntihal Kanıt Merkezi</h4><p className="text-[9px] text-gray-500 font-medium">Tespit edilen eşleşmeler</p></div></div>
+                      <div className="text-right"><span className="text-[14px] font-mono font-bold text-red-500">%{analysis.similarityScore}</span><p className="text-[8px] text-gray-500 uppercase tracking-widest font-black">Genel Risk</p></div>
+                    </div>
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                      {analysis.sources.map((s, i) => (
+                        <div key={i} className="group relative bg-brand-bg/40 rounded-2xl border border-brand-border/40 hover:border-red-500/40 hover:bg-brand-bg/60 transition-all duration-300 p-4">
+                          <div className="flex items-start justify-between gap-4 mb-4">
+                            <div className="flex-1 min-w-0"><h5 className="text-[12px] font-bold text-gray-100 truncate mb-1">{s.title}</h5><div className="flex items-center gap-2"><ExternalLink className="w-3 h-3 text-red-500/50" /><a href={s.url} target="_blank" rel="noopener noreferrer" className="text-[9px] text-gray-500 hover:text-red-400 transition-colors truncate block">{s.url}</a></div></div>
+                            <div className="flex flex-col items-end"><div className="px-2 py-1 bg-red-500/10 rounded-md border border-red-500/20"><span className="text-[10px] font-mono font-black text-red-500">%{s.similarity}</span></div></div>
                           </div>
-                        ))}
-                     </div>
+                          <div className="relative"><div className="absolute -left-3 top-0 bottom-0 w-1 bg-red-500/20 rounded-full group-hover:bg-red-500/40 transition-colors" /><div className="bg-black/40 rounded-xl p-3 border border-white/5"><div className="flex items-center gap-2 mb-2"><Fingerprint className="w-3 h-3 text-red-500/50" /><span className="text-[8px] font-black text-red-400/80 uppercase tracking-widest">Eşleşen Metin Bloğu</span></div><p className="text-[11px] text-gray-400 italic leading-relaxed">"...{s.matchedSnippet}..."</p></div></div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -743,17 +964,17 @@ export default function App() {
             </div>
             {grammarSuggestions.length > 0 && (
               <div className="p-6 bg-brand-card rounded-2xl border border-emerald-500/20 shadow-xl space-y-4">
-                 <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2"><BookOpen className="w-4 h-4" /> Yazım Denetimi</h3>
-                 <div className="space-y-3">
-                   {grammarSuggestions.map((s, i) => (
-                     <div key={i} className="p-3 bg-brand-bg rounded-lg border border-brand-border group space-y-2">
-                       <div className="text-red-500/70 text-[10px] line-through font-mono">"{s.original}"</div>
-                       <div className="text-emerald-500 text-[11px] font-bold">Öneri: {s.suggestion}</div>
-                       <p className="text-[10px] text-gray-500 leading-relaxed italic">{s.explanation}</p>
-                       <button onClick={() => applySuggestion(s)} className="w-full py-1 bg-emerald-500/10 text-emerald-500 rounded text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all hover:bg-emerald-500 hover:text-black">Düzeltmeyi Uygula</button>
-                     </div>
-                   ))}
-                 </div>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2"><BookOpen className="w-4 h-4" /> Yazım Denetimi</h3>
+                <div className="space-y-3">
+                  {grammarSuggestions.map((s, i) => (
+                    <div key={i} className="p-3 bg-brand-bg rounded-lg border border-brand-border group space-y-2">
+                      <div className="text-red-500/70 text-[10px] line-through font-mono">"{s.original}"</div>
+                      <div className="text-emerald-500 text-[11px] font-bold">Öneri: {s.suggestion}</div>
+                      <p className="text-[10px] text-gray-500 leading-relaxed italic">{s.explanation}</p>
+                      <button onClick={() => applySuggestion(s)} className="w-full py-1 bg-emerald-500/10 text-emerald-500 rounded text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all hover:bg-emerald-500 hover:text-black">Düzeltmeyi Uygula</button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             <div className="flex-1 p-6 bg-brand-card rounded-2xl border border-brand-border flex flex-col gap-6 shadow-xl min-h-0">
@@ -764,9 +985,14 @@ export default function App() {
             </div>
           </div>
         </div>
+          </>
+        )}
       </main>
 
       <AnimatePresence>
+        {showPlansModal && appUser && (
+          <PlansModal user={appUser} onClose={() => setShowPlansModal(false)} />
+        )}
         {showGrammarPrefsModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowGrammarPrefsModal(false)} />
