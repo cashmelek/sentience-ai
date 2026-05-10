@@ -817,8 +817,13 @@ export default function App() {
         {showCustomToneModal && (
           <CustomToneModal
             onClose={() => setShowCustomToneModal(false)}
-            onApply={(tone) => {
-              setOptions({ ...options, tone, customToneDescription: tone });
+            onApply={(name, description) => {
+              setOptions({ 
+                ...options, 
+                tone: name || 'Özel', 
+                customToneName: name,
+                customToneDescription: description 
+              });
               setShowCustomToneModal(false);
             }}
           />

@@ -44,6 +44,7 @@ export interface AnalysisResult {
 export interface HumanizeOptions {
   tone: string;
   intensity: number;
+  customToneName?: string;
   customToneDescription?: string;
 }
 
@@ -66,9 +67,12 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
 
   for (const modelName of modelsToTry) {
     try {
-      const styleInstruction = options.customToneDescription 
-        ? `Özel Tarz: ${options.customToneDescription}`
-        : `Ton: ${options.tone}`;
+      let styleInstruction = "";
+      if (options.customToneName || options.customToneDescription) {
+        styleInstruction = `Özel Tarz: ${options.customToneName ? `[${options.customToneName}] ` : ""}${options.customToneDescription || ""}`;
+      } else {
+        styleInstruction = `Ton: ${options.tone}`;
+      }
 
       let intensityInstruction = "";
       let temp = 0.5;

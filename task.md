@@ -18,6 +18,6 @@
 *   [x] "Başla" butonlarının Auth akışıyla bağlanması.
 
 ## Görev 4: Doğrulama ve Test
-*   [ ] Landing Page demosunun Core motoru bozmadığının doğrulanması.
-*   [ ] Premium tema bütünlüğünün ve mobil uyumluluğun kontrolü.
-*   [ ] GitHub deploy işleminin gerçekleştirilmesi.
+*   [x] Landing Page demosunun Core motoru bozmadığının doğrulanması.
+*   [x] Premium tema bütünlüğünün ve mobil uyumluluğun kontrolü.
+*   [x] GitHub deploy işleminin gerçekleştirilmesi.
