@@ -85,6 +85,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { CustomToneModal } from './components/CustomToneModal';
 import { GuideModal } from './components/GuideModal';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
+import { LandingPage } from './components/LandingPage';
 
 import { AppUser, PLAN_LIMITS, Project } from './types';
 
@@ -105,6 +106,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // UI State
+  const [view, setView] = useState<'landing' | 'login'>('landing');
   const [activeTab, setActiveTab] = useState<'editor' | 'drafts' | 'history' | 'admin' | 'plans'>('editor');
   const [sidebarTab, setSidebarTab] = useState<'history' | 'drafts'>('history');
   const [showPlansModal, setShowPlansModal] = useState(false);
@@ -418,25 +420,57 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen grid place-items-center bg-mesh p-4 font-sans relative">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-[420px] w-full login-card p-10 rounded-[32px] border border-white/10 shadow-2xl relative z-10">
-          <Fingerprint className="w-12 h-12 text-emerald-500 mx-auto mb-6" />
-          <h1 className="text-2xl font-black text-white text-center mb-8">Sentience AI</h1>
-          <button onClick={() => handleSocialLogin('google')} className="w-full flex items-center justify-center gap-4 px-6 py-3 bg-white text-black font-bold rounded-2xl hover:bg-gray-100 transition-all mb-6">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
-            Google ile Giriş Yap
-          </button>
-          <form onSubmit={handleEmailAuth} className="space-y-4">
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-posta" className="input-premium w-full" required />
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Şifre" className="input-premium w-full" required />
-            <button type="submit" className="w-full btn-premium bg-emerald-500 text-black py-4 rounded-2xl font-bold">{isLoginView ? 'Giriş Yap' : 'Kayıt Ol'}</button>
-          </form>
-          <p className="text-center mt-6 text-gray-500 text-sm">
-            {isLoginView ? 'Hesabınız yok mu?' : 'Zaten bir hesabınız var mı?'}
-            <button onClick={() => setIsLoginView(!isLoginView)} className="ml-2 text-white font-bold underline">Hemen {isLoginView ? 'Kayıt Ol' : 'Giriş Yap'}</button>
-          </p>
-        </motion.div>
-      </div>
+      <AnimatePresence mode="wait">
+        {view === 'landing' ? (
+          <motion.div
+            key="landing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <LandingPage 
+              onGetStarted={() => setView('login')} 
+              onLogin={() => setView('login')} 
+            />
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="login"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="min-h-screen grid place-items-center bg-mesh p-4 font-sans relative"
+          >
+            <div className="max-w-[420px] w-full login-card p-10 rounded-[32px] border border-white/10 shadow-2xl relative z-10">
+              <div className="flex justify-between items-start mb-6">
+                <Fingerprint className="w-12 h-12 text-emerald-500" />
+                <button 
+                  onClick={() => setView('landing')}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold text-gray-400 hover:bg-white/10 transition-all"
+                >
+                  <ArrowRight className="w-3 h-3 rotate-180" /> Ana Sayfaya Dön
+                </button>
+              </div>
+              <h1 className="text-2xl font-black text-white text-center mb-8">Sentience AI</h1>
+              <button onClick={() => handleSocialLogin('google')} className="w-full flex items-center justify-center gap-4 px-6 py-3 bg-white text-black font-bold rounded-2xl hover:bg-gray-100 transition-all mb-6">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+                Google ile Giriş Yap
+              </button>
+              <form onSubmit={handleEmailAuth} className="space-y-4">
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-posta" className="input-premium w-full" required />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Şifre" className="input-premium w-full" required />
+                <button type="submit" className="w-full btn-premium bg-emerald-500 text-black py-4 rounded-2xl font-bold">{isLoginView ? 'Giriş Yap' : 'Kayıt Ol'}</button>
+              </form>
+              <p className="text-center mt-6 text-gray-500 text-sm">
+                {isLoginView ? 'Hesabınız yok mu?' : 'Zaten bir hesabınız var mı?'}
+                <button onClick={() => setIsLoginView(!isLoginView)} className="ml-2 text-white font-bold underline">Hemen {isLoginView ? 'Kayıt Ol' : 'Giriş Yap'}</button>
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     );
   }
 
