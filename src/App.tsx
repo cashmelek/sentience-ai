@@ -33,7 +33,8 @@ import {
   RefreshCw,
   History,
   ChevronDown,
-  MessageSquarePlus
+  MessageSquarePlus,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -82,6 +83,8 @@ import { PlansModal } from './components/PlansModal';
 import { AdminPanel } from './components/AdminPanel';
 import toast, { Toaster } from 'react-hot-toast';
 import { CustomToneModal } from './components/CustomToneModal';
+import { GuideModal } from './components/GuideModal';
+import { OnboardingChecklist } from './components/OnboardingChecklist';
 
 import { AppUser, PLAN_LIMITS, Project } from './types';
 
@@ -105,6 +108,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'editor' | 'drafts' | 'history' | 'admin' | 'plans'>('editor');
   const [sidebarTab, setSidebarTab] = useState<'history' | 'drafts'>('history');
   const [showPlansModal, setShowPlansModal] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
   const [showCustomToneModal, setShowCustomToneModal] = useState(false);
   const [isToneDropdownOpen, setIsToneDropdownOpen] = useState(false);
   const [isLoginView, setIsLoginView] = useState(true);
@@ -187,15 +191,31 @@ export default function App() {
           role: isAdmin ? 'admin' : 'user',
           plan: 'free',
           dailyUsage: 0,
-          lastResetDate: today
+          lastResetDate: today,
+          onboarding: {
+            profileComplete: true,
+            firstHumanize: false,
+            firstAnalysis: false,
+            firstDraft: false,
+            dismissed: false
+          }
         };
         await setDoc(userRef, newUser);
       } else {
-        const data = docSnap.data() as AppUser;
+        const data = docSnap.data() as any;
         if (data.lastResetDate !== today) {
           await updateDoc(userRef, { dailyUsage: 0, lastResetDate: today });
         } else {
-          setAppUser(data);
+          setAppUser({
+            ...data,
+            onboarding: data.onboarding || {
+              profileComplete: true,
+              firstHumanize: false,
+              firstAnalysis: false,
+              firstDraft: false,
+              dismissed: false
+            }
+          } as AppUser);
         }
       }
     });
@@ -282,7 +302,10 @@ export default function App() {
       setAnalysis(result);
 
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, { dailyUsage: (appUser.dailyUsage || 0) + 1 });
+      await updateDoc(userRef, { 
+        dailyUsage: (appUser.dailyUsage || 0) + 1,
+        'onboarding.firstHumanize': true
+      });
 
       await sendAnonymousFeedback(inputText.length, result.humanizedText.length, result.aiScore, options.tone);
 
@@ -310,7 +333,7 @@ export default function App() {
   };
 
   const handleAnalyze = async () => {
-    if (!inputText.trim()) {
+    if (!inputText.trim() || !user) {
       toast.error("Lütfen analiz için bir metin girin.");
       return;
     }
@@ -324,6 +347,9 @@ export default function App() {
 
       setGrammarSuggestions(suggestions);
       setMlAnalysis(deepML);
+
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, { 'onboarding.firstAnalysis': true });
 
       toast.success(suggestions.length === 0 ? "Dilbilgisi hatası bulunamadı." : `${suggestions.length} öneri bulundu.`);
     } catch (error: any) {
@@ -360,6 +386,10 @@ export default function App() {
         isDraft: true,
         createdAt: serverTimestamp()
       });
+      
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, { 'onboarding.firstDraft': true });
+      
       toast.success("Taslak kaydedildi.");
     } catch (err) { console.error(err); }
     finally { setIsDrafting(false); }
@@ -423,8 +453,21 @@ export default function App() {
           <div className="flex items-center gap-2 font-black tracking-tighter text-xl text-emerald-500">
             <Fingerprint className="w-6 h-6" /> SENTIENCE
           </div>
-          <button onClick={() => { setInputText(''); setHumanizedText(''); setAnalysis(null); setGrammarSuggestions([]); setActiveTab('editor'); }} className="p-1.5 hover:bg-white/5 rounded-lg border border-white/5"><Plus className="w-4 h-4" /></button>
+          <div className="flex items-center">
+            <button
+              onClick={() => setShowGuideModal(true)}
+              className="p-1.5 hover:bg-white/5 rounded-lg border border-white/5 text-gray-500 hover:text-emerald-500 transition-colors mr-2"
+              title="Kullanım Kılavuzu"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+            <button onClick={() => { setInputText(''); setHumanizedText(''); setAnalysis(null); setGrammarSuggestions([]); setActiveTab('editor'); }} className="p-1.5 hover:bg-white/5 rounded-lg border border-white/5">
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+
+        {appUser && <OnboardingChecklist user={appUser} />}
 
         {/* Sidebar Tabs */}
         <div className="px-4 py-3 flex gap-2 border-b border-brand-border bg-black/10">
@@ -509,7 +552,26 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative overflow-hidden">
-        {activeTab === 'admin' && isAdmin ? <AdminPanel /> : (
+        {activeTab === 'admin' && isAdmin ? (
+          <div className="flex-1 overflow-y-auto custom-scrollbar relative z-30 bg-brand-bg">
+            <header className="h-16 border-b border-brand-border px-8 flex items-center justify-between bg-brand-card/50 backdrop-blur-xl sticky top-0 z-40">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                <h2 className="text-xl font-black text-white tracking-tighter uppercase">Yönetim Paneli</h2>
+              </div>
+              <button 
+                onClick={() => setActiveTab('editor')}
+                className="p-2.5 hover:bg-white/5 rounded-xl text-gray-500 hover:text-white transition-all border border-white/5 flex items-center gap-2 group"
+              >
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Editöre Dön</span>
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+            <div className="p-8">
+              <AdminPanel />
+            </div>
+          </div>
+        ) : (
           <>
             <header className="h-20 border-b border-brand-border px-8 flex items-center justify-between bg-brand-card/50 backdrop-blur-xl relative z-40">
               <div className="flex items-center gap-10">
@@ -717,6 +779,7 @@ export default function App() {
 
       <AnimatePresence>
         {showPlansModal && appUser && <PlansModal user={appUser} onClose={() => setShowPlansModal(false)} />}
+        {showGuideModal && <GuideModal onClose={() => setShowGuideModal(false)} />}
         {showCustomToneModal && (
           <CustomToneModal
             onClose={() => setShowCustomToneModal(false)}

@@ -1,5 +1,13 @@
 export type SubscriptionPlan = 'free' | 'pro' | 'premium';
 
+export interface OnboardingState {
+  profileComplete: boolean;
+  firstHumanize: boolean;
+  firstAnalysis: boolean;
+  firstDraft: boolean;
+  dismissed: boolean;
+}
+
 export interface AppUser {
   uid: string;
   email: string | null;
@@ -7,6 +15,7 @@ export interface AppUser {
   plan: SubscriptionPlan;
   dailyUsage: number;
   lastResetDate: string;
+  onboarding?: OnboardingState;
 }
 
 export const PLAN_LIMITS: Record<SubscriptionPlan, number> = {
