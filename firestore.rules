@@ -3,7 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Admin kontrolü: users koleksiyonunda role == 'admin' olan kullanıcılar
     function isAdmin() {
       return request.auth != null && 
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
@@ -17,29 +16,29 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Projeler Koleksiyonu
+    // Projeler Koleksiyonu (GİZLİLİK GÜNCELLEMESİ)
     match /projects/{projectId} {
-      allow read, update, delete: if request.auth != null && 
-                                    (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if request.auth != null && 
-                      request.resource.data.userId == request.auth.uid;
+      // Sadece sahibi okuyabilir, ADMİNLER OKUYAMAZ (Privacy)
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    // Özel Tonlar Koleksiyonu
+    // Anonim Feedback Koleksiyonu (ADMİN PANELİ İÇİN)
+    match /feedback_summaries/{feedbackId} {
+      allow read: if isAdmin(); // Adminler buradan analiz sonuçlarını görür
+      allow create: if request.auth != null; // Her kullanıcı geri bildirim bırakabilir
+    }
+
+    // Diğer kurallar aynen korunur...
     match /customTones/{toneId} {
-      allow read, update, delete: if request.auth != null && 
-                                    (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if request.auth != null && 
-                      request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
-
-    // Sistem Ayarları Koleksiyonu - herkes okuyabilir (bakım modu için), sadece admin yazabilir
     match /settings/{settingId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
-
-    // Aktivite Logları Koleksiyonu - sadece admin okuyabilir ve yazabilir
     match /activityLogs/{logId} {
       allow read: if isAdmin();
       allow create: if isAdmin();

@@ -39,7 +39,7 @@ async function main() {
     console.log("2. Model eğitimi (Tuning) başlatılıyor...");
     // @ts-ignore
     const tuningJob = await ai.tunings.create({
-      baseModel: "models/gemini-1.5-flash-001",
+      baseModel: "models/gemini-2.5-flash",
       displayName: "Sentience-AI-Tuned",
       trainingData: {
         fileId: file.name

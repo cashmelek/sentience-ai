@@ -25,7 +25,7 @@ export const summarizeFlow = ai.defineFlow(
   },
   async ({ text }) => {
     const response = await ai.generate({
-      model: googleAI.model("gemini-1.5-flash"),
+      model: googleAI.model("gemini-2.5-flash"),
       prompt: `Metni Türkçe, kısa ve maddeli biçimde özetle:\n\n${text}`,
     });
 
@@ -50,7 +50,7 @@ export const humanizeFlow = ai.defineFlow(
   },
   async (input) => {
     const response = await ai.generate({
-      model: googleAI.model("gemini-1.5-flash"),
+      model: googleAI.model("gemini-2.5-flash"),
       prompt: `Metni '${input.tone}' tonunda ve %${input.intensity} yoğunlukta insanileştir: ${input.text}`,
     });
 

@@ -16,8 +16,8 @@ const ai = new GoogleGenAI({
   apiKey: apiKey || 'dummy-key-for-initialization'
 });
 
-// Primary model for the application
-const DEFAULT_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-1.5-flash"; 
+// Primary model for the application - Updated to a 2026-compatible model
+const DEFAULT_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash"; 
 
 const assertApiKey = () => {
   if (!apiKey || apiKey === 'dummy-key-for-initialization') {
@@ -61,8 +61,7 @@ export interface GrammarOptions {
 export const analyzeAndHumanize = async (text: string, options: HumanizeOptions): Promise<AnalysisResult> => {
   assertApiKey();
   
-  // order: flash 1.5, flash latest, flash 002 (newer), flash 2.0 (newest), pro 1.5
-  const modelsToTry = [DEFAULT_MODEL, "gemini-1.5-flash-latest", "gemini-1.5-flash-002", "gemini-2.0-flash", "gemini-1.5-pro"];
+  const modelsToTry = [DEFAULT_MODEL, "gemini-flash-latest", "gemini-2.5-pro", "gemini-3.1-flash-lite", "gemini-pro-latest"];
   let lastError: any = null;
 
   for (const modelName of modelsToTry) {
@@ -89,32 +88,39 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
 
       const prompt = `
         GÖREV: Metni insanileştir ve analiz et.
-        1. İNSANİLEŞTİRME: Metni YZ tespitinden kaçacak şekilde yeniden yaz.
+        
+        KURALLAR:
+        1. FORMATI KORU: Kaynak metindeki tüm başlıkları (#, ##), alt başlıkları, numaralandırılmış listeleri (1., 2.), madde işaretlerini (-, *) ve özel noktalamaları AYNEN KORU. Sadece metin içeriğini insanileştir.
+        2. İNSANİLEŞTİRME: Metni YZ tespitinden kaçacak şekilde, doğal bir dille yeniden yaz.
            - ${styleInstruction}
            - ${intensityInstruction}
-        2. YZ TESPİTİ: Metnin orijinal halinin YZ tarafından yazılma olasılığını (0 ile 1 arası) hesapla.
-        3. İNTİHAL: Metnin özgünlüğünü kontrol et. ASLA uydurma link üretme!
+        3. CÜMLE ANALİZİ: Metindeki önemli cümleleri seç ve neden yapay veya doğal göründüklerini teknik olarak açıkla.
+        4. İNTİHAL KONTROLÜ (GOOGLE SEARCH KULLAN): Verilen "Kaynak Metin"in internetteki (web siteleri, bloglar, pdf'ler vb.) kopyalarını bulmak için Google Search aracını aktif olarak kullan. Eğer birebir veya çok benzer cümleler internette geçiyorsa, bu kaynakların tam URL'lerini, başlıklarını ve metnin hangi kısmıyla eşleştiğini (matchedSnippet) 'sources' listesine ekle. Sadece gerçek arama sonuçlarından elde ettiğin çalışan linkleri kullan! Bulamazsan listeyi boş bırak.
         
-        ÖNEMLİ: Yanıtını SADECE aşağıdaki JSON formatında ver.
+        ÖNEMLİ: Yanıtını SADECE aşağıdaki JSON formatında ver. 'insights' alanı mutlaka bir nesne dizisi olmalıdır.
         JSON ŞEMASI:
         {
-          "humanizedText": "...",
+          "humanizedText": "Dönüştürülmüş metin buraya gelecek (format korunmuş halde)",
           "aiScore": 0.15,
           "isPlagiarized": false,
-          "similarityScore": 0,
-          "sources": [],
-          "insights": []
+          "similarityScore": 12,
+          "sources": [
+            {"title": "Kaynak Adı", "url": "https://...", "similarity": 10, "matchedSnippet": "..."}
+          ],
+          "insights": [
+            {"sentence": "İncelenen cümle", "score": 0.8, "detail": "Neden YZ veya insan gibi göründüğüne dair teknik analiz."}
+          ]
         }
       `;
 
-      // We use the new SDK generateContent call
       const result = await ai.models.generateContent({
         model: modelName,
         contents: [{ role: "user", parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
         config: {
+          tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
           temperature: temp,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 4096,
         } as any
       });
 
@@ -127,39 +133,37 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
         isPlagiarized: !!parsed.isPlagiarized,
         similarityScore: typeof parsed.similarityScore === 'number' ? parsed.similarityScore : 0,
         sources: parsed.sources || [],
-        insights: parsed.insights || []
+        insights: Array.isArray(parsed.insights) ? parsed.insights.map((ins: any) => ({
+          sentence: typeof ins === 'string' ? ins : (ins.sentence || ""),
+          score: typeof ins.score === 'number' ? ins.score : 0.5,
+          detail: ins.detail || (typeof ins === 'string' ? "Cümle analizi yapıldı." : "")
+        })) : []
       };
     } catch (error: any) {
       console.warn(`Model ${modelName} denemesi başarısız:`, error.message);
       lastError = error;
-      // If it's a 404, we continue to the next model
-      if (!error.message?.includes('404') && !error.message?.includes('not found')) {
-        // If it's another error (e.g. 429 quota), we might want to stop, 
-        // but let's try fallbacks anyway just in case it's a model-specific quota
-      }
     }
   }
 
-  throw new Error(`YZ İşlemi Başarısız: Tüm denenen modeller (Flash 1.5, Flash 2.0, Pro) 404 hatası verdi. Lütfen API anahtarınızın Gemini API (AI Studio) için geçerli olduğundan emin olun.`);
+  throw new Error(`YZ İşlemi Başarısız. Son hata: ${lastError?.message}`);
 };
 
 export const checkGrammar = async (text: string, _options?: GrammarOptions): Promise<GrammarSuggestion[]> => {
   assertApiKey();
-  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-pro"];
+  const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-pro-latest"];
   let lastErr = "";
   
   for (const modelName of models) {
     try {
       const result = await ai.models.generateContent({
         model: modelName,
-        contents: [{ role: "user", parts: [{ text: `Aşağıdaki metni Türkçe dilbilgisi açısından denetle ve JSON suggestions listesi olarak dön: ${text}` }] }],
+        contents: [{ role: "user", parts: [{ text: `Aşağıdaki metni Türkçe dilbilgisi açısından denetle ve JSON formatında suggestions listesi dön. Format: {"suggestions": [{"original": "...", "suggestion": "...", "explanation": "..."}]}. Metin: ${text}` }] }],
         config: { responseMimeType: "application/json", temperature: 0.1 } as any
       });
       const parsed = JSON.parse(result.text || '{}');
       return parsed.suggestions || [];
     } catch (e: any) {
       lastErr = e.message;
-      if (!e.message?.includes('404')) break;
     }
   }
   throw new Error(`Dilbilgisi hatası: ${lastErr}`);
@@ -169,7 +173,7 @@ export const detectAI = async (text: string) => {
   assertApiKey();
   try {
     const result = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-flash-latest",
       contents: [{ role: "user", parts: [{ text: `Metnin YZ olasılığını (0-1) JSON {score: number} olarak hesapla: ${text}` }] }],
       config: { responseMimeType: "application/json", temperature: 0.1 } as any
     });
