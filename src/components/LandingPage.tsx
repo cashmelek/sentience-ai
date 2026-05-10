@@ -113,38 +113,38 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-brand-bg text-white font-sans overflow-x-hidden selection:bg-emerald-500/30">
+    <div className="min-h-screen bg-mesh text-white font-sans overflow-x-hidden selection:bg-emerald-500/30">
       {/* Navbar */}
-      <nav className="fixed top-0 w-full z-[100] border-b border-white/5 bg-brand-bg/80 backdrop-blur-xl">
+      <nav className="fixed top-0 w-full z-[100] border-b border-white/5 bg-black/40 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Fingerprint className="w-8 h-8 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]" />
+            <Fingerprint className="w-8 h-8 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]" />
             <span className="text-2xl font-black tracking-tighter">SENTIENCE</span>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-bold uppercase tracking-widest text-gray-400">
+          <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">
             <a href="#features" className="hover:text-white transition-colors">Ajanlar</a>
             <a href="#demo" className="hover:text-white transition-colors">Demo</a>
             <a href="#pricing" className="hover:text-white transition-colors">Fiyatlandırma</a>
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={onLogin} className="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-all">Giriş Yap</button>
-            <button onClick={onGetStarted} className="px-6 py-2.5 bg-white text-black rounded-full font-black text-xs uppercase tracking-widest hover:bg-emerald-400 transition-all active:scale-95 shadow-lg shadow-white/5">Hemen Başla</button>
+            <button onClick={onLogin} className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-white transition-all mr-2">Giriş Yap</button>
+            <button onClick={onGetStarted} className="px-6 py-3 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all active:scale-95 shadow-xl shadow-white/5">Hemen Başla</button>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <header className="relative pt-40 pb-20 px-6 overflow-hidden">
+      <header className="relative pt-48 pb-24 px-6 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full">
-          <div className="absolute top-20 left-0 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full" />
-          <div className="absolute bottom-20 right-0 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full" />
+          <div className="absolute top-20 left-0 w-[500px] h-[500px] bg-emerald-500/10 blur-[150px] rounded-full animate-pulse-soft" />
+          <div className="absolute bottom-20 right-0 w-[500px] h-[500px] bg-blue-500/10 blur-[150px] rounded-full animate-pulse-soft" />
         </div>
 
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-emerald-500 text-[10px] font-black uppercase tracking-[0.2em] mb-8"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-emerald-500 text-[10px] font-black uppercase tracking-[0.2em] mb-10"
           >
             <Zap className="w-3 h-3 fill-emerald-500" />
             2026 Model Sentience Protokolü
@@ -154,7 +154,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1] mb-8"
+            className="text-6xl md:text-8xl font-black tracking-tight leading-[1] mb-10"
           >
             Yapay Zeka Yazdı,<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">Sentience İnsanlaştırdı.</span>
@@ -164,7 +164,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-lg text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed font-medium"
+            className="text-xl text-gray-400 mb-14 max-w-2xl mx-auto leading-relaxed font-medium"
           >
             Yapay zeka dedektörlerini aşan, formatı milimetrik koruyan ve kaynakları 2026 canlı verisiyle doğrulayan dünyanın ilk agent-native insanlaştırma ağı.
           </motion.p>
@@ -173,39 +173,39 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="flex flex-col md:flex-row items-center justify-center gap-6"
+            className="flex flex-col md:flex-row items-center justify-center gap-8"
           >
-            <button onClick={onGetStarted} className="group flex items-center gap-3 px-10 py-5 bg-emerald-500 text-black rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-xl shadow-emerald-500/20 active:scale-95">
+            <button onClick={onGetStarted} className="group flex items-center gap-4 px-12 py-6 bg-emerald-500 text-black rounded-[32px] font-black text-sm uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-2xl shadow-emerald-500/30 active:scale-95">
               Ajanları Görevlendir
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
             </button>
-            <a href="#demo" className="text-sm font-bold uppercase tracking-widest text-white hover:text-emerald-400 transition-all underline underline-offset-8 decoration-emerald-500/30">Ücretsiz Demo Dene</a>
+            <a href="#demo" className="text-[10px] font-black uppercase tracking-[0.3em] text-white hover:text-emerald-400 transition-all underline underline-offset-8 decoration-emerald-500/30">Ücretsiz Demo Dene</a>
           </motion.div>
         </div>
       </header>
 
       {/* Agents Section */}
-      <section id="features" className="py-32 px-6 bg-brand-bg relative">
+      <section id="features" className="py-40 px-6 relative">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl font-black tracking-tight mb-4 uppercase">Sizi Kim Koruyor?</h2>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Dört Uzman Ajan, Tek Bir Amaç: Doğallık.</p>
+          <div className="text-center mb-24">
+            <h2 className="text-5xl font-black tracking-tight mb-6 uppercase">Sizi Kim Koruyor?</h2>
+            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[10px]">Dört Uzman Ajan, Tek Bir Amaç: Doğallık.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
             {AGENTS.map((agent, i) => {
               const Icon = agent.icon;
               return (
                 <motion.div 
                   key={i}
-                  whileHover={{ y: -10 }}
-                  className="group p-8 rounded-[40px] bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-all"
+                  whileHover={{ y: -15 }}
+                  className="group p-10 rounded-[48px] bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-all premium-card"
                 >
-                  <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all group-hover:scale-110", agent.bgColor)}>
-                    <Icon className={cn("w-7 h-7", agent.color)} />
+                  <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center mb-8 transition-all group-hover:scale-110", agent.bgColor)}>
+                    <Icon className={cn("w-8 h-8", agent.color)} />
                   </div>
-                  <h3 className="text-xl font-bold mb-2 text-white">{agent.name}</h3>
-                  <div className="text-[10px] font-black uppercase text-emerald-500 mb-4 tracking-widest">{agent.role}</div>
+                  <h3 className="text-2xl font-bold mb-2 text-white">{agent.name}</h3>
+                  <div className="text-[10px] font-black uppercase text-emerald-500 mb-6 tracking-[0.2em]">{agent.role}</div>
                   <p className="text-sm text-gray-500 leading-relaxed font-medium">{agent.description}</p>
                 </motion.div>
               );
@@ -215,75 +215,75 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
       </section>
 
       {/* Demo Section */}
-      <section id="demo" className="py-32 px-6 relative">
+      <section id="demo" className="py-40 px-6 relative">
         <div className="max-w-6xl mx-auto">
-          <div className="glass-panel rounded-[48px] overflow-hidden border border-white/10 shadow-2xl flex flex-col lg:flex-row">
-            <div className="lg:w-1/2 p-12 lg:p-16 border-b lg:border-b-0 lg:border-r border-white/5 bg-black/20">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                  <Search className="w-5 h-5 text-blue-500" />
+          <div className="glass-morphism rounded-[64px] overflow-hidden border border-white/10 shadow-3xl flex flex-col lg:flex-row">
+            <div className="lg:w-1/2 p-12 lg:p-20 border-b lg:border-b-0 lg:border-r border-white/5 bg-black/30">
+              <div className="flex items-center gap-4 mb-10">
+                <div className="p-3 bg-blue-500/10 rounded-2xl border border-blue-500/20">
+                  <Search className="w-6 h-6 text-blue-500" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">Auditor Agent</h3>
-                  <p className="text-xs text-gray-500 uppercase font-black tracking-widest mt-0.5 text-blue-400">Ücretsiz Risk Analizi</p>
+                  <h3 className="text-2xl font-bold">Auditor Agent</h3>
+                  <p className="text-[10px] text-gray-500 uppercase font-black tracking-[0.2em] mt-1 text-blue-400">Ücretsiz Risk Analizi</p>
                 </div>
               </div>
               <textarea 
                 value={demoText}
                 onChange={(e) => setInputText(e.target.value)}
-                className="w-full h-64 bg-transparent outline-none resize-none text-gray-300 leading-relaxed text-sm p-6 rounded-3xl border border-white/5 focus:border-blue-500/30 transition-all custom-scrollbar"
+                className="w-full h-72 bg-white/5 outline-none resize-none text-gray-300 leading-relaxed text-sm p-8 rounded-[32px] border border-white/5 focus:border-blue-500/40 transition-all custom-scrollbar placeholder:text-gray-700"
                 placeholder="Analiz edilecek metni buraya yapıştırın (Min 50 karakter)..."
               />
               <button 
                 onClick={handleDemoAnalyze}
                 disabled={isAnalyzing}
-                className="w-full mt-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-500 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+                className="w-full mt-8 py-5 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-500 transition-all flex items-center justify-center gap-4 active:scale-95 disabled:opacity-50 shadow-xl shadow-blue-500/20"
               >
-                {isAnalyzing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
+                {isAnalyzing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-5 h-5" />}
                 Risk Analizini Başlat
               </button>
             </div>
             
-            <div className="lg:w-1/2 p-12 lg:p-16 flex flex-col items-center justify-center text-center bg-emerald-500/[0.02]">
+            <div className="lg:w-1/2 p-12 lg:p-20 flex flex-col items-center justify-center text-center bg-emerald-500/[0.01]">
               <AnimatePresence mode="wait">
                 {demoResult !== null ? (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="space-y-8"
+                    className="space-y-10"
                   >
                     <div className="relative">
-                      <svg className="w-48 h-48">
-                        <circle cx="96" cy="96" r="80" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/5" />
+                      <svg className="w-64 h-64">
+                        <circle cx="128" cy="128" r="110" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-white/5" />
                         <motion.circle 
-                          cx="96" cy="96" r="80" stroke="currentColor" strokeWidth="8" fill="transparent"
-                          strokeDasharray={2 * Math.PI * 80}
-                          initial={{ strokeDashoffset: 2 * Math.PI * 80 }}
-                          animate={{ strokeDashoffset: 2 * Math.PI * 80 * (1 - demoResult) }}
+                          cx="128" cy="128" r="110" stroke="currentColor" strokeWidth="12" fill="transparent"
+                          strokeDasharray={2 * Math.PI * 110}
+                          initial={{ strokeDashoffset: 2 * Math.PI * 110 }}
+                          animate={{ strokeDashoffset: 2 * Math.PI * 110 * (1 - demoResult) }}
                           className={cn(demoResult > 0.5 ? "text-red-500" : "text-emerald-500")}
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-4xl font-black">%{Math.round(demoResult * 100)}</span>
-                        <span className="text-[10px] font-bold text-gray-500 uppercase">YZ OLASILIĞI</span>
+                        <span className="text-6xl font-black tracking-tighter">%{Math.round(demoResult * 100)}</span>
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mt-2">YZ OLASILIĞI</span>
                       </div>
                     </div>
-                    <div className="max-w-xs">
-                      <h4 className="text-lg font-bold mb-2">Auditor Raporu</h4>
-                      <p className="text-sm text-gray-400 leading-relaxed">
+                    <div className="max-w-sm">
+                      <h4 className="text-xl font-bold mb-3">Auditor Raporu</h4>
+                      <p className="text-sm text-gray-400 leading-relaxed font-medium">
                         {demoResult > 0.5 
                           ? "Yüksek YZ izine rastlandı. GhostWriter ajanını kullanarak bu metni insanlaştırmanız önerilir."
                           : "Düşük YZ riski. Metin doğal bir yapı sergiliyor."}
                       </p>
                     </div>
-                    <button onClick={onGetStarted} className="px-8 py-3 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center gap-2 mx-auto">
+                    <button onClick={onGetStarted} className="px-10 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all flex items-center gap-3 mx-auto shadow-xl shadow-white/5">
                       Tamamen İnsanlaştır <ArrowRight className="w-4 h-4" />
                     </button>
                   </motion.div>
                 ) : (
-                  <div className="space-y-6 grayscale opacity-30">
-                    <MousePointer2 className="w-16 h-16 text-gray-600 mx-auto" />
-                    <p className="text-sm font-bold text-gray-500 uppercase tracking-[0.2em]">Analiz sonucu burada görünecek</p>
+                  <div className="space-y-8 grayscale opacity-20">
+                    <MousePointer2 className="w-20 h-20 text-gray-600 mx-auto" />
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Analiz sonucu burada görünecek</p>
                   </div>
                 )}
               </AnimatePresence>
