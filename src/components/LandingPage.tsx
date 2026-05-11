@@ -16,7 +16,9 @@ import {
   BarChart3,
   Layers,
   Github,
-  Twitter
+  Twitter,
+  Menu,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { detectAI } from '../services/geminiService';
@@ -94,6 +96,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
   const [demoText, setInputText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [demoResult, setDemoResult] = useState<number | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleDemoAnalyze = async () => {
     if (!demoText.trim() || demoText.length < 50) {
@@ -121,30 +124,63 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             <Fingerprint className="w-8 h-8 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]" />
             <span className="text-2xl font-black tracking-tighter">SENTIENCE</span>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">
+          
+          {/* Desktop Nav */}
+          <div className="hidden lg:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">
             <a href="#features" className="hover:text-white transition-colors">Ajanlar</a>
             <a href="#demo" className="hover:text-white transition-colors">Demo</a>
             <a href="#pricing" className="hover:text-white transition-colors">Fiyatlandırma</a>
           </div>
-          <div className="flex items-center gap-4">
+          
+          <div className="hidden lg:flex items-center gap-4">
             <button onClick={onLogin} className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-white transition-all mr-2">Giriş Yap</button>
             <button onClick={onGetStarted} className="px-6 py-3 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all active:scale-95 shadow-xl shadow-white/5">Hemen Başla</button>
           </div>
+
+          {/* Mobile Menu Button */}
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors"
+          >
+            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
       </nav>
 
+      {/* Mobile Nav Overlay */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, x: '100%' }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: '100%' }}
+            className="fixed inset-0 z-[90] bg-brand-bg flex flex-col p-8 pt-24 lg:hidden"
+          >
+            <div className="flex flex-col gap-6 text-xl font-black uppercase tracking-widest mb-12">
+              <a href="#features" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Ajanlar</a>
+              <a href="#demo" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Demo</a>
+              <a href="#pricing" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Fiyatlandırma</a>
+            </div>
+            <div className="mt-auto space-y-4">
+              <button onClick={onLogin} className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest">Giriş Yap</button>
+              <button onClick={onGetStarted} className="w-full py-4 bg-emerald-500 text-black rounded-2xl font-black text-xs uppercase tracking-widest">Hemen Başla</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hero Section */}
-      <header className="relative pt-48 pb-24 px-6 overflow-hidden">
+      <header className="relative pt-32 lg:pt-48 pb-20 lg:pb-24 px-6 overflow-hidden text-center">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full">
-          <div className="absolute top-20 left-0 w-[500px] h-[500px] bg-emerald-500/10 blur-[150px] rounded-full animate-pulse-soft" />
-          <div className="absolute bottom-20 right-0 w-[500px] h-[500px] bg-blue-500/10 blur-[150px] rounded-full animate-pulse-soft" />
+          <div className="absolute top-20 left-0 w-[300px] lg:w-[500px] h-[300px] lg:h-[500px] bg-emerald-500/10 blur-[100px] lg:blur-[150px] rounded-full animate-pulse-soft" />
+          <div className="absolute bottom-20 right-0 w-[300px] lg:w-[500px] h-[300px] lg:h-[500px] bg-blue-500/10 blur-[100px] lg:blur-[150px] rounded-full animate-pulse-soft" />
         </div>
 
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+        <div className="max-w-4xl mx-auto relative z-10">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-emerald-500 text-[10px] font-black uppercase tracking-[0.2em] mb-10"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-emerald-500 text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] mb-8 lg:mb-10"
           >
             <Zap className="w-3 h-3 fill-emerald-500" />
             2026 Model Sentience Protokolü
@@ -154,17 +190,17 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-6xl md:text-8xl font-black tracking-tight leading-[1] mb-10"
+            className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.1] lg:leading-[1] mb-8 lg:mb-10"
           >
             Yapay Zeka Yazdı,<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">Sentience İnsanlaştırdı.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500 text-shadow-glow">Sentience İnsanlaştırdı.</span>
           </motion.h1>
 
           <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-xl text-gray-400 mb-14 max-w-2xl mx-auto leading-relaxed font-medium"
+            className="text-base lg:text-xl text-gray-400 mb-10 lg:mb-14 max-w-2xl mx-auto leading-relaxed font-medium"
           >
             Yapay zeka dedektörlerini aşan, formatı milimetrik koruyan ve kaynakları 2026 canlı verisiyle doğrulayan dünyanın ilk agent-native insanlaştırma ağı.
           </motion.p>
@@ -173,9 +209,9 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="flex flex-col md:flex-row items-center justify-center gap-8"
+            className="flex flex-col sm:flex-row items-center justify-center gap-6 lg:gap-8"
           >
-            <button onClick={onGetStarted} className="group flex items-center gap-4 px-12 py-6 bg-emerald-500 text-black rounded-[32px] font-black text-sm uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-2xl shadow-emerald-500/30 active:scale-95">
+            <button onClick={onGetStarted} className="w-full sm:w-auto group flex items-center justify-center gap-4 px-10 lg:px-12 py-5 lg:py-6 bg-emerald-500 text-black rounded-[24px] lg:rounded-[32px] font-black text-sm uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-2xl shadow-emerald-500/30 active:scale-95">
               Ajanları Görevlendir
               <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
             </button>
@@ -185,28 +221,28 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
       </header>
 
       {/* Agents Section */}
-      <section id="features" className="py-40 px-6 relative">
+      <section id="features" className="py-24 lg:py-40 px-6 relative">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-24">
-            <h2 className="text-5xl font-black tracking-tight mb-6 uppercase">Sizi Kim Koruyor?</h2>
-            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[10px]">Dört Uzman Ajan, Tek Bir Amaç: Doğallık.</p>
+          <div className="text-center mb-16 lg:mb-24">
+            <h2 className="text-3xl lg:text-5xl font-black tracking-tight mb-4 lg:mb-6 uppercase">Sizi Kim Koruyor?</h2>
+            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[9px] lg:text-[10px]">Dört Uzman Ajan, Tek Bir Amaç: Doğallık.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-10">
             {AGENTS.map((agent, i) => {
               const Icon = agent.icon;
               return (
                 <motion.div 
                   key={i}
                   whileHover={{ y: -15 }}
-                  className="group p-10 rounded-[48px] bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-all premium-card"
+                  className="group p-8 lg:p-10 rounded-[32px] lg:rounded-[48px] bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-all premium-card"
                 >
-                  <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center mb-8 transition-all group-hover:scale-110", agent.bgColor)}>
-                    <Icon className={cn("w-8 h-8", agent.color)} />
+                  <div className={cn("w-14 lg:w-16 h-14 lg:h-16 rounded-2xl flex items-center justify-center mb-6 lg:mb-8 transition-all group-hover:scale-110", agent.bgColor)}>
+                    <Icon className={cn("w-7 lg:w-8 h-7 lg:h-8", agent.color)} />
                   </div>
-                  <h3 className="text-2xl font-bold mb-2 text-white">{agent.name}</h3>
-                  <div className="text-[10px] font-black uppercase text-emerald-500 mb-6 tracking-[0.2em]">{agent.role}</div>
-                  <p className="text-sm text-gray-500 leading-relaxed font-medium">{agent.description}</p>
+                  <h3 className="text-xl lg:text-2xl font-bold mb-2 text-white">{agent.name}</h3>
+                  <div className="text-[9px] lg:text-[10px] font-black uppercase text-emerald-500 mb-4 lg:mb-6 tracking-[0.2em]">{agent.role}</div>
+                  <p className="text-xs lg:text-sm text-gray-500 leading-relaxed font-medium">{agent.description}</p>
                 </motion.div>
               );
             })}
@@ -215,75 +251,75 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
       </section>
 
       {/* Demo Section */}
-      <section id="demo" className="py-40 px-6 relative">
+      <section id="demo" className="py-24 lg:py-40 px-6 relative">
         <div className="max-w-6xl mx-auto">
-          <div className="glass-morphism rounded-[64px] overflow-hidden border border-white/10 shadow-3xl flex flex-col lg:flex-row">
-            <div className="lg:w-1/2 p-12 lg:p-20 border-b lg:border-b-0 lg:border-r border-white/5 bg-black/30">
-              <div className="flex items-center gap-4 mb-10">
+          <div className="glass-morphism rounded-[32px] lg:rounded-[64px] overflow-hidden border border-white/10 shadow-3xl flex flex-col lg:flex-row">
+            <div className="lg:w-1/2 p-8 lg:p-20 border-b lg:border-b-0 lg:border-r border-white/5 bg-black/30">
+              <div className="flex items-center gap-4 mb-8 lg:mb-10">
                 <div className="p-3 bg-blue-500/10 rounded-2xl border border-blue-500/20">
                   <Search className="w-6 h-6 text-blue-500" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">Auditor Agent</h3>
-                  <p className="text-[10px] text-gray-500 uppercase font-black tracking-[0.2em] mt-1 text-blue-400">Ücretsiz Risk Analizi</p>
+                  <h3 className="text-xl lg:text-2xl font-bold">Auditor Agent</h3>
+                  <p className="text-[9px] lg:text-[10px] text-gray-500 uppercase font-black tracking-[0.2em] mt-1 text-blue-400">Ücretsiz Risk Analizi</p>
                 </div>
               </div>
               <textarea 
                 value={demoText}
                 onChange={(e) => setInputText(e.target.value)}
-                className="w-full h-72 bg-white/5 outline-none resize-none text-gray-300 leading-relaxed text-sm p-8 rounded-[32px] border border-white/5 focus:border-blue-500/40 transition-all custom-scrollbar placeholder:text-gray-700"
+                className="w-full h-56 lg:h-72 bg-white/5 outline-none resize-none text-gray-300 leading-relaxed text-sm p-6 lg:p-8 rounded-[24px] lg:rounded-[32px] border border-white/5 focus:border-blue-500/40 transition-all custom-scrollbar placeholder:text-gray-700"
                 placeholder="Analiz edilecek metni buraya yapıştırın (Min 50 karakter)..."
               />
               <button 
                 onClick={handleDemoAnalyze}
                 disabled={isAnalyzing}
-                className="w-full mt-8 py-5 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-blue-500 transition-all flex items-center justify-center gap-4 active:scale-95 disabled:opacity-50 shadow-xl shadow-blue-500/20"
+                className="w-full mt-6 lg:mt-8 py-4 lg:py-5 bg-blue-600 text-white rounded-2xl font-black text-[9px] lg:text-[10px] uppercase tracking-[0.2em] hover:bg-blue-500 transition-all flex items-center justify-center gap-4 active:scale-95 disabled:opacity-50 shadow-xl shadow-blue-500/20"
               >
                 {isAnalyzing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-5 h-5" />}
                 Risk Analizini Başlat
               </button>
             </div>
             
-            <div className="lg:w-1/2 p-12 lg:p-20 flex flex-col items-center justify-center text-center bg-emerald-500/[0.01]">
+            <div className="lg:w-1/2 p-8 lg:p-20 flex flex-col items-center justify-center text-center bg-emerald-500/[0.01]">
               <AnimatePresence mode="wait">
                 {demoResult !== null ? (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="space-y-10"
+                    className="space-y-8 lg:space-y-10"
                   >
-                    <div className="relative">
-                      <svg className="w-64 h-64">
-                        <circle cx="128" cy="128" r="110" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-white/5" />
+                    <div className="relative flex items-center justify-center">
+                      <svg className="w-48 lg:w-64 h-48 lg:h-64" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-white/5" />
                         <motion.circle 
-                          cx="128" cy="128" r="110" stroke="currentColor" strokeWidth="12" fill="transparent"
-                          strokeDasharray={2 * Math.PI * 110}
-                          initial={{ strokeDashoffset: 2 * Math.PI * 110 }}
-                          animate={{ strokeDashoffset: 2 * Math.PI * 110 * (1 - demoResult) }}
+                          cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="6" fill="transparent"
                           className={cn(demoResult > 0.5 ? "text-red-500" : "text-emerald-500")}
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: demoResult }}
+                          style={{ rotate: -90, transformOrigin: '50% 50%' }}
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-6xl font-black tracking-tighter">%{Math.round(demoResult * 100)}</span>
-                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mt-2">YZ OLASILIĞI</span>
+                        <span className="text-4xl lg:text-6xl font-black tracking-tighter">%{Math.round(demoResult * 100)}</span>
+                        <span className="text-[8px] lg:text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mt-2">YZ OLASILIĞI</span>
                       </div>
                     </div>
-                    <div className="max-w-sm">
-                      <h4 className="text-xl font-bold mb-3">Auditor Raporu</h4>
-                      <p className="text-sm text-gray-400 leading-relaxed font-medium">
+                    <div className="max-w-sm mx-auto">
+                      <h4 className="text-lg lg:text-xl font-bold mb-3">Auditor Raporu</h4>
+                      <p className="text-xs lg:text-sm text-gray-400 leading-relaxed font-medium">
                         {demoResult > 0.5 
                           ? "Yüksek YZ izine rastlandı. GhostWriter ajanını kullanarak bu metni insanlaştırmanız önerilir."
                           : "Düşük YZ riski. Metin doğal bir yapı sergiliyor."}
                       </p>
                     </div>
-                    <button onClick={onGetStarted} className="px-10 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all flex items-center gap-3 mx-auto shadow-xl shadow-white/5">
+                    <button onClick={onGetStarted} className="px-8 lg:px-10 py-3 lg:py-4 bg-white text-black rounded-2xl font-black text-[9px] lg:text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all flex items-center gap-3 mx-auto shadow-xl shadow-white/5">
                       Tamamen İnsanlaştır <ArrowRight className="w-4 h-4" />
                     </button>
                   </motion.div>
                 ) : (
-                  <div className="space-y-8 grayscale opacity-20">
-                    <MousePointer2 className="w-20 h-20 text-gray-600 mx-auto" />
-                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Analiz sonucu burada görünecek</p>
+                  <div className="space-y-6 lg:space-y-8 grayscale opacity-20">
+                    <MousePointer2 className="w-16 lg:w-20 h-16 lg:h-20 text-gray-600 mx-auto" />
+                    <p className="text-[9px] lg:text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Analiz sonucu burada görünecek</p>
                   </div>
                 )}
               </AnimatePresence>
@@ -293,36 +329,36 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-32 px-6">
+      <section id="pricing" className="py-24 lg:py-32 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl font-black tracking-tight mb-4 uppercase">Adil Fiyatlandırma</h2>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Yapay Zekayı Gömecek Gücü Seçin.</p>
+          <div className="text-center mb-16 lg:mb-20">
+            <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-4 uppercase">Adil Fiyatlandırma</h2>
+            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[9px] lg:text-xs">Yapay Zekayı Gömecek Gücü Seçin.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-center">
             {PLANS.map((plan, i) => (
               <div 
                 key={i} 
                 className={cn(
-                  "p-10 rounded-[48px] border transition-all relative flex flex-col",
+                  "p-8 lg:p-10 rounded-[32px] lg:rounded-[48px] border transition-all relative flex flex-col",
                   plan.recommended 
-                    ? "bg-white/[0.04] border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.1)] scale-105 z-10" 
+                    ? "bg-white/[0.04] border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.1)] md:scale-105 z-10 py-12 lg:py-14" 
                     : "bg-white/[0.02] border-white/5 hover:border-white/10"
                 )}
               >
                 {plan.recommended && (
-                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest rounded-full">En Popüler</div>
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-emerald-500 text-black text-[9px] lg:text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-emerald-500/20">En Popüler</div>
                 )}
-                <div className="text-xl font-bold mb-1 uppercase tracking-tighter">{plan.name}</div>
+                <div className="text-xl lg:text-2xl font-bold mb-1 uppercase tracking-tighter">{plan.name}</div>
                 <div className="flex items-baseline gap-1 mb-8">
-                  <span className="text-4xl font-black">${plan.price}</span>
-                  <span className="text-sm text-gray-500 font-bold uppercase">/aylık</span>
+                  <span className="text-4xl lg:text-5xl font-black">${plan.price}</span>
+                  <span className="text-xs lg:text-sm text-gray-500 font-bold uppercase">/aylık</span>
                 </div>
                 <div className="space-y-4 mb-10 flex-1">
                   {plan.features.map((feature, j) => (
                     <div key={j} className="flex items-center gap-3">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                       <span className="text-xs font-bold text-gray-400">{feature}</span>
                     </div>
                   ))}
@@ -330,7 +366,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 <button 
                   onClick={onGetStarted}
                   className={cn(
-                    "w-full py-4 rounded-[20px] font-black text-xs uppercase tracking-widest transition-all active:scale-95",
+                    "w-full py-4 lg:py-5 rounded-[20px] font-black text-xs uppercase tracking-widest transition-all active:scale-95",
                     plan.recommended ? "bg-emerald-500 text-black hover:bg-emerald-400 shadow-xl shadow-emerald-500/20" : "bg-white/5 text-white hover:bg-white/10 border border-white/10"
                   )}
                 >
@@ -343,14 +379,14 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
       </section>
 
       {/* Footer */}
-      <footer className="py-20 border-t border-white/5 bg-black/20">
+      <footer className="py-12 lg:py-20 border-t border-white/5 bg-black/20">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-10">
           <div className="flex flex-col items-center md:items-start gap-4">
             <div className="flex items-center gap-2">
               <Fingerprint className="w-6 h-6 text-emerald-500" />
-              <span className="text-xl font-black">SENTIENCE</span>
+              <span className="text-xl font-black tracking-tighter">SENTIENCE</span>
             </div>
-            <p className="text-xs text-gray-600 font-bold uppercase tracking-widest">© 2026 Tüm Hakları Saklıdır.</p>
+            <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest text-center md:text-left">© 2026 Tüm Hakları Saklıdır.</p>
           </div>
           <div className="flex items-center gap-8">
             <Globe className="w-5 h-5 text-gray-600 hover:text-white transition-colors cursor-pointer" />

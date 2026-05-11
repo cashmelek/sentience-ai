@@ -25,20 +25,10 @@ const assertApiKey = () => {
   }
 };
 
-export interface PlagiarismSource {
-  title: string;
-  url: string;
-  similarity: number;
-  matchedSnippet: string;
-}
-
 export interface AnalysisResult {
   humanizedText: string;
   aiScore: number;
   insights: { sentence: string; score: number; detail: string }[];
-  isPlagiarized: boolean;
-  sources: PlagiarismSource[];
-  similarityScore: number;
 }
 
 export interface HumanizeOptions {
@@ -99,18 +89,12 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
            - ${styleInstruction}
            - ${intensityInstruction}
         3. CÜMLE ANALİZİ: Metindeki önemli cümleleri seç ve neden yapay veya doğal göründüklerini teknik olarak açıkla.
-        4. İNTİHAL KONTROLÜ (GOOGLE SEARCH KULLAN): Verilen "Kaynak Metin"in internetteki (web siteleri, bloglar, pdf'ler vb.) kopyalarını bulmak için Google Search aracını aktif olarak kullan. Eğer birebir veya çok benzer cümleler internette geçiyorsa, bu kaynakların tam URL'lerini, başlıklarını ve metnin hangi kısmıyla eşleştiğini (matchedSnippet) 'sources' listesine ekle. Sadece gerçek arama sonuçlarından elde ettiğin çalışan linkleri kullan! Bulamazsan listeyi boş bırak.
         
         ÖNEMLİ: Yanıtını SADECE aşağıdaki JSON formatında ver. 'insights' alanı mutlaka bir nesne dizisi olmalıdır.
         JSON ŞEMASI:
         {
           "humanizedText": "Dönüştürülmüş metin buraya gelecek (format korunmuş halde)",
           "aiScore": 0.15,
-          "isPlagiarized": false,
-          "similarityScore": 12,
-          "sources": [
-            {"title": "Kaynak Adı", "url": "https://...", "similarity": 10, "matchedSnippet": "..."}
-          ],
           "insights": [
             {"sentence": "İncelenen cümle", "score": 0.8, "detail": "Neden YZ veya insan gibi göründüğüne dair teknik analiz."}
           ]
@@ -121,7 +105,6 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
         model: modelName,
         contents: [{ role: "user", parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
         config: {
-          tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
           temperature: temp,
           maxOutputTokens: 4096,
@@ -134,9 +117,6 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
       return {
         humanizedText: parsed.humanizedText || text,
         aiScore: typeof parsed.aiScore === 'number' ? parsed.aiScore : 0.5,
-        isPlagiarized: !!parsed.isPlagiarized,
-        similarityScore: typeof parsed.similarityScore === 'number' ? parsed.similarityScore : 0,
-        sources: parsed.sources || [],
         insights: Array.isArray(parsed.insights) ? parsed.insights.map((ins: any) => ({
           sentence: typeof ins === 'string' ? ins : (ins.sentence || ""),
           score: typeof ins.score === 'number' ? ins.score : 0.5,

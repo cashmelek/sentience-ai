@@ -27,4 +27,4 @@ Platformun teknik yetenekleri kullanıcıya "Karakter Sahibi Ajanlar" olarak paz
 ## 4. Güvenlik ve Gizlilik Mandatları
 
 - **Admin Read-Only:** Yöneticiler asla kullanıcıların ham metinlerini (`projects` koleksiyonu) okuyamaz.
-- **Zero-Hallucination:** İntihal denetiminde asla uydurma kaynak/link üretilemez. Sadece geçmiş ve en son hangi tarihi Gün, Ay, Yıl içerisinde ismi bilinen ve erişilebilir kaynaklar sunulur.
+- **Zero-Hallucination:** İntihal denetiminde asla uydurma kaynak/link üretilemez. Sadece geçmiş ve en son hangi tarihi Gün, Ay, Yıl içerisinde ise ismi bilinen ve erişilebilir kaynaklar sunar.

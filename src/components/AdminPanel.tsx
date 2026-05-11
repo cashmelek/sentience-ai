@@ -265,22 +265,22 @@ export function AdminPanel() {
   }
 
   return (
-    <div className="flex-1 p-8 flex flex-col gap-8 h-full overflow-y-auto custom-scrollbar">
-      <div className="flex items-center justify-between">
+    <div className="flex-1 p-4 lg:p-8 flex flex-col gap-6 lg:gap-8 h-full overflow-y-auto custom-scrollbar">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-black text-white tracking-tighter flex items-center gap-3">
+          <h2 className="text-xl lg:text-2xl font-black text-white tracking-tighter flex items-center gap-3">
             <ShieldCheck className="w-8 h-8 text-emerald-500" />
             YÖNETİM PANELİ
           </h2>
-          <p className="text-sm text-gray-400 mt-1">Sistemdeki tüm kullanıcıları, kota kullanımlarını ve abonelik planlarını yönetin.</p>
+          <p className="text-xs lg:text-sm text-gray-400 mt-1">Sistemdeki tüm kullanıcıları, kota kullanımlarını ve abonelik planlarını yönetin.</p>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
           <div className="flex bg-brand-card border border-brand-border rounded-xl p-1">
             <button 
               onClick={() => setView('users')}
               className={cn(
-                "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                "flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
                 view === 'users' ? "bg-emerald-500 text-black shadow-lg" : "text-gray-500 hover:text-gray-300"
               )}
             >
@@ -289,7 +289,7 @@ export function AdminPanel() {
             <button 
               onClick={() => setView('tones')}
               className={cn(
-                "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                "flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
                 view === 'tones' ? "bg-emerald-500 text-black shadow-lg" : "text-gray-500 hover:text-gray-300"
               )}
             >
@@ -303,7 +303,7 @@ export function AdminPanel() {
               placeholder={view === 'users' ? "Kullanıcı ara..." : "Tarz ara..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-brand-bg border border-brand-border rounded-xl text-sm outline-none focus:border-emerald-500 transition-colors w-64 text-gray-300"
+              className="pl-10 pr-4 py-2 bg-brand-bg border border-brand-border rounded-xl text-sm outline-none focus:border-emerald-500 transition-colors w-full sm:w-64 text-gray-300"
             />
           </div>
         </div>
