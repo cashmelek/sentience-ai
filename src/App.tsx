@@ -140,7 +140,11 @@ export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [copied, setCopied] = useState(false);
   const [realtimeScore, setRealtimeScore] = useState<number | null>(null);
-  const [detailsFontSize, setDetailsFontSize] = useState(10);
+  const [detailsFontSize, setDetailsFontSize] = useState(14);
+  const [systemSettings, setSystemSettings] = useState({
+    sentinelEnabled: true,
+    maintenanceMode: false
+  });
 
   const isAdmin = user?.email?.toLowerCase() === 'ismail.kaleci@gmail.com';
 
@@ -250,6 +254,17 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
+  // Load System Settings
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'system'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setSystemSettings(prev => ({ ...prev, ...data }));
+      }
+    });
+    return () => unsub();
+  }, []);
+
   // Real-time AI Score
   useEffect(() => {
     if (!inputText.trim() || inputText.length < 50) {
@@ -308,12 +323,14 @@ export default function App() {
     }
 
     setIsProcessing(true);
-    setProcessingStatus('Canlı Kaynak Taraması Yapılıyor...');
+    setProcessingStatus(systemSettings.sentinelEnabled ? 'Canlı Kaynak Taraması Yapılıyor...' : 'Yapay Zeka analizi yapılıyor...');
     try {
       // 1. Sentinel İntihal Kontrolü
-      const plagiarismReport = await verifyPlagiarism(inputText);
+      const plagiarismReport = await verifyPlagiarism(inputText, systemSettings.sentinelEnabled);
       
-      setProcessingStatus('Yapay Zeka analizi ve insanlaştırma yapılıyor...');
+      if (systemSettings.sentinelEnabled) {
+        setProcessingStatus('Yapay Zeka analizi ve insanlaştırma yapılıyor...');
+      }
 
       // 2. Gemini İnsanlaştırma
       const result = await analyzeAndHumanize(inputText, options);
@@ -847,18 +864,20 @@ export default function App() {
                         <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><Search className="w-3 h-3 text-emerald-500" /> Detaylar</h3>
                         <div className="flex items-center gap-2">
                           <span className="text-[8px] text-gray-500 font-bold">A</span>
-                          <input type="range" min="10" max="16" value={detailsFontSize} onChange={(e) => setDetailsFontSize(Number(e.target.value))} className="w-16 h-1 accent-emerald-500 bg-white/10 rounded-full cursor-pointer" title="Yazı boyutunu ayarla" />
+                          <input type="range" min="12" max="24" value={detailsFontSize} onChange={(e) => setDetailsFontSize(Number(e.target.value))} className="w-24 h-1 accent-emerald-500 bg-white/10 rounded-full cursor-pointer" title="Yazı boyutunu ayarla" />
                           <span className="text-[12px] text-gray-500 font-bold">A</span>
                         </div>
                       </div>
                       <div className="space-y-3">
-                        {grammarSuggestions.length > 0 ? grammarSuggestions.map((s, i) => (
-                          <div key={i} className="p-3 bg-red-500/5 rounded-xl border border-red-500/10 space-y-1">
-                            <div className="text-[10px] font-bold text-emerald-400 cursor-pointer hover:underline" onClick={() => applyGrammarCorrection(s)}>➜ {s.suggestion}</div>
-                            <div className="text-[9px] text-gray-600 line-through truncate">{s.original}</div>
+                        {grammarSuggestions.map((s, i) => (
+                          <div key={`gram-${i}`} className="p-3 bg-red-500/5 rounded-xl border border-red-500/10 space-y-1" style={{ fontSize: `${detailsFontSize}px` }}>
+                            <div className="font-bold text-emerald-400 cursor-pointer hover:underline" onClick={() => applyGrammarCorrection(s)}>➜ {s.suggestion}</div>
+                            <div className="text-gray-500 text-[0.9em] italic">{s.explanation}</div>
+                            <div className="text-gray-600 line-through truncate opacity-30 text-[0.8em]">{s.original}</div>
                           </div>
-                        )) : analysis?.insights?.map((ins, i) => (
-                          <div key={i} className="p-3 bg-white/[0.02] rounded-xl border-l-2 border-emerald-500/30 leading-relaxed transition-all" style={{ fontSize: `${detailsFontSize}px` }}>
+                        ))}
+                        {analysis?.insights?.map((ins, i) => (
+                          <div key={`ins-${i}`} className="p-3 bg-white/[0.02] rounded-xl border-l-2 border-emerald-500/30 leading-relaxed transition-all" style={{ fontSize: `${detailsFontSize}px` }}>
                             <div className="text-emerald-500/60 mb-1">"{ins.sentence}"</div>
                             <div className="text-gray-500 italic">{ins.detail}</div>
                           </div>
@@ -909,24 +928,26 @@ export default function App() {
                     <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><Search className="w-3 h-3 text-emerald-500" /> Detaylar</h3>
                     <div className="flex items-center gap-2">
                       <span className="text-[8px] text-gray-500 font-bold">A</span>
-                      <input type="range" min="10" max="16" value={detailsFontSize} onChange={(e) => setDetailsFontSize(Number(e.target.value))} className="w-16 h-1 accent-emerald-500 bg-white/10 rounded-full cursor-pointer" title="Yazı boyutunu ayarla" />
+                      <input type="range" min="12" max="24" value={detailsFontSize} onChange={(e) => setDetailsFontSize(Number(e.target.value))} className="w-24 h-1 accent-emerald-500 bg-white/10 rounded-full cursor-pointer" title="Yazı boyutunu ayarla" />
                       <span className="text-[12px] text-gray-500 font-bold">A</span>
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
-                    {grammarSuggestions.length > 0 ? grammarSuggestions.map((s, i) => (
-                      <div key={i} className="p-3 bg-red-500/5 rounded-xl border border-red-500/10 space-y-1">
-                        <div className="text-[10px] font-bold text-emerald-400 cursor-pointer hover:underline" onClick={() => applyGrammarCorrection(s)}>➜ {s.suggestion}</div>
-                        <div className="text-[9px] text-gray-600 line-through truncate">{s.original}</div>
+                    {grammarSuggestions.map((s, i) => (
+                      <div key={`gram-dt-${i}`} className="p-3 bg-red-500/5 rounded-xl border border-red-500/10 space-y-1" style={{ fontSize: `${detailsFontSize}px` }}>
+                        <div className="font-bold text-emerald-400 cursor-pointer hover:underline" onClick={() => applyGrammarCorrection(s)}>➜ {s.suggestion}</div>
+                        <div className="text-gray-500 text-[0.9em] italic">{s.explanation}</div>
+                        <div className="text-gray-600 line-through truncate opacity-30 text-[0.8em]">{s.original}</div>
                       </div>
-                    )) : analysis?.insights && analysis.insights.length > 0 ? (
+                    ))}
+                    {analysis?.insights && analysis.insights.length > 0 ? (
                       analysis.insights.map((ins, i) => (
-                        <div key={i} className="p-3 bg-white/[0.02] rounded-xl border-l-2 border-emerald-500/30 leading-relaxed transition-all" style={{ fontSize: `${detailsFontSize}px` }}>
+                        <div key={`ins-dt-${i}`} className="p-3 bg-white/[0.02] rounded-xl border-l-2 border-emerald-500/30 leading-relaxed transition-all" style={{ fontSize: `${detailsFontSize}px` }}>
                           <div className="text-emerald-500/60 mb-1">"{ins.sentence}"</div>
                           <div className="text-gray-500 italic">{ins.detail}</div>
                         </div>
                       ))
-                    ) : (
+                    ) : grammarSuggestions.length === 0 && (
                       <div className="h-full flex flex-col items-center justify-center text-center opacity-50 grayscale">
                         <Layers className="w-12 h-12 mb-4 text-emerald-500/20" />
                         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Veri Bekleniyor</p>

@@ -38,13 +38,17 @@ export function AdminPanel() {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [stats, setStats] = useState({ totalProjects: 0, totalTones: 0 });
   const [logs, setLogs] = useState<any[]>([]);
+  const [sentinelLogs, setSentinelLogs] = useState<any[]>([]);
   const [tones, setTones] = useState<any[]>([]);
-  const [view, setView] = useState<'users' | 'tones'>('users');
+  const [view, setView] = useState<'users' | 'tones' | 'sentinel'>('users');
   const [systemSettings, setSystemSettings] = useState({
     maintenanceMode: false,
     maintenanceMessage: 'Size daha iyi bir deneyim sunmak için sistemimizi güncelliyoruz. Lütfen kısa bir süre sonra tekrar deneyin.',
     defaultIntensity: 80,
-    apiStatus: 'online'
+    apiStatus: 'online',
+    sentinelEnabled: true,
+    sentinelStatus: 'online' as 'online' | 'error' | 'quota_full',
+    sentinelLastMessage: ''
   });
 
   // Auth state'i güvenli şekilde izle
@@ -102,12 +106,18 @@ export function AdminPanel() {
       setLogs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
+    const qSentinelLogs = query(collection(db, 'sentinelLogs'), orderBy('timestamp', 'desc'), limit(50));
+    const unsubSentinelLogs = onSnapshot(qSentinelLogs, (snap) => {
+      setSentinelLogs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     return () => {
       unsubUsers();
       unsubProjects();
       unsubTones();
       unsubSettings();
       unsubLogs();
+      unsubSentinelLogs();
     };
   }, []);
 
@@ -295,6 +305,15 @@ export function AdminPanel() {
             >
               Tarzlar
             </button>
+            <button 
+              onClick={() => setView('sentinel')}
+              className={cn(
+                "flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                view === 'sentinel' ? "bg-emerald-500 text-black shadow-lg" : "text-gray-500 hover:text-gray-300"
+              )}
+            >
+              Sentinel
+            </button>
           </div>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -374,6 +393,19 @@ export function AdminPanel() {
                 </div>
                 <span className="text-[10px] font-mono text-gray-500">KARARLI</span>
               </div>
+
+              <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-brand-border">
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className={cn("w-4 h-4", systemSettings.sentinelStatus === 'online' ? "text-emerald-500" : "text-red-500")} />
+                  <span className="text-xs font-bold text-gray-300">Sentinel (İntihal)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-2 h-2 rounded-full", systemSettings.sentinelStatus === 'online' ? "bg-emerald-500 animate-pulse" : "bg-red-500")} />
+                  <span className={cn("text-[10px] font-bold uppercase", systemSettings.sentinelStatus === 'online' ? "text-emerald-500" : "text-red-500")}>
+                    {systemSettings.sentinelStatus === 'online' ? 'ONLINE' : systemSettings.sentinelStatus === 'quota_full' ? 'QUOTA FULL' : 'ERROR'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -398,6 +430,25 @@ export function AdminPanel() {
                   <div className={cn(
                     "absolute top-1 w-3 h-3 bg-white rounded-full transition-all",
                     systemSettings.maintenanceMode ? "left-6" : "left-1"
+                  )} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-gray-300">Sentinel Servisi</span>
+                  <span className="text-[9px] text-gray-500">İntihal denetimini yönetir</span>
+                </div>
+                <button 
+                  onClick={() => setSystemSettings(s => ({ ...s, sentinelEnabled: !s.sentinelEnabled }))}
+                  className={cn(
+                    "w-10 h-5 rounded-full transition-all relative",
+                    systemSettings.sentinelEnabled ? "bg-emerald-500" : "bg-gray-700"
+                  )}
+                >
+                  <div className={cn(
+                    "absolute top-1 w-3 h-3 bg-white rounded-full transition-all",
+                    systemSettings.sentinelEnabled ? "left-6" : "left-1"
                   )} />
                 </button>
               </div>
@@ -490,7 +541,7 @@ export function AdminPanel() {
               {view === 'users' ? 'KULLANICI YÖNETİMİ' : 'TARZ YÖNETİMİ'}
             </h3>
             <span className="text-[10px] text-gray-600 font-mono">
-              {view === 'users' ? filteredUsers.length : tones.filter(t => t.name?.toLowerCase().includes(searchTerm.toLowerCase())).length} Sonuç
+              {view === 'users' ? filteredUsers.length : view === 'tones' ? filteredTones.length : sentinelLogs.length} Sonuç
             </span>
           </div>
           <div className="overflow-x-auto">
@@ -639,7 +690,39 @@ export function AdminPanel() {
                 {((view === 'users' && filteredUsers.length === 0) || (view === 'tones' && filteredTones.length === 0)) && (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-gray-500 text-sm">
-                      Arama kriterlerine uygun {view === 'users' ? 'kullanıcı' : 'tarz'} bulunamadı.
+                      Arama kriterlerine uygun {view === 'users' ? 'kullanıcı' : view === 'tones' ? 'tarz' : 'kayıt'} bulunamadı.
+                    </td>
+                  </tr>
+                )}
+                {view === 'sentinel' && sentinelLogs.length > 0 && (
+                  sentinelLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-white/[0.02] transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className={cn(
+                          "px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border inline-block",
+                          log.status === 'success' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-red-500/10 text-red-500 border-red-500/20"
+                        )}>
+                          {log.status === 'success' ? 'Başarılı' : 'Hata'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4" colSpan={2}>
+                        <div className="text-xs text-gray-300">{log.message}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-[10px] text-gray-500 font-mono">{log.duration}ms</div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="text-[10px] text-gray-600">
+                          {log.timestamp?.toDate ? new Date(log.timestamp.toDate()).toLocaleString() : '...'}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+                {view === 'sentinel' && sentinelLogs.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 text-sm">
+                      Henüz Sentinel logu bulunmuyor.
                     </td>
                   </tr>
                 )}

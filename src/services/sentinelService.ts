@@ -13,6 +13,40 @@ export interface PlagiarismReport {
 const API_KEY = import.meta.env.VITE_GOOGLE_SEARCH_API_KEY;
 const ENGINE_ID = import.meta.env.VITE_GOOGLE_SEARCH_ENGINE_ID;
 
+import { db } from '../lib/firebase';
+import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+
+/**
+ * Sentinel servisinin durumunu günceller.
+ */
+export const updateSentinelStatus = async (status: 'online' | 'error' | 'quota_full', message?: string) => {
+  try {
+    await updateDoc(doc(db, 'settings', 'system'), {
+      sentinelStatus: status,
+      sentinelLastMessage: message || '',
+      sentinelLastCheck: serverTimestamp()
+    });
+  } catch (error) {
+    console.error("Sentinel durum güncelleme hatası:", error);
+  }
+};
+
+/**
+ * Sentinel olaylarını loglar (Gizlilik gereği metin içeriği alınmaz).
+ */
+export const logSentinelEvent = async (status: 'success' | 'error', duration: number, message: string) => {
+  try {
+    await addDoc(collection(db, 'sentinelLogs'), {
+      status,
+      duration,
+      message,
+      timestamp: serverTimestamp()
+    });
+  } catch (error) {
+    console.error("Sentinel loglama hatası:", error);
+  }
+};
+
 /**
  * Metni anlamlı cümlelere böler.
  */
@@ -41,6 +75,10 @@ export const searchInternetForSnippet = async (snippet: string): Promise<Plagiar
 
   try {
     const response = await fetch(url);
+    if (response.status === 429) {
+      await updateSentinelStatus('quota_full', 'Google API Kotası Doldu');
+      throw new Error('quota_full');
+    }
     if (!response.ok) {
       throw new Error(`Google Search API hatası: ${response.statusText}`);
     }
@@ -65,7 +103,12 @@ export const searchInternetForSnippet = async (snippet: string): Promise<Plagiar
 /**
  * Tüm metni tarayıp gerçek intihal oranını ve kaynaklarını hesaplar.
  */
-export const verifyPlagiarism = async (text: string): Promise<PlagiarismReport> => {
+export const verifyPlagiarism = async (text: string, enabled: boolean = true): Promise<PlagiarismReport> => {
+  if (!enabled) {
+    return { similarityScore: 0, sources: [] };
+  }
+
+  const startTime = Date.now();
   const chunks = chunkText(text);
 
   if (chunks.length === 0) {
@@ -75,29 +118,39 @@ export const verifyPlagiarism = async (text: string): Promise<PlagiarismReport> 
   let matchCount = 0;
   const sources: PlagiarismSource[] = [];
 
-  // API limitlerini ve süreyi korumak için, rastgele/ilk 5 cümleyi seçebiliriz (veya metne göre dinamik)
-  // En uzun (dolayısıyla intihal olma ihtimali/kanıtı en yüksek olan) 5 cümleyi alalım.
-  const sampleSize = Math.min(chunks.length, 5); 
-  const targetChunks = [...chunks].sort((a, b) => b.length - a.length).slice(0, sampleSize);
+  try {
+    const sampleSize = Math.min(chunks.length, 5); 
+    const targetChunks = [...chunks].sort((a, b) => b.length - a.length).slice(0, sampleSize);
 
-  for (const chunk of targetChunks) {
-    const result = await searchInternetForSnippet(chunk);
-    if (result) {
-      matchCount++;
-      // Aynı kaynağı (URL) birden fazla eklememek için kontrol
-      if (!sources.some(s => s.url === result.url)) {
-        sources.push(result);
+    for (const chunk of targetChunks) {
+      const result = await searchInternetForSnippet(chunk);
+      if (result) {
+        matchCount++;
+        if (!sources.some(s => s.url === result.url)) {
+          sources.push(result);
+        }
       }
+      await new Promise(resolve => setTimeout(resolve, 500)); 
     }
-    // Google API rate limitlerine takılmamak için aralara ufak bir bekleme koyabiliriz
-    await new Promise(resolve => setTimeout(resolve, 500)); 
+
+    const similarityScore = Math.round((matchCount / targetChunks.length) * 100);
+    const duration = Date.now() - startTime;
+
+    // Başarılı işlemi logla ve durumu güncelle
+    await logSentinelEvent('success', duration, `${targetChunks.length} cümle tarandı, %${similarityScore} eşleşme.`);
+    await updateSentinelStatus('online', 'Sistem Kararlı');
+
+    return { similarityScore, sources };
+
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    const isQuota = error.message === 'quota_full';
+    
+    await logSentinelEvent('error', duration, isQuota ? 'API Kotası Doldu' : error.message);
+    if (!isQuota) {
+      await updateSentinelStatus('error', error.message);
+    }
+    
+    return { similarityScore: 0, sources: [] };
   }
-
-  // İncelenen örneklemlerdeki (sampleSize) intihal oranını hesapla
-  const similarityScore = Math.round((matchCount / targetChunks.length) * 100);
-
-  return {
-    similarityScore,
-    sources
-  };
 };

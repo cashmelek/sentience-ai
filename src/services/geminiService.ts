@@ -49,10 +49,90 @@ export interface GrammarOptions {
   ignore: string[];
 }
 
+/**
+ * Safely cleans and parses JSON from LLM output.
+ * Handles markdown code blocks, trailing commas, and common escaping issues.
+ */
+const robustParse = (text: string) => {
+  try {
+    // 1. Remove markdown code blocks if present
+    let cleaned = text.replace(/```json\n?|```/g, '').trim();
+    
+    // 2. Fix common LLM JSON errors (unescaped newlines and quotes inside strings)
+    let inString = false;
+    let result = "";
+    for (let i = 0; i < cleaned.length; i++) {
+      const char = cleaned[i];
+      const prevChar = i > 0 ? cleaned[i-1] : '';
+      
+      if (char === '"' && prevChar !== '\\') {
+        // Simple heuristic: if we are in a string and the next char is NOT a JSON structural char
+        // (like :, }, ], or ,), then this is likely an unescaped quote.
+        if (inString) {
+          const nextPart = cleaned.substring(i + 1).trim();
+          const isActuallyEndOfString = i === cleaned.length - 1 || /^[:,\}\]]/.test(nextPart);
+          if (isActuallyEndOfString) {
+            inString = false;
+            result += char;
+          } else {
+            result += '\\"'; // Escape the internal quote
+          }
+        } else {
+          inString = true;
+          result += char;
+        }
+      } else if (char === '\n' && inString) {
+        result += "\\n";
+      } else {
+        result += char;
+      }
+    }
+    
+    // 3. Handle truncation: If the response is truncated, try to close it
+    if (inString) {
+      result += '"'; // Close the open string
+    }
+    
+    // Simple bracket balancer for truncated JSON
+    let openBraces = (result.match(/\{/g) || []).length;
+    let closeBraces = (result.match(/\}/g) || []).length;
+    while (openBraces > closeBraces) {
+      result += '}';
+      closeBraces++;
+    }
+    
+    let openBrackets = (result.match(/\[/g) || []).length;
+    let closeBrackets = (result.match(/\]/g) || []).length;
+    while (openBrackets > closeBrackets) {
+      result += ']';
+      closeBrackets++;
+    }
+
+    return JSON.parse(result);
+  } catch (e) {
+    console.warn("JSON parsing failed, attempting fallback extraction:", e);
+    
+    // 4. Fallback: Try to extract everything between the first { and last }
+    try {
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace !== -1) {
+        let jsonCandidate = lastBrace !== -1 ? text.substring(firstBrace, lastBrace + 1) : text.substring(firstBrace) + "}";
+        // Apply basic cleanup to candidate too
+        jsonCandidate = jsonCandidate.replace(/\n/g, '\\n');
+        return JSON.parse(jsonCandidate);
+      }
+    } catch (innerE) {
+      console.error("JSON extraction failed:", innerE);
+    }
+    throw e;
+  }
+};
+
 export const analyzeAndHumanize = async (text: string, options: HumanizeOptions): Promise<AnalysisResult> => {
   assertApiKey();
   
-  const modelsToTry = [DEFAULT_MODEL, "gemini-flash-latest", "gemini-2.5-pro", "gemini-3.1-flash-lite", "gemini-pro-latest"];
+  const modelsToTry = [DEFAULT_MODEL, "gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest"];
   let lastError: any = null;
 
   for (const modelName of modelsToTry) {
@@ -84,19 +164,23 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
         GÖREV: Metni insanileştir ve analiz et.
         
         KURALLAR:
-        1. FORMATI KORU: Kaynak metindeki tüm başlıkları (#, ##), alt başlıkları, numaralandırılmış listeleri (1., 2.), madde işaretlerini (-, *) ve özel noktalamaları AYNEN KORU. Sadece metin içeriğini insanileştir.
+        1. FORMATI KORU: Kaynak metindeki tüm başlıkları (#, ##), alt başlıkları, numaralandırılmış listeleri (1., 2.), madde işaretlerini (-, *) ve özel noktalamaları AYNEN KORU.
         2. İNSANİLEŞTİRME: Metni YZ tespitinden kaçacak şekilde, doğal bir dille yeniden yaz.
            - ${styleInstruction}
            - ${intensityInstruction}
         3. CÜMLE ANALİZİ: Metindeki önemli cümleleri seç ve neden yapay veya doğal göründüklerini teknik olarak açıkla.
         
-        ÖNEMLİ: Yanıtını SADECE aşağıdaki JSON formatında ver. 'insights' alanı mutlaka bir nesne dizisi olmalıdır.
+        ÖNEMLİ (JSON GÜVENLİĞİ): 
+        - Yanıtını SADECE geçerli bir JSON nesnesi olarak ver. 
+        - JSON içindeki metinlerde çift tırnak (") kullanman gerekiyorsa mutlaka ters eğik çizgi (\\") ile kaçış yap.
+        - Metinlerde satır sonu karakterleri yerine \\n kullan.
+        
         JSON ŞEMASI:
         {
-          "humanizedText": "Dönüştürülmüş metin buraya gelecek (format korunmuş halde)",
+          "humanizedText": "Dönüştürülmüş metin buraya gelecek",
           "aiScore": 0.15,
           "insights": [
-            {"sentence": "İncelenen cümle", "score": 0.8, "detail": "Neden YZ veya insan gibi göründüğüne dair teknik analiz."}
+            {"sentence": "İncelenen cümle", "score": 0.8, "detail": "Detaylı teknik analiz."}
           ]
         }
       `;
@@ -111,8 +195,7 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
         } as any
       });
 
-      const responseText = result.text;
-      const parsed = JSON.parse(responseText);
+      const parsed = robustParse(result.text);
       
       return {
         humanizedText: parsed.humanizedText || text,
@@ -144,7 +227,7 @@ export const checkGrammar = async (text: string, _options?: GrammarOptions): Pro
         contents: [{ role: "user", parts: [{ text: `Aşağıdaki metni Türkçe dilbilgisi açısından denetle ve JSON formatında suggestions listesi dön. Format: {"suggestions": [{"original": "...", "suggestion": "...", "explanation": "..."}]}. Metin: ${text}` }] }],
         config: { responseMimeType: "application/json", temperature: 0.1 } as any
       });
-      const parsed = JSON.parse(result.text || '{}');
+      const parsed = robustParse(result.text || '{}');
       return parsed.suggestions || [];
     } catch (e: any) {
       lastErr = e.message;
@@ -161,7 +244,7 @@ export const detectAI = async (text: string) => {
       contents: [{ role: "user", parts: [{ text: `Metnin YZ olasılığını (0-1) JSON {score: number} olarak hesapla: ${text}` }] }],
       config: { responseMimeType: "application/json", temperature: 0.1 } as any
     });
-    const parsed = JSON.parse(result.text || '{}');
+    const parsed = robustParse(result.text || '{}');
     return { score: parsed.score || 0.5, reasoning: "Analiz tamamlandı." };
   } catch (error) {
     return { score: 0.5, reasoning: "Tespit tamamlandı." };
