@@ -95,7 +95,7 @@ const PLANS = [
 export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
   const [demoText, setInputText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [demoResult, setDemoResult] = useState<number | null>(null);
+  const [demoResult, setDemoResult] = useState<{ score: number, insights: any[] } | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleDemoAnalyze = async () => {
@@ -106,7 +106,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
     setIsAnalyzing(true);
     try {
       const res = await detectAI(demoText);
-      setDemoResult(res.score);
+      setDemoResult({ score: res.score, insights: res.insights });
       toast.success("Auditor Agent analizi tamamladı!");
     } catch (err) {
       toast.error("Bağlantı hatası.");
@@ -307,11 +307,30 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                     <div className="max-w-sm mx-auto">
                       <h4 className="text-lg lg:text-xl font-bold mb-3">Auditor Raporu</h4>
                       <p className="text-xs lg:text-sm text-gray-400 leading-relaxed font-medium">
-                        {demoResult > 0.5 
+                        {demoResult.score > 0.5 
                           ? "Yüksek YZ izine rastlandı. GhostWriter ajanını kullanarak bu metni insanlaştırmanız önerilir."
                           : "Düşük YZ riski. Metin doğal bir yapı sergiliyor."}
                       </p>
                     </div>
+
+                    {demoResult.insights.length > 0 && (
+                      <div className="w-full space-y-3 text-left max-h-48 overflow-y-auto custom-scrollbar pr-2">
+                        <div className="text-[9px] font-black uppercase text-gray-500 tracking-widest mb-2">Tespit Edilen Kritik Noktalar:</div>
+                        {demoResult.insights.slice(0, 3).map((insight, idx) => (
+                          <div key={idx} className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-1">
+                            <div className="text-[10px] text-gray-300 font-medium italic">"{insight.sentence}"</div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] text-red-500 font-bold uppercase">Risk: %{Math.round(insight.score * 100)}</span>
+                              <span className="text-[8px] text-gray-600 font-medium">{insight.detail}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {demoResult.insights.length > 3 && (
+                          <div className="text-[9px] text-center text-gray-600 font-bold uppercase">+ {demoResult.insights.length - 3} Daha Fazla Bulgu</div>
+                        )}
+                      </div>
+                    )}
+
                     <button onClick={onGetStarted} className="px-8 lg:px-10 py-3 lg:py-4 bg-white text-black rounded-2xl font-black text-[9px] lg:text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all flex items-center gap-3 mx-auto shadow-xl shadow-white/5">
                       Tamamen İnsanlaştır <ArrowRight className="w-4 h-4" />
                     </button>
@@ -323,6 +342,44 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                   </div>
                 )}
               </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Humanize Demo Preview */}
+          <div className="mt-12 glass-panel p-8 lg:p-12 rounded-[32px] border border-white/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-widest">
+                <Lock className="w-3 h-3" />
+                GhostWriter Premium
+              </div>
+            </div>
+            <div className="flex flex-col lg:flex-row items-center gap-10">
+              <div className="lg:w-1/3">
+                <h3 className="text-2xl font-black mb-4 uppercase tracking-tighter">GhostWriter</h3>
+                <p className="text-gray-500 text-sm leading-relaxed mb-6 font-medium">Metninizi sadece insanlaştırmakla kalmaz, istediğiniz tonda ve duyguda yeniden inşa eder. YZ izlerini %100'e kadar temizler.</p>
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Duygu Analizi ve Ekleme</li>
+                  <li className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Doğal Sentaks Varyasyonları</li>
+                  <li className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Format ve Liste Koruması</li>
+                </ul>
+                <button onClick={onGetStarted} className="w-full py-4 bg-emerald-500 text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all shadow-xl shadow-emerald-500/20">Tam Erişimi Aç</button>
+              </div>
+              <div className="lg:w-2/3 w-full">
+                <div className="relative rounded-[24px] overflow-hidden bg-black/40 border border-white/5 aspect-video flex items-center justify-center group">
+                  <div className="absolute inset-0 bg-mesh opacity-20 blur-3xl" />
+                  <div className="relative z-10 text-center space-y-6 px-10">
+                    <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                      <Sparkles className="w-10 h-10 text-emerald-500" />
+                    </div>
+                    <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.4em]">İnsanlaştırma Önizlemesi İçin Kayıt Olun</p>
+                    <div className="flex gap-2 justify-center">
+                      <div className="h-1.5 w-12 bg-white/5 rounded-full animate-pulse" />
+                      <div className="h-1.5 w-24 bg-white/5 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                      <div className="h-1.5 w-16 bg-white/5 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

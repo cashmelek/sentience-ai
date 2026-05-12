@@ -107,6 +107,76 @@ const STANDARD_TONES = [
   'Heyecanlı'
 ];
 
+const MetricCard = ({ icon: Icon, label, value, subValue, colorClass = "text-emerald-500" }: any) => (
+  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 hover:bg-white/10 transition-all group">
+    <div className="flex items-center gap-2 mb-1">
+      <div className={cn("p-2 rounded-lg bg-white/5 group-hover:scale-110 transition-transform", colorClass)}>
+        <Icon className="w-4 h-4" />
+      </div>
+      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">{label}</span>
+    </div>
+    <div className="text-2xl font-black text-white">{value}</div>
+    {subValue && <div className="text-[10px] text-gray-500 font-medium">{subValue}</div>}
+  </div>
+);
+
+const HeatmapText = ({ text, sentenceScores }: { text: string, sentenceScores: { sentence: string, score: number, type?: 'ai' | 'human' | 'mixed' }[] }) => {
+  if (!sentenceScores || sentenceScores.length === 0) return <>{text}</>;
+
+  return (
+    <div className="whitespace-pre-wrap leading-relaxed text-gray-300">
+      {sentenceScores.map((item, idx) => {
+        let color = 'transparent';
+        let borderColor = 'transparent';
+        const opacity = 0.3;
+
+        if (item.type === 'ai' || item.score > 0.7) {
+          color = `rgba(239, 68, 68, ${opacity})`;
+          borderColor = `rgba(239, 68, 68, 0.5)`;
+        } else if (item.type === 'mixed' || (item.score > 0.3 && item.score <= 0.7)) {
+          color = `rgba(245, 158, 11, ${opacity})`;
+          borderColor = `rgba(245, 158, 11, 0.5)`;
+        } else {
+          color = `rgba(16, 185, 129, ${opacity})`;
+          borderColor = `rgba(16, 185, 129, 0.5)`;
+        }
+        
+        return (
+          <span 
+            key={idx} 
+            className="transition-all duration-300 px-0.5 rounded cursor-help group relative inline"
+            style={{ backgroundColor: color, borderBottom: `2px solid ${borderColor}` }}
+          >
+            {item.sentence}{" "}
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black border border-white/10 rounded text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap shadow-xl">
+              {item.type === 'ai' ? 'YZ Tespiti' : item.type === 'human' ? 'İnsan Yazımı' : 'Karma Yapı'}: %{Math.round(item.score * 100)}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
+const MetricProgress = ({ label, value, percentage, icon: Icon }: any) => (
+  <div className="space-y-1.5">
+    <div className="flex justify-between items-center px-1">
+      <div className="flex items-center gap-1.5">
+        <Icon className="w-3 h-3 text-emerald-500/70" />
+        <span className="text-[9px] font-bold text-gray-500 uppercase tracking-tight">{label}</span>
+      </div>
+      <span className="text-[10px] font-black text-white">{value}</span>
+    </div>
+    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+      <motion.div 
+        initial={{ width: 0 }}
+        animate={{ width: `${percentage * 100}%` }}
+        className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+      />
+    </div>
+  </div>
+);
+
 export default function App() {
   // Auth & User State
   const [user, setUser] = useState<User | null>(null);
@@ -145,6 +215,7 @@ export default function App() {
     sentinelEnabled: true,
     maintenanceMode: false
   });
+  const [showHeatmap, setShowHeatmap] = useState(true);
 
   const isAdmin = user?.email?.toLowerCase() === 'ismail.kaleci@gmail.com';
 
@@ -825,7 +896,21 @@ export default function App() {
 
                 <div className="min-h-[300px] lg:flex-1 glass-panel rounded-[24px] flex flex-col overflow-hidden">
                   <div className="px-4 py-2 border-b border-brand-border flex justify-between items-center bg-white/[0.02]">
-                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Sonuç</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Sonuç</span>
+                      {analysis && (
+                        <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10">
+                          <button 
+                            onClick={() => setShowHeatmap(false)}
+                            className={cn("px-2 py-1 text-[8px] font-bold rounded-md transition-all", !showHeatmap ? "bg-emerald-500 text-black" : "text-gray-500")}
+                          >METİN</button>
+                          <button 
+                            onClick={() => setShowHeatmap(true)}
+                            className={cn("px-2 py-1 text-[8px] font-bold rounded-md transition-all", showHeatmap ? "bg-emerald-500 text-black" : "text-gray-500")}
+                          >ISI HARİTASI</button>
+                        </div>
+                      )}
+                    </div>
                     <button onClick={() => copyToClipboard(humanizedText)} className="p-1.5 text-gray-500 hover:text-emerald-500 transition-colors"><Copy className="w-3.5 h-3.5" /></button>
                   </div>
                   <div className="flex-1 p-4 lg:p-6 overflow-y-auto text-gray-300 leading-relaxed text-sm custom-scrollbar bg-emerald-500/[0.01]">
@@ -836,7 +921,11 @@ export default function App() {
                       </div>
                     ) : (
                       <div className="prose prose-invert max-w-none prose-sm lg:prose-base">
-                        <ReactMarkdown>{humanizedText || "_Sonuç burada görünecek..._"}</ReactMarkdown>
+                        {showHeatmap && analysis?.sentenceScores ? (
+                          <HeatmapText text={humanizedText} sentenceScores={analysis.sentenceScores} />
+                        ) : (
+                          <ReactMarkdown>{humanizedText || "_Sonuç burada görünecek..._"}</ReactMarkdown>
+                        )}
                       </div>
                     )}
                   </div>
@@ -902,6 +991,49 @@ export default function App() {
                     </div>
                   ) : <div className="text-[10px] text-gray-600 italic text-center py-10">Veri bekleniyor...</div>}
                 </div>
+
+                {/* Deep Metrics Card */}
+                {analysis?.metrics && (
+                  <div className="p-6 glass-panel rounded-[24px] space-y-5">
+                    <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-emerald-500" /> Derin Metrikler
+                    </h3>
+                    <div className="space-y-4">
+                      <MetricProgress 
+                        icon={Highlighter} 
+                        label="Okunabilirlik" 
+                        value={`%${Math.round(analysis.metrics.readability * 100)}`} 
+                        percentage={analysis.metrics.readability} 
+                      />
+                      <MetricProgress 
+                        icon={Layers} 
+                        label="Dilbilgisi" 
+                        value={`%${Math.round(analysis.metrics.grammarScore * 100)}`} 
+                        percentage={analysis.metrics.grammarScore} 
+                      />
+                      <MetricProgress 
+                        icon={Zap} 
+                        label="Ton Gücü" 
+                        value={`%${Math.round(analysis.metrics.toneStrength * 100)}`} 
+                        percentage={analysis.metrics.toneStrength} 
+                      />
+                      <div className="pt-2 grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
+                          <div className="text-[8px] text-gray-600 font-bold uppercase mb-1">Karmaşıklık</div>
+                          <div className="text-xs font-black text-emerald-400">{analysis.metrics.complexity}</div>
+                        </div>
+                        <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
+                          <div className="text-[8px] text-gray-600 font-bold uppercase mb-1">Kelime Sayısı</div>
+                          <div className="text-xs font-black text-gray-300">{analysis.metrics.wordCount}</div>
+                        </div>
+                      </div>
+                      <div className="text-center p-2 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+                        <div className="text-[8px] text-emerald-500/70 font-bold uppercase">Tahmini Okuma Süresi</div>
+                        <div className="text-xs font-black text-emerald-500">{analysis.metrics.readingTime}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Sources Card */}
                 {analysis?.sources && analysis.sources.length > 0 && (

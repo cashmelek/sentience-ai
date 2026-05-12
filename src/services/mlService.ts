@@ -1,17 +1,17 @@
 import * as tf from "@tensorflow/tfjs";
 import { db, auth } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { extractTextFeatures, simpleReadabilityScore, buildFeatureTensor } from "../ml/textFeatures";
+import { extractTextFeatures, simpleReadabilityScore, buildFeatureTensor, TextFeatureSet } from "../ml/textFeatures";
 
 export interface MLAnalysisResult {
   readabilityScore: number;
   complexity: 'Düşük' | 'Orta' | 'Yüksek';
   recommendations: string[];
+  metrics: TextFeatureSet;
 }
 
 /**
  * Kullanıcı gizliliğini koruyarak anonim feedback gönderir.
- * Tamamen ücretsiz Firestore kotası dahilinde çalışır.
  */
 export const sendAnonymousFeedback = async (
   originalLength: number, 
@@ -36,51 +36,27 @@ export const sendAnonymousFeedback = async (
   }
 };
 
-/**
- * ÜCRETSİZ YÖNTEM: Modelleri projenin kendi sunucusundan (Hosting) yükler.
- * Bu yöntem Storage (Cloud Storage) gerektirmez ve ek ücret çıkarmaz.
- */
 export const loadRemoteModel = async (modelName: string): Promise<tf.LayersModel | null> => {
-  // Statik dosya yolu (public/models/...)
   const modelUrl = `/models/${modelName}/model.json`;
-  
   try {
-    console.log(`Yerel sunucudan model yükleniyor: ${modelName}...`);
     const model = await tf.loadLayersModel(modelUrl);
-    console.log(`Model başarıyla yüklendi: ${modelName}`);
     return model;
   } catch (error) {
-    console.warn(`${modelName} modeli sunucuda bulunamadı, matematiksel analiz kullanılıyor.`);
     return null;
   }
 };
 
-/**
- * Analiz motorunu hibrit yapıya dönüştürür (Model varsa kullan, yoksa matematiksel devam et).
- */
 export const performDeepMLAnalysis = async (text: string): Promise<MLAnalysisResult> => {
-  const remoteModel = await loadRemoteModel('text-classifier');
-  
-  let score: number;
-  if (remoteModel) {
-    const features = extractTextFeatures(text);
-    const input = buildFeatureTensor(features);
-    const prediction = remoteModel.predict(input) as tf.Tensor;
-    const data = await prediction.data();
-    score = data[0];
-    input.dispose();
-    prediction.dispose();
-  } else {
-    score = simpleReadabilityScore(text);
-  }
+  const features = extractTextFeatures(text);
+  const readability = simpleReadabilityScore(text);
   
   let complexity: 'Düşük' | 'Orta' | 'Yüksek' = 'Orta';
   const recommendations: string[] = [];
 
-  if (score < 0.3) {
+  if (readability < 0.3) {
     complexity = 'Düşük';
     recommendations.push("Metin oldukça basit. Daha zengin bir kelime dağarcığı eklenebilir.");
-  } else if (score > 0.7) {
+  } else if (readability > 0.7) {
     complexity = 'Yüksek';
     recommendations.push("Metin karmaşıklığı yüksek. Okunabilirliği artırmak için cümleleri kısaltabilirsiniz.");
   } else {
@@ -88,14 +64,18 @@ export const performDeepMLAnalysis = async (text: string): Promise<MLAnalysisRes
     recommendations.push("Metin dengeli bir yapıya sahip.");
   }
 
-  const features = extractTextFeatures(text);
   if (features.avgWordLength > 6) {
     recommendations.push("Kelimeler ortalama olarak uzun. Daha yaygın kelimeler tercih edilebilir.");
   }
+  
+  if (features.burstiness < 5) {
+    recommendations.push("Cümle uzunlukları çok benzer (Düşük Burstiness). Bu durum YZ şüphesini artırabilir.");
+  }
 
   return {
-    readabilityScore: score,
+    readabilityScore: readability,
     complexity,
-    recommendations
+    recommendations,
+    metrics: features
   };
 };

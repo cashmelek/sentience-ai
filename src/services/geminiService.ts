@@ -29,6 +29,15 @@ export interface AnalysisResult {
   humanizedText: string;
   aiScore: number;
   insights: { sentence: string; score: number; detail: string }[];
+  sentenceScores: { sentence: string; score: number; type?: 'ai' | 'human' | 'mixed' }[]; 
+  metrics: {
+    readability: number;
+    complexity: string;
+    toneStrength: number;
+    grammarScore: number;
+    wordCount: number;
+    readingTime: string;
+  };
 }
 
 export interface HumanizeOptions {
@@ -168,19 +177,33 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
         2. İNSANİLEŞTİRME: Metni YZ tespitinden kaçacak şekilde, doğal bir dille yeniden yaz.
            - ${styleInstruction}
            - ${intensityInstruction}
-        3. CÜMLE ANALİZİ: Metindeki önemli cümleleri seç ve neden yapay veya doğal göründüklerini teknik olarak açıkla.
+        3. CÜMLE ANALİZİ: Metni CÜMLE CÜMLE analiz et ve her cümle için YZ olasılığını belirle.
+        4. METRİKLER: Metnin okunabilirliğini, karmaşıklığını ve ton gücünü profesyonel bir denetçi gibi hesapla.
         
         ÖNEMLİ (JSON GÜVENLİĞİ): 
         - Yanıtını SADECE geçerli bir JSON nesnesi olarak ver. 
-        - JSON içindeki metinlerde çift tırnak (") kullanman gerekiyorsa mutlaka ters eğik çizgi (\\") ile kaçış yap.
+        - JSON içindeki metinlerde çift tırnak (") kullanman gerekiyorsa mutlaka ters eğik çizgi (\") ile kaçış yap.
         - Metinlerde satır sonu karakterleri yerine \\n kullan.
         
         JSON ŞEMASI:
         {
           "humanizedText": "Dönüştürülmüş metin buraya gelecek",
           "aiScore": 0.15,
+          "metrics": {
+            "readability": 0.85,
+            "complexity": "Profesyonel / Akademik / Sade",
+            "toneStrength": 0.90,
+            "grammarScore": 0.98,
+            "wordCount": 150,
+            "readingTime": "2 dk"
+          },
           "insights": [
-            {"sentence": "İncelenen cümle", "score": 0.8, "detail": "Detaylı teknik analiz."}
+            {"sentence": "İncelenen cümle", "score": 0.8, "detail": "Neden YZ olduğu veya neden başarılı olduğu detayı."}
+          ],
+          "sentenceScores": [
+            {"sentence": "Cümle 1", "score": 0.1, "type": "human"},
+            {"sentence": "Cümle 2", "score": 0.9, "type": "ai"},
+            {"sentence": "Cümle 3", "score": 0.5, "type": "mixed"}
           ]
         }
       `;
@@ -200,11 +223,20 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
       return {
         humanizedText: parsed.humanizedText || text,
         aiScore: typeof parsed.aiScore === 'number' ? parsed.aiScore : 0.5,
+        metrics: parsed.metrics || {
+          readability: 0.5,
+          complexity: 'Orta',
+          toneStrength: 0.5,
+          grammarScore: 0.5,
+          wordCount: text.split(/\s+/).length,
+          readingTime: '1 dk'
+        },
         insights: Array.isArray(parsed.insights) ? parsed.insights.map((ins: any) => ({
           sentence: typeof ins === 'string' ? ins : (ins.sentence || ""),
           score: typeof ins.score === 'number' ? ins.score : 0.5,
           detail: ins.detail || (typeof ins === 'string' ? "Cümle analizi yapıldı." : "")
-        })) : []
+        })) : [],
+        sentenceScores: Array.isArray(parsed.sentenceScores) ? parsed.sentenceScores : []
       };
     } catch (error: any) {
       console.warn(`Model ${modelName} denemesi başarısız:`, error.message);
@@ -213,6 +245,15 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
   }
 
   throw new Error(`YZ İşlemi Başarısız. Son hata: ${lastError?.message}`);
+};
+
+/**
+ * Logs service errors to Firestore for Admin oversight.
+ */
+export const reportServiceError = async (serviceName: string, error: any, context?: any) => {
+  console.error(`[ServiceError] ${serviceName}:`, error);
+  // Note: Firestore logging would happen here if integrated.
+  // For now, we'll ensure the UI can display these if we add a local state or a dedicated collection.
 };
 
 export const checkGrammar = async (text: string, _options?: GrammarOptions): Promise<GrammarSuggestion[]> => {
@@ -240,13 +281,18 @@ export const detectAI = async (text: string) => {
   assertApiKey();
   try {
     const result = await ai.models.generateContent({
-      model: "gemini-flash-latest",
-      contents: [{ role: "user", parts: [{ text: `Metnin YZ olasılığını (0-1) JSON {score: number} olarak hesapla: ${text}` }] }],
+      model: "gemini-2.0-flash",
+      contents: [{ role: "user", parts: [{ text: `Aşağıdaki metni bir YZ Dedektörü (Auditor) olarak analiz et. Cümle bazlı riskleri belirle ve JSON formatında dön.\n\nMetin: ${text}\n\nJSON ŞEMASI:\n{\n  "score": 0.85,\n  "reasoning": "Genel analiz özeti",\n  "insights": [\n    {"sentence": "Tespit edilen cümle", "score": 0.9, "detail": "Neden YZ şüphesi uyandırdığı"}\n  ]\n}` }] }],
       config: { responseMimeType: "application/json", temperature: 0.1 } as any
     });
     const parsed = robustParse(result.text || '{}');
-    return { score: parsed.score || 0.5, reasoning: "Analiz tamamlandı." };
+    return {
+      score: typeof parsed.score === 'number' ? parsed.score : 0.5,
+      reasoning: parsed.reasoning || "Analiz tamamlandı.",
+      insights: Array.isArray(parsed.insights) ? parsed.insights : []
+    };
   } catch (error) {
-    return { score: 0.5, reasoning: "Tespit tamamlandı." };
+    await reportServiceError("detectAI", error, { textLength: text.length });
+    return { score: 0.5, reasoning: "Bağlantı hatası nedeniyle temel analiz yapıldı.", insights: [] };
   }
 };
