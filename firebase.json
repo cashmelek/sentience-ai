@@ -22,7 +22,7 @@
   "auth": {
     "providers": {
       "googleSignIn": {
-        "supportEmail": "ismail.kaleci@gmail.com",
+        "supportEmail": "tonguc.urunler@gmail.com",
         "oAuthBrandDisplayName": "Sentience AI"
       }
     }

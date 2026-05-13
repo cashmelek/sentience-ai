@@ -53,23 +53,33 @@ export const performDeepMLAnalysis = async (text: string): Promise<MLAnalysisRes
   let complexity: 'Düşük' | 'Orta' | 'Yüksek' = 'Orta';
   const recommendations: string[] = [];
 
-  if (readability < 0.3) {
+  // Ateşman based complexity (Türkçe için ARI'den daha sağlıklı)
+  if (features.atesman > 70) {
     complexity = 'Düşük';
-    recommendations.push("Metin oldukça basit. Daha zengin bir kelime dağarcığı eklenebilir.");
-  } else if (readability > 0.7) {
+    recommendations.push("Metin oldukça akıcı ve anlaşılır (Ateşman: Kolay). Genel kitle için ideal.");
+  } else if (features.atesman < 40) {
     complexity = 'Yüksek';
-    recommendations.push("Metin karmaşıklığı yüksek. Okunabilirliği artırmak için cümleleri kısaltabilirsiniz.");
+    recommendations.push("Metin yapısal olarak ağır (Ateşman: Zor). Cümleleri kısaltmayı veya daha basit kelimeler seçmeyi deneyin.");
   } else {
     complexity = 'Orta';
-    recommendations.push("Metin dengeli bir yapıya sahip.");
+    recommendations.push("Metin standart bir profesyonel akıcılığa sahip.");
   }
 
-  if (features.avgWordLength > 6) {
-    recommendations.push("Kelimeler ortalama olarak uzun. Daha yaygın kelimeler tercih edilebilir.");
+  // Çetinkaya-Uzun Tavsiyeleri
+  if (features.cetinkayaUzun > 70) {
+    recommendations.push("Akademik/Teknik ağırlık hissediliyor. Okunabilirliği artırmak için hece yoğunluğunu azaltın.");
+  }
+
+  if (features.perplexity < 0.4) {
+    recommendations.push("Kelime çeşitliliği düşük. Eş anlamlı kelimeler kullanarak metni zenginleştirin.");
   }
   
   if (features.burstiness < 5) {
-    recommendations.push("Cümle uzunlukları çok benzer (Düşük Burstiness). Bu durum YZ şüphesini artırabilir.");
+    recommendations.push("Cümle yapıları monoton. Kısa ve uzun cümleleri karıştırarak akışı iyileştirin.");
+  }
+
+  if (features.colemanLiau > 12) {
+    recommendations.push("Karakter yoğunluğu yüksek. Daha kısa kelimeler seçmek yorgunluğu azaltır.");
   }
 
   return {

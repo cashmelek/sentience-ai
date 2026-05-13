@@ -35,7 +35,9 @@ import {
   ChevronDown,
   MessageSquarePlus,
   HelpCircle,
-  Menu
+  Menu,
+  Info,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -50,7 +52,8 @@ import {
   serverTimestamp,
   updateDoc,
   setDoc,
-  getDocs
+  getDocs,
+  getDoc
 } from 'firebase/firestore';
 import {
   signInWithPopup,
@@ -63,7 +66,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword
 } from 'firebase/auth';
-import { db, auth } from './lib/firebase';
+import { db, auth, isQuotaError, setQuotaExhausted, isQuotaExhausted } from './lib/firebase';
 import {
   analyzeAndHumanize,
   HumanizeOptions,
@@ -87,7 +90,8 @@ import { CustomToneModal } from './components/CustomToneModal';
 import { GuideModal } from './components/GuideModal';
 import { OnboardingChecklist } from './components/OnboardingChecklist';
 import { LandingPage } from './components/LandingPage';
-import { verifyPlagiarism } from './services/sentinelService';
+import { verifyPlagiarism, verifyFactCheck, FactCheckReport } from './services/sentinelService';
+import { InfoTooltip } from './components/InfoTooltip';
 
 import { AppUser, PLAN_LIMITS, Project } from './types';
 
@@ -108,49 +112,157 @@ const STANDARD_TONES = [
 ];
 
 const MetricCard = ({ icon: Icon, label, value, subValue, colorClass = "text-emerald-500" }: any) => (
-  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-1 hover:bg-white/10 transition-all group">
-    <div className="flex items-center gap-2 mb-1">
-      <div className={cn("p-2 rounded-lg bg-white/5 group-hover:scale-110 transition-transform", colorClass)}>
+  <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-5 flex flex-col gap-1 hover:bg-white/[0.06] transition-all group shadow-lg">
+    <div className="flex items-center gap-2 mb-2">
+      <div className={cn("p-2 rounded-xl bg-white/5 group-hover:scale-110 transition-transform", colorClass)}>
         <Icon className="w-4 h-4" />
       </div>
-      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">{label}</span>
+      <span className="text-xs font-black uppercase tracking-widest text-gray-500">{label}</span>
     </div>
-    <div className="text-2xl font-black text-white">{value}</div>
-    {subValue && <div className="text-[10px] text-gray-500 font-medium">{subValue}</div>}
+    <div className="text-3xl font-black text-white">{value}</div>
+    {subValue && <div className="text-[10px] text-gray-500 font-bold mt-1">{subValue}</div>}
   </div>
 );
 
-const HeatmapText = ({ text, sentenceScores }: { text: string, sentenceScores: { sentence: string, score: number, type?: 'ai' | 'human' | 'mixed' }[] }) => {
-  if (!sentenceScores || sentenceScores.length === 0) return <>{text}</>;
+const ScoreCircle = ({ score, label, size = 160 }: { score: number, label: string, size?: number }) => {
+  const percentage = Math.round(score * 100);
+  const strokeWidth = 12;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (score * circumference);
+  
+  const isAI = score > 0.7;
+  const isHuman = score < 0.3;
+  const color = isAI ? "#ef4444" : isHuman ? "#10b981" : "#f59e0b";
+  const glowColor = isAI ? "rgba(239, 68, 68, 0.3)" : isHuman ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)";
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-4">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg className="transform -rotate-90 w-full h-full">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            fill="transparent"
+            className="text-white/5"
+          />
+          <motion.circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={color}
+            strokeWidth={strokeWidth}
+            fill="transparent"
+            strokeDasharray={circumference}
+            initial={{ strokeDashoffset: circumference }}
+            animate={{ strokeDashoffset: offset }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+            strokeLinecap="round"
+            style={{ filter: `drop-shadow(0 0 10px ${glowColor})` }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-4xl font-black text-white tracking-tighter">%{percentage}</span>
+          <span className="text-sm font-black text-gray-500 uppercase tracking-widest mt-1">{label}</span>
+        </div>
+      </div>
+      <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: color }} />
+        <span className="text-sm font-black uppercase tracking-[0.1em] text-gray-400">
+          {isAI ? 'Yapay Zeka Tespit Edildi' : isHuman ? 'İnsan Yazımı Doğrulandı' : 'Karma Yapı Tespit Edildi'}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const AuditMetricCard = ({ title, value, percentage, icon: Icon, color, detail, trend, tooltip }: any) => (
+  <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 hover:bg-white/[0.06] transition-all group relative">
+    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+      <Icon className={cn("w-12 h-12", color)} />
+    </div>
+    <div className="relative z-10">
+      <div className="flex justify-between items-start mb-3">
+        <div className={cn("p-2 rounded-xl bg-white/5 group-hover:scale-110 transition-transform flex items-center gap-2", color)}>
+          <Icon className="w-4 h-4" />
+          {tooltip && <InfoTooltip text={tooltip} position="bottom" />}
+        </div>
+        <div className="text-left">
+          <div className="text-[11px] font-black uppercase tracking-[0.15em] text-gray-500 mb-1">
+            {title}
+          </div>
+          <div className="text-2xl font-black text-white">{value}</div>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(1, Math.max(0, percentage)) * 100}%` }}
+            className={cn("h-full shadow-[0_0_10px_rgba(255,255,255,0.1)] transition-all duration-1000", 
+              percentage > 0.7 ? "bg-red-500" : percentage > 0.3 ? "bg-amber-500" : "bg-emerald-500")}
+          />
+        </div>
+        <div className="flex justify-between items-center">
+          {detail && <div className="text-[11px] text-gray-400 font-bold truncate max-w-[160px]">{detail}</div>}
+          {trend && (
+            <div className={cn("text-[10px] font-black px-2 py-0.5 rounded flex items-center gap-1", 
+              trend === 'up' ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500")}>
+              {trend === 'up' ? <Zap className="w-2.5 h-2.5" /> : <AlertCircle className="w-2.5 h-2.5" />}
+              {trend === 'up' ? 'OPTİMAL' : 'DÜŞÜK'}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const HeatmapText = ({ text, sentenceScores }: { text: string, sentenceScores: { sentence: string, score: number, type?: 'ai' | 'human' | 'mixed', reason?: string }[] }) => {
+  if (!sentenceScores || sentenceScores.length === 0) return <div className="whitespace-pre-wrap">{text}</div>;
 
   return (
     <div className="whitespace-pre-wrap leading-relaxed text-gray-300">
       {sentenceScores.map((item, idx) => {
         let color = 'transparent';
         let borderColor = 'transparent';
-        const opacity = 0.3;
+        const opacity = 0.4; // Belirginlik artırıldı
 
         if (item.type === 'ai' || item.score > 0.7) {
           color = `rgba(239, 68, 68, ${opacity})`;
-          borderColor = `rgba(239, 68, 68, 0.5)`;
+          borderColor = `rgba(239, 68, 68, 0.8)`;
         } else if (item.type === 'mixed' || (item.score > 0.3 && item.score <= 0.7)) {
           color = `rgba(245, 158, 11, ${opacity})`;
-          borderColor = `rgba(245, 158, 11, 0.5)`;
+          borderColor = `rgba(245, 158, 11, 0.8)`;
         } else {
           color = `rgba(16, 185, 129, ${opacity})`;
-          borderColor = `rgba(16, 185, 129, 0.5)`;
+          borderColor = `rgba(16, 185, 129, 0.8)`;
         }
         
         return (
           <span 
             key={idx} 
-            className="transition-all duration-300 px-0.5 rounded cursor-help group relative inline"
-            style={{ backgroundColor: color, borderBottom: `2px solid ${borderColor}` }}
+            className="transition-all duration-300 px-1 rounded-sm cursor-help group relative inline border-b-2"
+            style={{ 
+              backgroundColor: color, 
+              borderBottomColor: borderColor,
+            }}
           >
             {item.sentence}{" "}
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black border border-white/10 rounded text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap shadow-xl">
-              {item.type === 'ai' ? 'YZ Tespiti' : item.type === 'human' ? 'İnsan Yazımı' : 'Karma Yapı'}: %{Math.round(item.score * 100)}
-            </span>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-3 bg-black border border-white/20 rounded-2xl text-xs opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-[100] shadow-2xl w-64 backdrop-blur-2xl">
+              <div className="flex justify-between items-center mb-2 border-b border-white/10 pb-2">
+                <span className="font-black uppercase tracking-widest text-[9px] text-gray-400">
+                  {item.type === 'ai' ? 'Yapay Zeka' : item.type === 'human' ? 'İnsan Yazımı' : 'Karma'}
+                </span>
+                <span className={cn("font-black", item.score > 0.7 ? "text-red-500" : "text-emerald-500")}>
+                  %{Math.round(item.score * 100)}
+                </span>
+              </div>
+              <p className="text-white font-medium leading-relaxed italic text-[11px]">"{item.reason || 'Cümle yapısı analiz edildi.'}"</p>
+            </div>
           </span>
         );
       })}
@@ -213,18 +325,78 @@ export default function App() {
   const [detailsFontSize, setDetailsFontSize] = useState(14);
   const [systemSettings, setSystemSettings] = useState({
     sentinelEnabled: true,
-    maintenanceMode: false
+    maintenanceMode: false,
+    auditorSensitivity: 70,
+    auditorModel: 'gemini-2.5-flash-lite',
+    ghostWriterModel: 'gemini-2.5-flash'
   });
+  const [localAuditorSensitivity, setLocalAuditorSensitivity] = useState(70);
   const [showHeatmap, setShowHeatmap] = useState(true);
+  const [auditorResult, setAuditorResult] = useState<{
+    score: number;
+    reasoning: string;
+    sentenceScores: { sentence: string; score: number; type?: 'ai' | 'human' | 'mixed'; reason?: string }[];
+    metrics: { 
+      plagiarism: number; 
+      readability: number; 
+      atesman?: number;
+      cetinkayaUzun?: number;
+      complexity: string; 
+      burstiness: number;
+      perplexity: number;
+      structureScore: number;
+    };
+  } | null>(null);
+  const [showInputHeatmap, setShowInputHeatmap] = useState(false);
+  const [factCheckResult, setFactCheckResult] = useState<FactCheckReport | null>(null);
 
-  const isAdmin = user?.email?.toLowerCase() === 'ismail.kaleci@gmail.com';
+  const ADMIN_EMAILS = ['ismail.kaleci@gmail.com', 'tonguc.urunler@gmail.com'];
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
 
-  // Highlighted Text Logic
-  const highlightedText = React.useMemo(() => {
+  // Highlighted Text Logic (Grammar + Heatmap)
+  const inputOverlay = React.useMemo(() => {
+    if (showInputHeatmap && auditorResult?.sentenceScores) {
+      return (
+        <div className="whitespace-pre-wrap leading-relaxed">
+          {auditorResult.sentenceScores.map((item, idx) => {
+            let color = 'transparent';
+            const opacity = 0.25;
+            if (item.score > 0.7) color = `rgba(239, 68, 68, ${opacity})`;
+            else if (item.score > 0.3) color = `rgba(245, 158, 11, ${opacity})`;
+            else color = `rgba(16, 185, 129, ${opacity})`;
+            
+            return (
+              <span 
+                key={idx} 
+                className="transition-all duration-300 rounded-sm cursor-help group relative inline"
+                style={{ 
+                  backgroundColor: color,
+                  borderBottom: item.score > 0.7 ? '1px solid rgba(239, 68, 68, 0.5)' : 'none'
+                }}
+              >
+                {item.sentence}{" "}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-3 bg-[#0a0a0a] border border-white/10 rounded-2xl text-xs opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-[100] shadow-2xl w-64 backdrop-blur-xl">
+                  <div className="flex justify-between items-center mb-2 border-b border-white/5 pb-2">
+                    <span className="font-black uppercase tracking-widest text-[9px] text-gray-500">
+                      YZ Analizi
+                    </span>
+                    <span className={cn("font-black", item.score > 0.7 ? "text-red-500" : "text-emerald-500")}>
+                      %{Math.round(item.score * 100)}
+                    </span>
+                  </div>
+                  <p className="text-gray-300 font-medium leading-relaxed italic text-[11px]">"{item.reason || 'Cümle yapısı analiz edildi.'}"</p>
+                </div>
+              </span>
+            );
+          })}
+        </div>
+      );
+    }
+
     if (!grammarSuggestions.length) return inputText;
     const highlights = new Array(inputText.length).fill(false);
     grammarSuggestions.forEach(s => {
@@ -238,11 +410,11 @@ export default function App() {
       }
     });
     return inputText.split('').map((char, i) => (
-      <span key={i} className={highlights[i] ? "bg-yellow-500/30 border-b border-yellow-500" : ""} >
+      <span key={i} className={highlights[i] ? "bg-red-500/30 border-b border-red-500" : ""} >
         {char}
       </span>
     ));
-  }, [inputText, grammarSuggestions]);
+  }, [inputText, grammarSuggestions, showInputHeatmap, auditorResult]);
 
   // Scroll Sync
   const handleScroll = () => {
@@ -268,6 +440,9 @@ export default function App() {
       return;
     }
 
+    // Kota aşımında dinleyici açma
+    if (isQuotaExhausted()) return;
+
     const userRef = doc(db, 'users', user.uid);
     const today = new Date().toISOString().split('T')[0];
 
@@ -288,11 +463,15 @@ export default function App() {
             dismissed: false
           }
         };
-        await setDoc(userRef, newUser);
+        await setDoc(userRef, newUser).catch(err => {
+          if (isQuotaError(err)) { setQuotaExhausted(true); console.warn('⚠️ Firestore kota aşımı — offline mod aktif'); }
+        });
       } else {
         const data = docSnap.data() as any;
         if (data.lastResetDate !== today) {
-          await updateDoc(userRef, { dailyUsage: 0, lastResetDate: today });
+          await updateDoc(userRef, { dailyUsage: 0, lastResetDate: today }).catch(err => {
+            if (isQuotaError(err)) { setQuotaExhausted(true); }
+          });
         } else {
           setAppUser({
             ...data,
@@ -306,34 +485,64 @@ export default function App() {
           } as AppUser);
         }
       }
+    }, (error) => {
+      if (isQuotaError(error)) {
+        setQuotaExhausted(true);
+        console.warn('⚠️ Firestore kota aşımı — kullanıcı dinleyicisi durduruldu');
+        unsubscribe();
+      } else {
+        console.error('Firestore kullanıcı hatası:', error);
+      }
     });
 
     return () => unsubscribe();
   }, [user, isAdmin]);
 
-  // Load Projects
+  // Load Projects (tek seferlik okuma — kota dostu)
   useEffect(() => {
-    if (!user) return;
-    const q = query(
-      collection(db, 'projects'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setProjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project)));
-    });
-    return () => unsubscribe();
+    if (!user || isQuotaExhausted()) return;
+    const fetchProjects = async () => {
+      try {
+        const q = query(
+          collection(db, 'projects'),
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        setProjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Project)));
+      } catch (error: any) {
+        if (isQuotaError(error)) {
+          setQuotaExhausted(true);
+          console.warn('⚠️ Firestore kota aşımı — projeler yüklenemedi');
+        } else {
+          console.error('Proje yükleme hatası:', error);
+        }
+      }
+    };
+    fetchProjects();
   }, [user]);
 
-  // Load System Settings
+  // Load System Settings (tek seferlik okuma — kota dostu)
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'system'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setSystemSettings(prev => ({ ...prev, ...data }));
+    if (isQuotaExhausted()) return;
+    const fetchSettings = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'settings', 'system'));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setSystemSettings(prev => ({ ...prev, ...data }));
+          setLocalAuditorSensitivity(data.auditorSensitivity || 70);
+        }
+      } catch (error: any) {
+        if (isQuotaError(error)) {
+          setQuotaExhausted(true);
+          console.warn('⚠️ Firestore kota aşımı — ayarlar yüklenemedi');
+        } else {
+          console.error('Ayar yükleme hatası:', error);
+        }
       }
-    });
-    return () => unsub();
+    };
+    fetchSettings();
   }, []);
 
   // Real-time AI Score
@@ -345,7 +554,7 @@ export default function App() {
     const timer = setTimeout(async () => {
       try {
         if (activeTab === 'editor') {
-          const res = await detectAI(inputText);
+          const res = await detectAI(inputText, localAuditorSensitivity, systemSettings.auditorModel);
           setRealtimeScore(res.score);
         }
       } catch (err) { console.error(err); }
@@ -382,6 +591,7 @@ export default function App() {
   };
 
   const handleHumanize = async () => {
+    console.log("handleHumanize tetiklendi", { hasInput: !!inputText.trim(), hasUser: !!user, hasAppUser: !!appUser });
     if (!inputText.trim() || !user || !appUser) {
       toast.error("Lütfen bir metin girin.");
       return;
@@ -404,7 +614,9 @@ export default function App() {
       }
 
       // 2. Gemini İnsanlaştırma
-      const result = await analyzeAndHumanize(inputText, options);
+      console.log("Gemini işlemi başlatılıyor...", { model: systemSettings.ghostWriterModel });
+      const result = await analyzeAndHumanize(inputText, options, systemSettings.ghostWriterModel);
+      console.log("Gemini işlemi tamamlandı:", result);
       
       const combinedResult: CombinedAnalysisResult = {
         ...result,
@@ -435,6 +647,8 @@ export default function App() {
         plagiarismScore: combinedResult.similarityScore,
         isDraft: false,
         insights: combinedResult.insights,
+        sentenceScores: combinedResult.sentenceScores,
+        metrics: combinedResult.metrics,
         createdAt: serverTimestamp(),
         sources: combinedResult.sources || []
       });
@@ -456,18 +670,30 @@ export default function App() {
 
     setIsAnalyzing(true);
     try {
-      const [suggestions, deepML] = await Promise.all([
+      const [suggestions, deepML, audit, factCheck] = await Promise.all([
         checkGrammar(inputText),
-        performDeepMLAnalysis(inputText)
+        performDeepMLAnalysis(inputText),
+        detectAI(inputText, localAuditorSensitivity, systemSettings.auditorModel),
+        verifyFactCheck(inputText)
       ]);
 
       setGrammarSuggestions(suggestions);
       setMlAnalysis(deepML);
+      setFactCheckResult(factCheck);
+      
+      // Audit sonuçlarına yerel ML metriklerini enjekte et (Daha isabetli Türkçe endeksleri için)
+      if (audit && deepML) {
+        (audit.metrics as any).atesman = deepML.metrics.atesman;
+        (audit.metrics as any).cetinkayaUzun = deepML.metrics.cetinkayaUzun;
+      }
+      
+      setAuditorResult(audit);
+      setShowInputHeatmap(true);
 
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, { 'onboarding.firstAnalysis': true });
 
-      toast.success(suggestions.length === 0 ? "Dilbilgisi hatası bulunamadı." : `${suggestions.length} öneri bulundu.`);
+      toast.success("Derin analiz tamamlandı.");
     } catch (error: any) {
       toast.error("Analiz hatası.");
       console.error(error);
@@ -522,6 +748,20 @@ export default function App() {
     const newText = inputText.replace(suggestion.original, suggestion.suggestion);
     setInputText(newText);
     setGrammarSuggestions(prev => prev.filter(s => s.original !== suggestion.original));
+  };
+
+  const handleDeleteProject = async (id: string, title: string) => {
+    if (!window.confirm(`"${title}" kaydını silmek istediğinizden emin misiniz?`)) return;
+    
+    try {
+      await deleteDoc(doc(db, 'projects', id));
+      toast.success("Kayıt silindi");
+      // Listeyi güncelle (onSnapshot yoksa manuel, ama onSnapshot var sanıyordum)
+      setProjects(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      console.error(err);
+      toast.error("Silme işlemi başarısız");
+    }
   };
 
   if (authLoading) {
@@ -691,7 +931,16 @@ export default function App() {
                       insights: p.insights || [],
                       isPlagiarized: (p.plagiarismScore || 0) > 20,
                       sources: p.sources || [],
-                      similarityScore: p.plagiarismScore || 0
+                      similarityScore: p.plagiarismScore || 0,
+                      sentenceScores: p.sentenceScores || [],
+                      metrics: p.metrics || {
+                        readability: 0,
+                        complexity: 'Bilinmiyor',
+                        toneStrength: 0,
+                        grammarScore: 0,
+                        wordCount: 0,
+                        readingTime: '0 dk'
+                      }
                     });
                   } else {
                     setAnalysis(null);
@@ -733,7 +982,7 @@ export default function App() {
           )}
           <div className="flex items-center gap-3 p-3 bg-white/[0.02] rounded-2xl border border-white/5 overflow-hidden">
             <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 flex-shrink-0"><UserIcon className="w-4 h-4 text-emerald-500" /></div>
-            <div className="flex-1 truncate"><div className="text-[10px] font-bold truncate opacity-80">{user?.email}</div><div className="text-[9px] text-gray-600 font-black uppercase tracking-tighter">{appUser?.plan || 'Free'} Plan</div></div>
+            <div className="flex-1 truncate"><div className="text-[10px] font-bold truncate opacity-80">{user?.email}</div><div className="text-[9px] text-gray-600 font-black uppercase tracking-tighter">{appUser?.plan || 'Free'} Planı</div></div>
             <button onClick={() => signOut(auth)} className="p-1.5 hover:text-white text-gray-600 flex-shrink-0"><LogOut className="w-4 h-4" /></button>
           </div>
         </div>
@@ -773,10 +1022,11 @@ export default function App() {
                 <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-10 flex-1 lg:flex-none">
                   {/* Tone Selection */}
                   <div className="relative">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Settings2 className="w-3.5 h-3.5 text-gray-500" />
-                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">ÜST TON SEÇİMİ</span>
-                    </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Settings2 className="w-3.5 h-3.5 text-gray-500" />
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">ÜST TON SEÇİMİ</span>
+                        <InfoTooltip text="Yazının hedef kitlesine göre stilini belirler. Akademik, samimi veya profesyonel gibi farklı tonlar arasından seçim yapabilirsiniz." position="bottom" />
+                      </div>
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setIsToneDropdownOpen(!isToneDropdownOpen)}
@@ -849,6 +1099,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <Zap className="w-3.5 h-3.5 text-emerald-500" />
                         <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">RADİKAL İNSANLAŞTIRMA ({options.intensity}%)</span>
+                        <InfoTooltip text="YZ izlerini silme derinliği. Yüksek oranlar daha fazla yapısal değişiklik yapar ancak metnin anlamını korur." position="bottom" />
                       </div>
                     </div>
                     <input
@@ -867,7 +1118,7 @@ export default function App() {
               </div>
               <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
                 <button onClick={() => setShowPlansModal(true)} className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-full text-[10px] font-bold uppercase tracking-widest"><Crown className="w-3 h-3" /> <span className="hidden sm:inline">Yükselt</span></button>
-                <button onClick={handleHumanize} disabled={isProcessing || !inputText.trim()} className="flex-1 lg:flex-none px-6 py-2.5 bg-emerald-500 text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-emerald-400 shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2">{isProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} İnsanileştir</button>
+                <button onClick={handleHumanize} disabled={isProcessing || !inputText.trim()} className="flex-1 lg:flex-none px-6 py-2.5 bg-emerald-500 text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-emerald-400 shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2">{isProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} İnsanlaştır</button>
               </div>
             </header>
 
@@ -876,20 +1127,31 @@ export default function App() {
                 <div className="min-h-[300px] lg:flex-1 glass-panel rounded-[24px] flex flex-col overflow-hidden">
                   <div className="px-4 py-2 border-b border-brand-border flex justify-between items-center bg-black/10">
                     <div className="flex items-center gap-3">
-                      <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Giriş Metni</span>
+                      <span className="text-[10px] font-bold text-gray-500 flex items-center">Giriş metni <InfoTooltip text="Metninizi buraya yapıştırarak analiz ve insanlaştırma sürecini başlatabilirsiniz." position="bottom" /></span>
                       {realtimeScore !== null && <div className="flex items-center gap-1.5"><div className="w-10 lg:w-16 h-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-red-500" style={{ width: `${realtimeScore * 100}%` }} /></div><span className="text-[8px] text-gray-500">%{Math.round(realtimeScore * 100)} YZ</span></div>}
                     </div>
                     <div className="flex items-center gap-2">
                       <button onClick={saveDraft} disabled={isDrafting || !inputText.trim()} className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[9px] font-bold text-gray-400 hover:bg-white/10 transition-all disabled:opacity-50">
-                        <Save className="w-2.5 h-2.5" /> <span className="hidden sm:inline">Taslak</span>
+                        <Save className="w-2.5 h-2.5" /> <span className="hidden sm:inline">Taslak</span> <InfoTooltip text="Çalışmanızı daha sonra devam etmek üzere yerel veritabanına kaydeder." position="bottom" />
                       </button>
-                      <button onClick={handleAnalyze} disabled={isAnalyzing || !inputText.trim()} className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[9px] font-bold text-emerald-500 hover:bg-emerald-500/20 transition-all disabled:opacity-50">{isAnalyzing ? '...' : 'Analiz'}</button>
+                      <button 
+                        onClick={() => setShowInputHeatmap(!showInputHeatmap)} 
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold transition-all",
+                          showInputHeatmap ? "bg-emerald-500 text-black" : "bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10"
+                        )}
+                      >
+                        <Highlighter className="w-2.5 h-2.5" /> Isı haritası <InfoTooltip text="Metindeki her bir cümlenin YZ olasılığını görsel olarak renklendirir. Kırmızı bölgeler en yüksek riskli kısımları gösterir." position="bottom" />
+                      </button>
+                      <button onClick={handleAnalyze} disabled={isAnalyzing || !inputText.trim()} className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[9px] font-bold text-emerald-500 hover:bg-emerald-500/20 transition-all disabled:opacity-50">
+                        {isAnalyzing ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <ShieldCheck className="w-2.5 h-2.5" />} DENETÇİ
+                      </button>
                     </div>
                   </div>
                   <div className="relative flex-1">
                     <textarea ref={textareaRef} value={inputText} onScroll={handleScroll} onChange={(e) => setInputText(e.target.value)} className="absolute inset-0 w-full h-full p-4 lg:p-6 bg-transparent outline-none resize-none text-gray-300 leading-relaxed text-sm z-10 custom-scrollbar" placeholder="Metninizi buraya yapıştırın..." />
                     <div ref={backdropRef} className="absolute inset-0 w-full h-full p-4 lg:p-6 text-sm leading-relaxed pointer-events-none whitespace-pre-wrap break-words text-transparent z-0 overflow-y-auto custom-scrollbar">
-                      {highlightedText}
+                      {inputOverlay}
                     </div>
                   </div>
                 </div>
@@ -897,7 +1159,7 @@ export default function App() {
                 <div className="min-h-[300px] lg:flex-1 glass-panel rounded-[24px] flex flex-col overflow-hidden">
                   <div className="px-4 py-2 border-b border-brand-border flex justify-between items-center bg-white/[0.02]">
                     <div className="flex items-center gap-3">
-                      <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Sonuç</span>
+                      <span className="text-[10px] font-bold text-gray-500 flex items-center">Sonuç <InfoTooltip text="İşlenmiş, insanileştirilmiş ve YZ izlerinden arındırılmış metnin nihai hali." position="bottom" /></span>
                       {analysis && (
                         <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10">
                           <button 
@@ -934,7 +1196,7 @@ export default function App() {
                 {/* Mobile Analytics Toggle (Only visible on mobile) */}
                 <div className="lg:hidden space-y-4">
                   <div className="p-6 glass-panel rounded-[24px] space-y-6">
-                    <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><Gauge className="w-4 h-4 text-emerald-500" /> Analitik Rapor</h3>
+                    <h3 className="text-[12px] font-bold text-gray-400 flex items-center gap-2"><Gauge className="w-4 h-4 text-emerald-500" /> Analitik rapor</h3>
                     {analysis ? (
                       <div className="space-y-6">
                         <div className="text-center"><div className="text-4xl font-black text-emerald-500">%{Math.round((1 - (analysis.aiScore || 0)) * 100)}</div><div className="text-[10px] font-bold text-gray-500 uppercase mt-1">İnsan Benzerliği</div></div>
@@ -950,7 +1212,7 @@ export default function App() {
                   {((analysis?.insights && analysis.insights.length > 0) || grammarSuggestions.length > 0) && (
                     <div className="glass-panel rounded-[24px] p-6 space-y-4">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><Search className="w-3 h-3 text-emerald-500" /> Detaylar</h3>
+                        <h3 className="text-sm font-bold text-gray-200 flex items-center gap-2"><Search className="w-4 h-4 text-emerald-500" /> Detaylar</h3>
                         <div className="flex items-center gap-2">
                           <span className="text-[8px] text-gray-500 font-bold">A</span>
                           <input type="range" min="12" max="24" value={detailsFontSize} onChange={(e) => setDetailsFontSize(Number(e.target.value))} className="w-24 h-1 accent-emerald-500 bg-white/10 rounded-full cursor-pointer" title="Yazı boyutunu ayarla" />
@@ -974,62 +1236,264 @@ export default function App() {
                       </div>
                     </div>
                   )}
+
+                  {/* Mobile Fact Check */}
+                  {factCheckResult && (
+                    <div className="glass-panel rounded-[24px] p-6 space-y-4">
+                      <h3 className="text-sm font-bold text-gray-200 flex items-center gap-2">
+                        <Check className="w-4 h-4 text-emerald-500" /> Doğruluk kontrolü
+                      </h3>
+                      <div className="text-center py-2">
+                        <div className="text-3xl font-black text-white">%{Math.round(factCheckResult.confidenceScore * 100)}</div>
+                        <div className="text-[9px] font-bold text-gray-500 uppercase">Güven skoru</div>
+                      </div>
+                      <div className="space-y-2">
+                        {factCheckResult.claims.map((claim, idx) => (
+                          <div key={idx} className="p-3 bg-white/[0.02] rounded-xl border border-white/5 space-y-2">
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="text-[10px] text-gray-300 leading-relaxed">"{claim.claim}"</div>
+                              <span className={cn(
+                                "text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0",
+                                claim.status === 'Verified' ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
+                                claim.status === 'Disputed' ? "bg-red-500/10 text-red-500 border border-red-500/20" :
+                                "bg-gray-500/10 text-gray-500 border border-gray-500/20"
+                              )}>
+                                {claim.status === 'Verified' ? 'DOĞRULANDI' : claim.status === 'Disputed' ? 'TARTIŞMALI' : 'BELİRSİZ'}
+                              </span>
+                            </div>
+                            {claim.source && (
+                              <a href={claim.source} target="_blank" rel="noopener noreferrer" className="text-[8px] text-blue-400 truncate block">
+                                {claim.source}
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Desktop Analytics Panel */}
-              <div className="hidden lg:flex w-80 flex-col gap-6 shrink-0 overflow-y-auto custom-scrollbar pb-8">
-                <div className="p-6 glass-panel rounded-[24px] space-y-6">
-                  <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><Gauge className="w-4 h-4 text-emerald-500" /> Analitik Rapor</h3>
-                  {analysis ? (
+              <div className="hidden lg:flex w-80 flex-col gap-6 shrink-0 overflow-y-auto custom-scrollbar pb-8 relative z-20">
+                <div className="p-6 glass-panel rounded-[24px] space-y-6 overflow-visible">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[12px] font-bold text-gray-400 flex items-center gap-2">
+                      <Gauge className="w-4 h-4 text-emerald-500/70" /> 
+                      <InfoTooltip text="Metnin genel yapısını, YZ olasılığını ve kaynak benzerliğini kapsayan detaylı analiz raporu." position="bottom" />
+                      Denetçi raporu 
+                    </h3>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-gray-600 uppercase tracking-wider">Hassasiyet</span>
+                        <InfoTooltip text="Analiz derinliğini ve katılık oranını belirler. Yüksek değerler daha ince yapısal benzerlikleri yakalar." position="bottom" />
+                        <span className="text-[10px] font-mono text-emerald-500 font-bold">%{localAuditorSensitivity}</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="0" max="100" 
+                        value={localAuditorSensitivity}
+                        onChange={(e) => setLocalAuditorSensitivity(parseInt(e.target.value))}
+                        className="w-24 h-1 accent-emerald-500 bg-white/10 rounded-full cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                  {auditorResult ? (
+                    <div className="space-y-4">
+                      <div className="flex flex-col items-center mb-6">
+                        <ScoreCircle score={auditorResult.score} label="YZ Olasılığı" size={140} />
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="relative">
+                          <AuditMetricCard 
+                            title={
+                              <div className="flex items-center gap-1.5">
+                                <InfoTooltip text="Gelişmiş ML modelleri ile metnin yazım stilini inceleyerek yapay zeka olasılığını hesaplar." position="bottom" />
+                                YZ tespiti
+                              </div>
+                            }
+                            value={`%${Math.round(auditorResult.score * 100)}`}
+                            percentage={auditorResult.score}
+                            icon={ShieldCheck}
+                            color="text-red-500"
+                            detail={auditorResult.score > 0.7 ? "Yüksek ihtimalle YZ" : "Doğal içerik yapısı"}
+                          />
+                        </div>
+                        
+                        <div className="relative">
+                          <AuditMetricCard 
+                            title={
+                              <div className="flex items-center gap-1.5">
+                                <InfoTooltip text="Metnin internet üzerindeki kaynaklarla olan benzerlik oranını ölçer." position="bottom" />
+                                İntihal
+                              </div>
+                            }
+                            value={`%${Math.round(auditorResult.metrics.plagiarism * 100)}`}
+                            percentage={auditorResult.metrics.plagiarism}
+                            icon={Search}
+                            color="text-amber-500"
+                            detail="Canlı kaynak eşleşmesi"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4">
+                          <div className="relative">
+                            <AuditMetricCard 
+                              title={
+                                <div className="flex items-center gap-1.5">
+                                  <InfoTooltip text="Metnin Türkçe hece ve cümle yapısına göre okunabilirlik düzeyini ölçer." position="bottom" />
+                                  Ateşman
+                                </div>
+                              }
+                              value={auditorResult.metrics.atesman.toString()}
+                              percentage={Math.min(1, auditorResult.metrics.atesman / 100)}
+                              icon={Gauge}
+                              color="text-blue-500"
+                              detail="Akıcılık Skoru"
+                              trend={auditorResult.metrics.atesman > 60 ? 'up' : 'down'}
+                            />
+                          </div>
+                          <div className="relative">
+                            <AuditMetricCard 
+                              title={
+                                <div className="flex items-center gap-1.5">
+                                  <InfoTooltip text="Cümle uzunluğu ve sözcük karmaşıklığına dayalı yapısal zorluk endeksi." position="bottom" />
+                                  Çetinkaya
+                                </div>
+                              }
+                              value={auditorResult.metrics.cetinkayaUzun.toString()}
+                              percentage={Math.min(1, auditorResult.metrics.cetinkayaUzun / 100)}
+                              icon={Layers}
+                              color="text-purple-500"
+                              detail="Yapısal Zorluk"
+                              trend={auditorResult.metrics.cetinkayaUzun < 50 ? 'up' : 'down'}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Fact Check Section */}
+                        {factCheckResult ? (
+                          <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-emerald-500/10 rounded-xl"><Check className="w-5 h-5 text-emerald-500" /></div>
+                                <div>
+                                  <div className="text-[12px] font-bold text-gray-400">Doğruluk kontrolü</div>
+                                  <div className="text-[11px] font-bold text-white/80">Güven Skoru: %{Math.round(factCheckResult.confidenceScore * 100)}</div>
+                                </div>
+                              </div>
+                              <InfoTooltip text="Metindeki iddiaların güvenilir kaynaklarla karşılaştırılarak doğruluk oranının tespiti." position="bottom" />
+                            </div>
+                            
+                            <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+                              {factCheckResult.claims.map((claim, idx) => (
+                                <div key={idx} className="p-3 bg-white/5 rounded-xl border border-white/5 space-y-2 group hover:bg-white/10 transition-all">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="text-[11px] text-gray-200 leading-relaxed font-semibold">"{claim.claim}"</div>
+                                    <span className={cn(
+                                      "text-[8px] font-black uppercase px-2 py-0.5 rounded-full shrink-0",
+                                      claim.status === 'Verified' ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
+                                      claim.status === 'Disputed' ? "bg-red-500/10 text-red-500 border border-red-500/20" :
+                                      "bg-gray-500/10 text-gray-500 border border-gray-500/20"
+                                    )}>
+                                      {claim.status === 'Verified' ? 'DOĞRULANDI' : claim.status === 'Disputed' ? 'TARTIŞMALI' : 'BELİRSİZ'}
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] text-gray-400 italic mb-1">{claim.explanation}</div>
+                                  {claim.source && (
+                                    <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+                                      <ExternalLink className="w-3 h-3 text-emerald-400" />
+                                      <a href={claim.source} target="_blank" rel="noopener noreferrer" className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline truncate block flex-1 font-bold">
+                                        Kaynağı Görüntüle
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-white/[0.02] border border-dashed border-white/10 rounded-2xl p-4 flex items-center justify-between opacity-50 grayscale hover:grayscale-0 transition-all">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-white/5 rounded-xl"><Check className="w-4 h-4 text-gray-500" /></div>
+                              <div>
+                                <div className="text-[9px] font-black uppercase text-gray-500">Doğruluk Kontrolü</div>
+                                <div className="text-[10px] font-bold text-gray-600">{isAnalyzing ? 'İddialar Taranıyor...' : 'Analiz Bekleniyor'}</div>
+                              </div>
+                            </div>
+                            {isAnalyzing ? <RefreshCw className="w-3 h-3 text-emerald-500 animate-spin" /> : <ShieldCheck className="w-3 h-3 text-gray-700" />}
+                          </div>
+                        )}
+
+                        <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                          <div className="text-[12px] font-bold text-gray-400 mb-4 flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-amber-500/70" /> Denetçi mantığı (Muhakeme)
+                          </div>
+                          <div className="text-[15px] text-gray-300 leading-relaxed italic border-l-3 border-emerald-500/40 pl-4 py-1">
+                            "{auditorResult.reasoning}"
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : analysis ? (
                     <div className="space-y-6">
                       <div className="text-center"><div className="text-4xl font-black text-emerald-500">%{Math.round((1 - (analysis.aiScore || 0)) * 100)}</div><div className="text-[10px] font-bold text-gray-500 uppercase mt-1">İnsan Benzerliği</div></div>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl text-center"><div className="text-[8px] text-gray-600 font-bold uppercase mb-1">İntihal</div><div className="text-sm font-black text-red-400">%{analysis.similarityScore || 0}</div></div>
-                        <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl text-center"><div className="text-[8px] text-gray-600 font-bold uppercase mb-1">YZ Skor</div><div className="text-sm font-black text-gray-400">{(analysis.aiScore || 0).toFixed(2)}</div></div>
+                        <AuditMetricCard 
+                          title="İNTİHAL"
+                          value={`%${analysis.similarityScore || 0}`}
+                          percentage={(analysis.similarityScore || 0) / 100}
+                          icon={Search}
+                          color="text-red-400"
+                        />
+                        <AuditMetricCard 
+                          title="YZ SKORU"
+                          value={(analysis.aiScore || 0).toFixed(2)}
+                          percentage={analysis.aiScore || 0}
+                          icon={ShieldCheck}
+                          color="text-gray-400"
+                        />
                       </div>
                     </div>
-                  ) : <div className="text-[10px] text-gray-600 italic text-center py-10">Veri bekleniyor...</div>}
+                  ) : <div className="text-[10px] text-gray-600 italic text-center py-10">Analiz başlatmak için metin girin...</div>}
                 </div>
 
                 {/* Deep Metrics Card */}
-                {analysis?.metrics && (
-                  <div className="p-6 glass-panel rounded-[24px] space-y-5">
-                    <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-emerald-500" /> Derin Metrikler
+                {mlAnalysis && (
+                  <div className="p-6 glass-panel rounded-[24px] space-y-5 overflow-visible">
+                    <h3 className="text-[12px] font-bold text-gray-400 flex items-center">
+                      <BarChart3 className="w-4 h-4 text-emerald-500/70 mr-2" /> 
+                      <InfoTooltip text="Metnin dilbilgisel yapısı ve okunabilirlik endeksleri hakkında teknik döküm." position="bottom" />
+                      Derin metrikler 
                     </h3>
                     <div className="space-y-4">
                       <MetricProgress 
                         icon={Highlighter} 
-                        label="Okunabilirlik" 
-                        value={`%${Math.round(analysis.metrics.readability * 100)}`} 
-                        percentage={analysis.metrics.readability} 
+                        label="Okunabilirlik (TR)" 
+                        value={`%${Math.round(mlAnalysis.readabilityScore * 100)}`} 
+                        percentage={mlAnalysis.readabilityScore} 
                       />
-                      <MetricProgress 
-                        icon={Layers} 
-                        label="Dilbilgisi" 
-                        value={`%${Math.round(analysis.metrics.grammarScore * 100)}`} 
-                        percentage={analysis.metrics.grammarScore} 
-                      />
-                      <MetricProgress 
-                        icon={Zap} 
-                        label="Ton Gücü" 
-                        value={`%${Math.round(analysis.metrics.toneStrength * 100)}`} 
-                        percentage={analysis.metrics.toneStrength} 
-                      />
-                      <div className="pt-2 grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
-                          <div className="text-[8px] text-gray-600 font-bold uppercase mb-1">Karmaşıklık</div>
-                          <div className="text-xs font-black text-emerald-400">{analysis.metrics.complexity}</div>
+                          <div className="text-[8px] text-gray-600 font-bold uppercase mb-1">Hece Yoğunluğu</div>
+                          <div className="text-xs font-black text-emerald-400">{(mlAnalysis.metrics.syllableCount / (mlAnalysis.metrics.wordCount || 1)).toFixed(2)}</div>
                         </div>
                         <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
-                          <div className="text-[8px] text-gray-600 font-bold uppercase mb-1">Kelime Sayısı</div>
-                          <div className="text-xs font-black text-gray-300">{analysis.metrics.wordCount}</div>
+                          <div className="text-[8px] text-gray-600 font-bold uppercase mb-1">Kelime/Cümle</div>
+                          <div className="text-xs font-black text-gray-300">{(mlAnalysis.metrics.wordCount / (mlAnalysis.metrics.sentenceCount || 1)).toFixed(1)}</div>
                         </div>
                       </div>
-                      <div className="text-center p-2 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
-                        <div className="text-[8px] text-emerald-500/70 font-bold uppercase">Tahmini Okuma Süresi</div>
-                        <div className="text-xs font-black text-emerald-500">{analysis.metrics.readingTime}</div>
+                      <div className="pt-2">
+                        <div className="text-[8px] text-gray-600 font-bold uppercase mb-2">Tavsiyeler</div>
+                        <div className="space-y-2">
+                          {mlAnalysis.recommendations.map((rec, i) => (
+                            <div key={i} className="text-[10px] text-gray-400 flex gap-2">
+                              <span className="text-emerald-500">•</span>
+                              <span>{rec}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1037,27 +1501,38 @@ export default function App() {
 
                 {/* Sources Card */}
                 {analysis?.sources && analysis.sources.length > 0 && (
-                  <div className="p-6 glass-panel rounded-[24px] space-y-4 border border-red-500/10">
-                    <h3 className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" /> İntihal Tespiti
+                  <div className="p-6 glass-panel rounded-[24px] space-y-4 border border-red-500/10 overflow-visible">
+                    <h3 className="text-[11px] font-black text-red-500/70 uppercase tracking-[0.2em] flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-2" /> 
+                      <InfoTooltip text="İnternet üzerindeki milyarlarca kaynak taranarak bulunan benzerliklerin detaylı dökümü." position="bottom" />
+                      İNTİHAL TESPİTİ 
                     </h3>
                     <div className="space-y-3">
                       {analysis.sources.map((src, i) => (
-                        <div key={i} className="bg-red-500/5 p-3 rounded-xl border border-red-500/10">
-                          <div className="flex justify-between items-start gap-2 mb-1">
-                            <div className="text-[10px] font-bold text-gray-300 truncate flex-1">{src.title}</div>
-                            <div className="text-[10px] font-black text-red-400 shrink-0">%{src.similarity || 0}</div>
+                        <div key={i} className="bg-red-500/5 p-4 rounded-xl border border-red-500/10 group hover:bg-red-500/10 transition-all">
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <div className="text-[11px] font-bold text-gray-200 leading-tight flex-1">{src.title}</div>
+                            <div className="text-[11px] font-black text-red-400 shrink-0 bg-red-500/10 px-2 py-0.5 rounded-lg">%{src.similarity || 0}</div>
                           </div>
-                          <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-[9px] text-blue-400 hover:text-blue-300 hover:underline block mb-2 truncate">{src.url}</a>
+                          <div className="flex items-center gap-2">
+                            <ExternalLink className="w-3 h-3 text-blue-400" />
+                            <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:text-blue-300 hover:underline block truncate font-bold">
+                              Kanıtı İncele (Link)
+                            </a>
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <div className="flex-1 glass-panel rounded-[24px] p-6 flex flex-col gap-4 overflow-hidden min-h-[300px]">
+                <div className="flex-1 glass-panel rounded-[24px] p-6 flex flex-col gap-4 overflow-visible min-h-[300px]">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><Search className="w-3 h-3 text-emerald-500" /> Detaylar</h3>
+                    <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center">
+                      <Search className="w-3 h-3 text-emerald-500 mr-2" /> 
+                      <InfoTooltip text="Dilbilgisi hataları, öneriler ve Hayalet Yazar'ın yaptığı yapısal değişikliklerin dökümü." position="bottom" />
+                      Detaylar 
+                    </h3>
                     <div className="flex items-center gap-2">
                       <span className="text-[8px] text-gray-500 font-bold">A</span>
                       <input type="range" min="12" max="24" value={detailsFontSize} onChange={(e) => setDetailsFontSize(Number(e.target.value))} className="w-24 h-1 accent-emerald-500 bg-white/10 rounded-full cursor-pointer" title="Yazı boyutunu ayarla" />

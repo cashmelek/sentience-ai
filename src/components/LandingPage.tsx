@@ -18,11 +18,13 @@ import {
   Github,
   Twitter,
   Menu,
-  X
+  X,
+  Gauge
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { detectAI } from '../services/geminiService';
 import toast from 'react-hot-toast';
+import { InfoTooltip } from './InfoTooltip';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -32,7 +34,7 @@ interface LandingPageProps {
 const AGENTS = [
   {
     id: "auditor",
-    name: "Auditor-2.5",
+    name: "YZ Denetçisi",
     role: "Tespit Uzmanı",
     description: "Metindeki yapay zeka parmak izlerini ve sentetik yapıları saniyeler içinde analiz eder.",
     icon: Search,
@@ -41,7 +43,7 @@ const AGENTS = [
   },
   {
     id: "ghostwriter",
-    name: "GhostWriter",
+    name: "Hayalet Yazar",
     role: "Üslup Mimarı",
     description: "Metni sizin sesinizden çıkmış gibi doğal, akıcı ve YZ dedektörlerini aşacak şekilde yeniden kurgular.",
     icon: Sparkles,
@@ -50,16 +52,16 @@ const AGENTS = [
   },
   {
     id: "sentinel",
-    name: "Sentinel",
+    name: "Gözcü",
     role: "Doğruluk Muhafızı",
-    description: "İntihal denetimi yapar ve kaynakları 2026 canlı verisiyle doğrular. Asla uydurma link vermez.",
+    description: "İntihal denetimi yapar ve kaynakları 2026 canlı verisiyle doğrular. Asla uydurma bağlantı vermez.",
     icon: ShieldCheck,
     color: "text-red-500",
     bgColor: "bg-red-500/10"
   },
   {
     id: "stylemaster",
-    name: "StyleMaster",
+    name: "Stil Ustası",
     role: "Hafıza Merkezi",
     description: "Özel tonlarınızı ve marka dilinizi öğrenerek her yazıda aynı yüksek kaliteyi korur.",
     icon: Layers,
@@ -70,7 +72,7 @@ const AGENTS = [
 
 const PLANS = [
   {
-    name: "Free",
+    name: "Ücretsiz",
     price: "0",
     features: ["Günlük 10 İşlem", "Standart İnsanlaştırma", "Temel YZ Tespiti", "Topluluk Desteği"],
     recommended: false,
@@ -79,7 +81,7 @@ const PLANS = [
   {
     name: "Pro",
     price: "29",
-    features: ["Günlük 50 İşlem", "GhostWriter Gelişmiş Mod", "Sentinel Canlı Kaynak", "7/24 Öncelikli Destek"],
+    features: ["Günlük 50 İşlem", "Gelişmiş Hayalet Yazar Modu", "Gözcü Canlı Kaynak", "7/24 Öncelikli Destek"],
     recommended: true,
     button: "Pro'ya Geç"
   },
@@ -94,8 +96,9 @@ const PLANS = [
 
 export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
   const [demoText, setInputText] = useState('');
+  const [demoSensitivity, setDemoSensitivity] = useState(50);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [demoResult, setDemoResult] = useState<{ score: number, insights: any[] } | null>(null);
+  const [demoResult, setDemoResult] = useState<{ score: number, sentenceScores: any[], reasoning: string } | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleDemoAnalyze = async () => {
@@ -105,9 +108,13 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
     }
     setIsAnalyzing(true);
     try {
-      const res = await detectAI(demoText);
-      setDemoResult({ score: res.score, insights: res.insights });
-      toast.success("Auditor Agent analizi tamamladı!");
+      const res = await detectAI(demoText, demoSensitivity);
+      setDemoResult({
+        score: res.score,
+        sentenceScores: res.sentenceScores,
+        reasoning: res.reasoning
+      });
+      toast.success("Denetçi Ajan analizi tamamladı!");
     } catch (err) {
       toast.error("Bağlantı hatası.");
     } finally {
@@ -202,7 +209,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             transition={{ delay: 0.2 }}
             className="text-base lg:text-xl text-gray-400 mb-10 lg:mb-14 max-w-2xl mx-auto leading-relaxed font-medium"
           >
-            Yapay zeka dedektörlerini aşan, formatı milimetrik koruyan ve kaynakları 2026 canlı verisiyle doğrulayan dünyanın ilk agent-native insanlaştırma ağı.
+            Yapay zeka dedektörlerini aşan, formatı milimetrik koruyan ve kaynakları 2026 canlı verisiyle doğrulayan dünyanın ilk ajan tabanlı insanlaştırma ağı.
           </motion.p>
 
           <motion.div 
@@ -240,7 +247,10 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                   <div className={cn("w-14 lg:w-16 h-14 lg:h-16 rounded-2xl flex items-center justify-center mb-6 lg:mb-8 transition-all group-hover:scale-110", agent.bgColor)}>
                     <Icon className={cn("w-7 lg:w-8 h-7 lg:h-8", agent.color)} />
                   </div>
-                  <h3 className="text-xl lg:text-2xl font-bold mb-2 text-white">{agent.name}</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl lg:text-2xl font-bold text-white">{agent.name}</h3>
+                    <InfoTooltip text={agent.description} position="bottom" />
+                  </div>
                   <div className="text-[9px] lg:text-[10px] font-black uppercase text-emerald-500 mb-4 lg:mb-6 tracking-[0.2em]">{agent.role}</div>
                   <p className="text-xs lg:text-sm text-gray-500 leading-relaxed font-medium">{agent.description}</p>
                 </motion.div>
@@ -260,7 +270,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                   <Search className="w-6 h-6 text-blue-500" />
                 </div>
                 <div>
-                  <h3 className="text-xl lg:text-2xl font-bold">Auditor Agent</h3>
+                  <h3 className="text-xl lg:text-2xl font-bold">YZ Denetçisi</h3>
                   <p className="text-[9px] lg:text-[10px] text-gray-500 uppercase font-black tracking-[0.2em] mt-1 text-blue-400">Ücretsiz Risk Analizi</p>
                 </div>
               </div>
@@ -268,8 +278,31 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 value={demoText}
                 onChange={(e) => setInputText(e.target.value)}
                 className="w-full h-56 lg:h-72 bg-white/5 outline-none resize-none text-gray-300 leading-relaxed text-sm p-6 lg:p-8 rounded-[24px] lg:rounded-[32px] border border-white/5 focus:border-blue-500/40 transition-all custom-scrollbar placeholder:text-gray-700"
-                placeholder="Analiz edilecek metni buraya yapıştırın (Min 50 karakter)..."
+                placeholder="Analiz edilecek metni buraya yapıştırın (En az 50 karakter)..."
               />
+
+              <div className="mt-6 p-4 rounded-2xl bg-white/5 border border-white/5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Gauge className="w-4 h-4 text-blue-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Analiz Hassasiyeti</span>
+                  </div>
+                  <span className="text-[10px] font-black text-blue-400">%{demoSensitivity}</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  value={demoSensitivity}
+                  onChange={(e) => setDemoSensitivity(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
+                />
+                <div className="flex justify-between mt-2 text-[8px] font-bold text-gray-600 uppercase">
+                  <span>Hoşgörülü</span>
+                  <span>Dengeli</span>
+                  <span>Çok Hassas</span>
+                </div>
+              </div>
               <button 
                 onClick={handleDemoAnalyze}
                 disabled={isAnalyzing}
@@ -293,40 +326,57 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                         <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-white/5" />
                         <motion.circle 
                           cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="6" fill="transparent"
-                          className={cn(demoResult > 0.5 ? "text-red-500" : "text-emerald-500")}
+                          className={cn(demoResult.score > 0.5 ? "text-red-500" : "text-emerald-500")}
                           initial={{ pathLength: 0 }}
-                          animate={{ pathLength: demoResult }}
+                          animate={{ pathLength: demoResult.score }}
                           style={{ rotate: -90, transformOrigin: '50% 50%' }}
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-4xl lg:text-6xl font-black tracking-tighter">%{Math.round(demoResult * 100)}</span>
+                        <span className="text-4xl lg:text-6xl font-black tracking-tighter">%{Math.round(demoResult.score * 100)}</span>
                         <span className="text-[8px] lg:text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mt-2">YZ OLASILIĞI</span>
                       </div>
                     </div>
                     <div className="max-w-sm mx-auto">
-                      <h4 className="text-lg lg:text-xl font-bold mb-3">Auditor Raporu</h4>
-                      <p className="text-xs lg:text-sm text-gray-400 leading-relaxed font-medium">
-                        {demoResult.score > 0.5 
-                          ? "Yüksek YZ izine rastlandı. GhostWriter ajanını kullanarak bu metni insanlaştırmanız önerilir."
-                          : "Düşük YZ riski. Metin doğal bir yapı sergiliyor."}
+                      <h4 className="text-lg lg:text-xl font-bold mb-3">Denetçi Raporu</h4>
+                      <p className="text-xs lg:text-sm text-gray-400 leading-relaxed font-medium mb-4">
+                        {demoResult.reasoning || (demoResult.score > 0.5 
+                          ? "Yüksek YZ izine rastlandı. Hayalet Yazar ajanını kullanarak bu metni insanlaştırmanız önerilir."
+                          : "Düşük YZ riski. Metin doğal bir yapı sergiliyor.")}
                       </p>
+
+                      {/* Demo Heatmap Preview */}
+                      <div className="p-4 rounded-2xl bg-black/40 border border-white/5 text-left text-[11px] leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">
+                        {demoResult.sentenceScores.map((s, idx) => (
+                          <span 
+                            key={idx} 
+                            className={cn(
+                              "px-0.5 rounded",
+                              s.score > 0.7 ? "bg-red-500/20 border-b border-red-500/40" : 
+                              s.score > 0.3 ? "bg-amber-500/20 border-b border-amber-500/40" : 
+                              "bg-emerald-500/10 border-b border-emerald-500/20"
+                            )}
+                          >
+                            {s.sentence}{" "}
+                          </span>
+                        ))}
+                      </div>
                     </div>
 
-                    {demoResult.insights.length > 0 && (
+                    {demoResult.sentenceScores.filter(s => s.score > 0.6).length > 0 && (
                       <div className="w-full space-y-3 text-left max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                        <div className="text-[9px] font-black uppercase text-gray-500 tracking-widest mb-2">Tespit Edilen Kritik Noktalar:</div>
-                        {demoResult.insights.slice(0, 3).map((insight, idx) => (
+                        <div className="text-[9px] font-black uppercase text-gray-500 tracking-widest mb-2">Kritik YZ Bulguları:</div>
+                        {demoResult.sentenceScores.filter(s => s.score > 0.6).slice(0, 3).map((s, idx) => (
                           <div key={idx} className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-1">
-                            <div className="text-[10px] text-gray-300 font-medium italic">"{insight.sentence}"</div>
+                            <div className="text-[10px] text-gray-300 font-medium italic">"{s.sentence}"</div>
                             <div className="flex items-center justify-between">
-                              <span className="text-[9px] text-red-500 font-bold uppercase">Risk: %{Math.round(insight.score * 100)}</span>
-                              <span className="text-[8px] text-gray-600 font-medium">{insight.detail}</span>
+                              <span className="text-[9px] text-red-500 font-bold uppercase">Risk: %{Math.round(s.score * 100)}</span>
+                              <span className="text-[8px] text-gray-600 font-medium">{s.reason || "Tekdüze yapı tespit edildi."}</span>
                             </div>
                           </div>
                         ))}
-                        {demoResult.insights.length > 3 && (
-                          <div className="text-[9px] text-center text-gray-600 font-bold uppercase">+ {demoResult.insights.length - 3} Daha Fazla Bulgu</div>
+                        {demoResult.sentenceScores.filter(s => s.score > 0.6).length > 3 && (
+                          <div className="text-[9px] text-center text-gray-600 font-bold uppercase">+ {demoResult.sentenceScores.filter(s => s.score > 0.6).length - 3} Daha Fazla Bulgu</div>
                         )}
                       </div>
                     )}
@@ -350,12 +400,12 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             <div className="absolute top-0 right-0 p-4">
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-widest">
                 <Lock className="w-3 h-3" />
-                GhostWriter Premium
+                Hayalet Yazar Premium
               </div>
             </div>
             <div className="flex flex-col lg:flex-row items-center gap-10">
               <div className="lg:w-1/3">
-                <h3 className="text-2xl font-black mb-4 uppercase tracking-tighter">GhostWriter</h3>
+                <h3 className="text-2xl font-black mb-4 uppercase tracking-tighter">Hayalet Yazar</h3>
                 <p className="text-gray-500 text-sm leading-relaxed mb-6 font-medium">Metninizi sadece insanlaştırmakla kalmaz, istediğiniz tonda ve duyguda yeniden inşa eder. YZ izlerini %100'e kadar temizler.</p>
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Duygu Analizi ve Ekleme</li>

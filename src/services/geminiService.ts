@@ -16,8 +16,9 @@ const ai = new GoogleGenAI({
   apiKey: apiKey || 'dummy-key-for-initialization'
 });
 
-// Primary model for the application - Updated to a 2026-compatible model
-const DEFAULT_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash"; 
+// Primary model - gemini-2.5-flash offers best cost/performance ratio
+// gemini-flash-latest alias ensures future-proofing (auto-updates to newest Flash)
+const MODEL_NAME = "gemini-2.5-flash"; 
 
 const assertApiKey = () => {
   if (!apiKey || apiKey === 'dummy-key-for-initialization') {
@@ -138,14 +139,24 @@ const robustParse = (text: string) => {
   }
 };
 
-export const analyzeAndHumanize = async (text: string, options: HumanizeOptions): Promise<AnalysisResult> => {
+export const analyzeAndHumanize = async (text: string, options: HumanizeOptions, modelName?: string): Promise<AnalysisResult> => {
   assertApiKey();
   
-  const modelsToTry = [DEFAULT_MODEL, "gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest"];
+  // Görev: İnsanlaştırma — kalite öncelikli, alias ile geleceğe dayanıklı
+  const modelsToTry = [
+    modelName,                    // Admin panelinden gelen model
+    MODEL_NAME,                   // gemini-2.5-flash (en iyi F/P)
+    "gemini-2.5-flash-lite",     // Ucuz alternatif
+    "gemini-flash-latest",       // Alias — asla kaldırılmaz
+  ].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i) as string[]; // deduplicate
+  
   let lastError: any = null;
 
-  for (const modelName of modelsToTry) {
+  console.log("Denecek modeller:", modelsToTry);
+
+  for (const currentModel of modelsToTry) {
     try {
+      console.log(`Model deneniyor: ${currentModel}`);
       let styleInstruction = "";
       if (options.customToneName || options.customToneDescription) {
         styleInstruction = `Özel Tarz: ${options.customToneName ? `[${options.customToneName}] ` : ""}${options.customToneDescription || ""}`;
@@ -208,18 +219,39 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
         }
       `;
 
-      const result = await ai.models.generateContent({
-        model: modelName,
-        contents: [{ role: "user", parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
-        config: {
-          responseMimeType: "application/json",
-          temperature: temp,
-          maxOutputTokens: 4096,
-        } as any
-      });
+      console.log(`Model ${currentModel} ile istek gönderiliyor...`);
+      let result;
+      try {
+        result = await ai.models.generateContent({
+          model: currentModel,
+          contents: [{ role: "user", parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
+          config: {
+            responseMimeType: "application/json",
+            temperature: temp,
+            maxOutputTokens: 4096,
+          } as any
+        });
+      } catch (apiError: any) {
+        console.error(`Model ${currentModel} API Hatası:`, apiError);
+        throw apiError; // Re-throw to be caught by the outer catch
+      }
 
-      const parsed = robustParse(result.text);
+      console.log(`Model ${currentModel} yanıt verdi:`, result);
+
+      // Extract text from the result - checking both possible formats
+      const resultText = (result as any).text || 
+                         (result as any).response?.text?.() || 
+                         (result as any).candidates?.[0]?.content?.parts?.[0]?.text || 
+                         '';
       
+      if (!resultText) {
+        throw new Error(`Model ${currentModel} boş yanıt döndü.`);
+      }
+
+      const parsed = robustParse(resultText);
+      
+      console.log(`Model ${currentModel} başarılı bir şekilde parse edildi.`);
+
       return {
         humanizedText: parsed.humanizedText || text,
         aiScore: typeof parsed.aiScore === 'number' ? parsed.aiScore : 0.5,
@@ -239,8 +271,9 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions)
         sentenceScores: Array.isArray(parsed.sentenceScores) ? parsed.sentenceScores : []
       };
     } catch (error: any) {
-      console.warn(`Model ${modelName} denemesi başarısız:`, error.message);
+      console.warn(`Model ${currentModel} denemesi başarısız:`, error.message || error);
       lastError = error;
+      // If it's a 404 or model not found, we continue to the next model
     }
   }
 
@@ -258,41 +291,132 @@ export const reportServiceError = async (serviceName: string, error: any, contex
 
 export const checkGrammar = async (text: string, _options?: GrammarOptions): Promise<GrammarSuggestion[]> => {
   assertApiKey();
-  const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-pro-latest"];
+  // Görev: Dilbilgisi — hafif görev, lite model yeterli
+  const models = ["gemini-2.5-flash-lite", "gemini-flash-latest"];
   let lastErr = "";
   
   for (const modelName of models) {
     try {
+      console.log(`[Grammar] Model deneniyor: ${modelName}`);
       const result = await ai.models.generateContent({
         model: modelName,
         contents: [{ role: "user", parts: [{ text: `Aşağıdaki metni Türkçe dilbilgisi açısından denetle ve JSON formatında suggestions listesi dön. Format: {"suggestions": [{"original": "...", "suggestion": "...", "explanation": "..."}]}. Metin: ${text}` }] }],
         config: { responseMimeType: "application/json", temperature: 0.1 } as any
       });
       const parsed = robustParse(result.text || '{}');
+      console.log(`[Grammar] ${modelName} başarılı.`);
       return parsed.suggestions || [];
     } catch (e: any) {
+      console.warn(`[Grammar] ${modelName} başarısız:`, e.message);
       lastErr = e.message;
     }
   }
   throw new Error(`Dilbilgisi hatası: ${lastErr}`);
 };
 
-export const detectAI = async (text: string) => {
+export const detectAI = async (text: string, sensitivity: number = 50, modelName: string = "gemini-2.5-flash-lite") => {
   assertApiKey();
-  try {
-    const result = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: `Aşağıdaki metni bir YZ Dedektörü (Auditor) olarak analiz et. Cümle bazlı riskleri belirle ve JSON formatında dön.\n\nMetin: ${text}\n\nJSON ŞEMASI:\n{\n  "score": 0.85,\n  "reasoning": "Genel analiz özeti",\n  "insights": [\n    {"sentence": "Tespit edilen cümle", "score": 0.9, "detail": "Neden YZ şüphesi uyandırdığı"}\n  ]\n}` }] }],
-      config: { responseMimeType: "application/json", temperature: 0.1 } as any
-    });
-    const parsed = robustParse(result.text || '{}');
-    return {
-      score: typeof parsed.score === 'number' ? parsed.score : 0.5,
-      reasoning: parsed.reasoning || "Analiz tamamlandı.",
-      insights: Array.isArray(parsed.insights) ? parsed.insights : []
-    };
-  } catch (error) {
-    await reportServiceError("detectAI", error, { textLength: text.length });
-    return { score: 0.5, reasoning: "Bağlantı hatası nedeniyle temel analiz yapıldı.", insights: [] };
+  
+  // Görev: YZ Tespiti — analitik görev, lite model ile maliyet optimizasyonu
+  const modelsToTry = [
+    modelName,                    // Admin panelinden gelen
+    "gemini-2.5-flash-lite",     // Ucuz analiz
+    "gemini-2.5-flash",          // Daha derin analiz
+    "gemini-flash-latest",       // Son çare alias
+  ].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i) as string[];
+
+  let lastError: any = null;
+
+  const sensitivityDesc = sensitivity > 70 ? "ÇOK HASSAS (En küçük YZ izini bile yakala)" : 
+                         sensitivity < 30 ? "HOŞGÖRÜLÜ (Sadece bariz YZ metinlerini işaretle)" : 
+                         "DENGELİ (Standart profesyonel denetim)";
+
+  for (const currentModel of modelsToTry) {
+    try {
+      console.log(`[Auditor] Model deneniyor: ${currentModel}`);
+      const result = await ai.models.generateContent({
+        model: currentModel,
+        contents: [{ role: "user", parts: [{ text: `Aşağıdaki metni bir "Originality Auditor" (YZ Dedektörü) olarak derinlemesine analiz et. 
+      
+        ANALİZ AYARI: ${sensitivityDesc} (Hassasiyet Değeri: ${sensitivity}/100)
+        SEÇİLİ ANALİZ MOTORU: ${currentModel}
+
+        GÖREV:
+        1. Metnin genel YZ olasılık skorunu belirle (0.0 - 1.0).
+        2. Metni CÜMLE CÜMLE analiz et. Her cümle için:
+           - Bir skor (0.0 - 1.0) ata.
+           - Bir tip ('ai', 'human', 'mixed') belirle.
+           - Detaylı bir "reason" (neden) yaz (Örn: "Düşük perplexity ve tekdüze cümle yapısı", "Beklenen insan varyasyonları mevcut", "Aşırı tahmin edilebilir kelime dizilimi").
+        3. Yapısal metrikleri hesapla (Burstiness, Punctuation, Complexity).
+        4. Metnin genel "Reasoning" (Mantıksal Gerekçe) kısmında neden bu karara vardığını açıkla.
+
+        ÖNEMLİ: Yanıtı SADECE JSON olarak dön.
+
+        JSON ŞEMASI:
+        {
+          "score": 0.85,
+          "reasoning": "Metnin geneli için detaylı analiz özeti...",
+          "sentenceScores": [
+            {
+              "sentence": "Cümle içeriği", 
+              "score": 0.9, 
+              "type": "ai", 
+              "reason": "Bu cümle neden YZ olarak işaretlendi? (Örn: 'Tipik GPT-4 giriş yapısı', 'Sentaktik tekrarlar')"
+            }
+          ],
+          "metrics": {
+            "plagiarism": 0.05,
+            "readability": 0.75,
+            "complexity": "Profesyonel",
+            "burstiness": 0.4,
+            "perplexity": 0.3,
+            "structureScore": 0.8
+          }
+        }
+
+        Metin: ${text}` }] }],
+        config: { responseMimeType: "application/json", temperature: 0.1 } as any
+      });
+      
+      const parsed = robustParse(result.text || '{}');
+      console.log(`[Auditor] ${currentModel} başarılı.`);
+      
+      return {
+        score: typeof parsed.score === 'number' ? parsed.score : 0.5,
+        reasoning: parsed.reasoning || "Analiz tamamlandı.",
+        sentenceScores: Array.isArray(parsed.sentenceScores) ? parsed.sentenceScores.map((s: any) => ({
+          sentence: s.sentence || "",
+          score: typeof s.score === 'number' ? s.score : 0.5,
+          type: s.type || (s.score > 0.6 ? 'ai' : s.score < 0.4 ? 'human' : 'mixed'),
+          reason: s.reason || "Cümle yapısı incelendi."
+        })) : [],
+        metrics: {
+          plagiarism: parsed.metrics?.plagiarism ?? 0,
+          readability: parsed.metrics?.readability ?? 0.5,
+          complexity: parsed.metrics?.complexity ?? "Orta",
+          burstiness: parsed.metrics?.burstiness ?? 0.5,
+          perplexity: parsed.metrics?.perplexity ?? 0.5,
+          structureScore: parsed.metrics?.structureScore ?? 0.5
+        }
+      };
+    } catch (error: any) {
+      console.warn(`[Auditor] ${currentModel} başarısız:`, error.message);
+      lastError = error;
+    }
   }
+
+  await reportServiceError("detectAI", lastError, { textLength: text.length });
+  return { 
+    score: 0.5, 
+    reasoning: "Tüm modeller başarısız oldu. Temel analiz yapıldı.", 
+    sentenceScores: [],
+    metrics: { 
+      plagiarism: 0, 
+      readability: 0, 
+      complexity: "Bilinmiyor",
+      burstiness: 0,
+      perplexity: 0,
+      structureScore: 0
+    }
+  };
 };

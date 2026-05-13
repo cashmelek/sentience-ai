@@ -45,4 +45,6 @@ export interface Project {
   isDraft: boolean;
   createdAt: any;
   insights: any[];
+  sentenceScores?: any[];
+  metrics?: any;
 }
