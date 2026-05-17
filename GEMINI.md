@@ -1,8 +1,12 @@
 # Sentience AI - Geliştirme Protokolü ve Mimari Prensipler
 
-Bu dosya, Sentience AI projesindeki çalışma şeklini, mimari sınırları ve stratejik hedefleri belirler.
+## 0. GÜVENLİK VE DOSYA BÜTÜNLÜĞÜ (KRİTİK)
+- **Dosya Güncelleme:** Mevcut dosyalar üzerinde işlem yaparken `write_file` yerine daima `replace` aracını tercih et. `write_file` kullanımı sadece yeni dosya oluştururken veya dosyanın TAMAMI (tüm importlar, componentler ve logic) yeniden yazıldığında tercih edilmelidir.
+- **Kısmi Kod Gönderme Yasağı:** Hata düzeltme (fix) yaparken dosyanın sadece bir kısmını gönderip geri kalanını silme. Eğer `write_file` kullanılacaksa, dosyanın orijinal içeriğinin %100 korunduğundan ve sadece hedeflenen değişikliğin eklendiğinden emin ol.
+- **Build Öncesi Kontrol:** Her deploy öncesinde `npm run build` komutu ile dosya bütünlüğünü ve referans hatalarını (ReferenceError vb.) kontrol et.
 
 ## 1. Mimari Ayrım: Çekirdek (Core) ve Vitrin (Showcase)
+... (rest of the content)
 
 Sentience AI, iki ana katmandan oluşur. Bu katmanlar arasındaki sınır asla ihlal edilmemelidir:
 
