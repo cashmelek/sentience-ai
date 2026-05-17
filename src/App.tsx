@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, lazy, Suspense, useCallback } from 'react';
 import {
   Plus, Zap, ShieldCheck, Gauge, Trash2, Copy, Check, Sparkles, Search,
   Settings2, AlertCircle, Clock, ChevronRight, LogOut, Fingerprint, Save,
