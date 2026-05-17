@@ -1,36 +1,55 @@
 import { GoogleGenAI } from "@google/genai";
+import { apiKeyManager } from "./apiKeyManager";
 
-// Vite build-time environment variables
-const getApiKey = () => {
-  try {
-    const key = import.meta.env.VITE_GEMINI_API_KEY || (process as any).env.GEMINI_API_KEY || '';
-    return key;
-  } catch {
-    return import.meta.env.VITE_GEMINI_API_KEY || '';
-  }
+// --- API ANAHTARI YÖNETİMİ ---
+export const getCurrentApiKey = (): string => {
+  return apiKeyManager.getGeminiKey();
 };
 
-const apiKey = getApiKey();
-// Unified SDK configuration
-const ai = new GoogleGenAI({ 
-  apiKey: apiKey || 'dummy-key-for-initialization'
-});
-
-// Primary model - gemini-2.5-flash offers best cost/performance ratio
-// gemini-flash-latest alias ensures future-proofing (auto-updates to newest Flash)
-const MODEL_NAME = "gemini-2.5-flash"; 
+export const rotateKey = (): boolean => {
+  return apiKeyManager.rotateGeminiKey();
+};
 
 const assertApiKey = () => {
-  if (!apiKey || apiKey === 'dummy-key-for-initialization') {
-    throw new Error("API Anahtarı Eksik: .env.local dosyasında GEMINI_API_KEY veya VITE_GEMINI_API_KEY değişkeninin tanımlı olduğundan emin olun.");
+  getCurrentApiKey(); 
+};
+
+export const getGeminiClient = () => {
+  return new GoogleGenAI({ apiKey: getCurrentApiKey() });
+};
+
+// --- KONFİGÜRASYON ---
+const DEFAULT_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.0-flash";
+
+/**
+ * Model isminin geçerliliğini kontrol eder ve gerekirse güvenli varsayılana döner.
+ */
+export const validateModelName = (name: string): string => {
+  if (!name) return "gemini-2.0-flash";
+
+  // "Gemini 2.5 Flash Lite" -> "gemini-2.5-flash-lite"
+  let normalized = name.toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')     // Boşlukları tire yap
+    .replace(/\(.*\)/g, '')    // Parantez içlerini sil (Hızlı, Derin vb.)
+    .replace(/-+$/g, '');      // Sondaki tireleri temizle
+
+  if (normalized.startsWith("gemini-")) {
+    return normalized;
   }
+
+  if (normalized === "2.0-flash" || normalized === "2.0-flash-lite") {
+    return `gemini-${normalized}`;
+  }
+
+  return `gemini-${normalized}`;
 };
 
 export interface AnalysisResult {
   humanizedText: string;
   aiScore: number;
   insights: { sentence: string; score: number; detail: string }[];
-  sentenceScores: { sentence: string; score: number; type?: 'ai' | 'human' | 'mixed' }[]; 
+  sentenceScores: { sentence: string; score: number; type?: 'ai' | 'human' | 'mixed' }[];
   metrics: {
     readability: number;
     complexity: string;
@@ -60,103 +79,192 @@ export interface GrammarOptions {
 }
 
 /**
+ * Translates technical Gemini/API errors into user-friendly Turkish messages.
+ */
+export const translateError = (error: any, isUnlimited: boolean = false): string => {
+  const message = error?.message || String(error);
+
+  if (message.includes("429") || message.includes("RESOURCE_EXHAUSTED") || message.includes("Quota exceeded")) {
+    if (isUnlimited) {
+      return "Google AI kotası veya anlık istek limiti aşıldı. Eğer anahtarlarınızın kotası varsa, lütfen Google AI Studio üzerinden 'Prepaid Credits' (Ön Ödemeli Kredi) durumunuzu kontrol edin.";
+    }
+    return "Üzgünüz, günlük kullanım limitinizi veya API kotanızı doldurdunuz. Lütfen 1 dakika sonra tekrar deneyin veya farklı bir anahtar tanımlayın.";
+  }
+
+  if (message.includes("503") || message.includes("Service Unavailable")) {
+    return "Yapay zeka sunucusu şu an geçici olarak hizmet dışı. Lütfen birkaç saniye sonra tekrar deneyin.";
+  }
+
+  if (message.includes("API key") || message.includes("API Anahtarı")) {
+    return "Sistem yapılandırma hatası: API anahtarı geçersiz veya eksik.";
+  }
+
+  if (message.includes("JSON") || message.includes("Unexpected token") || message.includes("Unexpected non-whitespace character")) {
+    return "Sistem yanıtı işlenirken bir sorun oluştu, lütfen tekrar deneyin.";
+  }
+
+  if (message.includes("safety") || message.includes("HARM_CATEGORY")) {
+    return "Girdiğiniz metin güvenlik filtrelerimize takıldı. Lütfen içeriği gözden geçirip tekrar deneyin.";
+  }
+
+  // Firebase Auth Error Translations
+  if (message.includes("auth/invalid-credential") || message.includes("auth/wrong-password") || message.includes("auth/user-not-found")) {
+    return "E-posta adresi veya şifre hatalı.";
+  }
+  if (message.includes("auth/email-already-in-use")) {
+    return "Bu e-posta adresi zaten kullanımda.";
+  }
+  if (message.includes("auth/popup-closed-by-user")) {
+    return "Giriş işlemi iptal edildi.";
+  }
+  if (message.includes("auth/network-request-failed")) {
+    return "Ağ bağlantısı hatası. Lütfen internet bağlantınızı kontrol edin.";
+  }
+  if (message.includes("API key not valid")) {
+    return "API anahtarınız geçersiz. Lütfen .env.local dosyasındaki anahtarı kontrol edin.";
+  }
+  if (message.includes("not enabled")) {
+    return "Generative Language API bu projede aktif edilmemiş. Lütfen Google Cloud Console'dan aktif edin.";
+  }
+  const currentModel = (error as any)?.model || "Belirlenemeyen Model";
+
+  if (message.includes("model not found") || message.includes("404")) {
+    return `Seçilen model (${currentModel}) bu anahtar ile kullanılamıyor. Lütfen Admin panelinden farklı bir model seçin (Örn: Gemini 2.0 Flash).`;
+  }
+
+  console.error("🔍 KRİTİK API HATASI DETAYLARI:", {
+    rawError: error,
+    message,
+    status: error?.status,
+    statusText: error?.statusText,
+    code: error?.code,
+    reason: error?.reason,
+    details: error?.details || error?.error?.details
+  });
+
+  return `Hata: ${message.slice(0, 100)}... (Detaylar konsolda)`;
+};
+
+/**
  * Safely cleans and parses JSON from LLM output.
  * Handles markdown code blocks, trailing commas, and common escaping issues.
  */
 const robustParse = (text: string) => {
   try {
-    // 1. Remove markdown code blocks if present
-    let cleaned = text.replace(/```json\n?|```/g, '').trim();
-    
-    // 2. Fix common LLM JSON errors (unescaped newlines and quotes inside strings)
-    let inString = false;
-    let result = "";
-    for (let i = 0; i < cleaned.length; i++) {
-      const char = cleaned[i];
-      const prevChar = i > 0 ? cleaned[i-1] : '';
-      
-      if (char === '"' && prevChar !== '\\') {
-        // Simple heuristic: if we are in a string and the next char is NOT a JSON structural char
-        // (like :, }, ], or ,), then this is likely an unescaped quote.
-        if (inString) {
-          const nextPart = cleaned.substring(i + 1).trim();
-          const isActuallyEndOfString = i === cleaned.length - 1 || /^[:,\}\]]/.test(nextPart);
-          if (isActuallyEndOfString) {
-            inString = false;
-            result += char;
-          } else {
-            result += '\\"'; // Escape the internal quote
-          }
-        } else {
-          inString = true;
-          result += char;
-        }
-      } else if (char === '\n' && inString) {
-        result += "\\n";
-      } else {
-        result += char;
-      }
-    }
-    
-    // 3. Handle truncation: If the response is truncated, try to close it
-    if (inString) {
-      result += '"'; // Close the open string
-    }
-    
-    // Simple bracket balancer for truncated JSON
-    let openBraces = (result.match(/\{/g) || []).length;
-    let closeBraces = (result.match(/\}/g) || []).length;
-    while (openBraces > closeBraces) {
-      result += '}';
-      closeBraces++;
-    }
-    
-    let openBrackets = (result.match(/\[/g) || []).length;
-    let closeBrackets = (result.match(/\]/g) || []).length;
-    while (openBrackets > closeBrackets) {
-      result += ']';
-      closeBrackets++;
-    }
-
-    return JSON.parse(result);
+    // 1. First attempt: Simple parse if it's already clean
+    return JSON.parse(text);
   } catch (e) {
-    console.warn("JSON parsing failed, attempting fallback extraction:", e);
-    
-    // 4. Fallback: Try to extract everything between the first { and last }
     try {
+      // 2. Extract content between first { and last } to ignore trailing junk or preamble
       const firstBrace = text.indexOf('{');
       const lastBrace = text.lastIndexOf('}');
-      if (firstBrace !== -1) {
-        let jsonCandidate = lastBrace !== -1 ? text.substring(firstBrace, lastBrace + 1) : text.substring(firstBrace) + "}";
-        // Apply basic cleanup to candidate too
-        jsonCandidate = jsonCandidate.replace(/\n/g, '\\n');
-        return JSON.parse(jsonCandidate);
+
+      if (firstBrace === -1) throw new Error("JSON bulunamadı");
+
+      let cleaned = text.substring(firstBrace, lastBrace + 1);
+
+      // 3. Fix common LLM JSON errors (unescaped newlines and quotes inside strings)
+      let inString = false;
+      let result = "";
+      for (let i = 0; i < cleaned.length; i++) {
+        const char = cleaned[i];
+        const prevChar = i > 0 ? cleaned[i - 1] : '';
+
+        if (char === '"' && prevChar !== '\\') {
+          inString = !inString;
+          result += char;
+        } else if (char === '\n' && inString) {
+          result += "\\n";
+        } else if (char === '\r' && inString) {
+          // ignore carriage returns in strings
+        } else {
+          result += char;
+        }
       }
+
+      // 4. Final attempt at parsing the cleaned string
+      return JSON.parse(result);
     } catch (innerE) {
-      console.error("JSON extraction failed:", innerE);
+      console.error("Robust parse failed:", innerE, "Original text:", text);
+
+      // Fallback mechanism returning a safe default object structure instead of crashing
+      let fallbackText = text.replace(/```json|```/g, '').trim();
+      if (!fallbackText) fallbackText = "Metin işlenirken bir sorun oluştu.";
+
+      let extractedHumanized = fallbackText;
+
+      // Try to rescue the humanized text if the JSON is truncated or malformed
+      if (fallbackText.includes('"humanizedText"')) {
+        // Try to match standard "humanizedText": "..." up to the next property
+        const match = fallbackText.match(/"humanizedText"\s*:\s*"([\s\S]*?)",?\s*"\w+"\s*:/);
+        if (match && match[1]) {
+          extractedHumanized = match[1];
+        } else {
+          // It might be completely truncated at the end
+          const partialMatch = fallbackText.match(/"humanizedText"\s*:\s*"([\s\S]*)/);
+          if (partialMatch && partialMatch[1]) {
+            extractedHumanized = partialMatch[1];
+            // Remove trailing quote/braces if it ended abruptly with them
+            extractedHumanized = extractedHumanized.replace(/["}\s]*$/, '');
+          }
+        }
+
+        // Unescape common JSON characters
+        extractedHumanized = extractedHumanized
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\');
+      }
+
+      return {
+        humanizedText: extractedHumanized,
+        aiScore: 0.5,
+        metrics: {
+          readability: 0.5,
+          complexity: 'Orta',
+          toneStrength: 0.5,
+          grammarScore: 0.5,
+          wordCount: extractedHumanized.split(/\s+/).length,
+          readingTime: '1 dk'
+        },
+        insights: [],
+        sentenceScores: []
+      };
     }
-    throw e;
   }
 };
 
-export const analyzeAndHumanize = async (text: string, options: HumanizeOptions, modelName?: string): Promise<AnalysisResult> => {
+export const analyzeAndHumanize = async (
+  text: string,
+  options: HumanizeOptions,
+  modelName?: string,
+  retryCount: number = 0
+): Promise<AnalysisResult> => {
+  // Sonsuz döngü engelleme: En fazla 2 kez dene
+  if (retryCount >= 2) {
+    throw new Error("API yanıt vermedi. Lütfen daha sonra tekrar deneyin.");
+  }
   assertApiKey();
-  
-  // Görev: İnsanlaştırma — kalite öncelikli, alias ile geleceğe dayanıklı
+
+  const validModel = validateModelName(modelName);
+  console.log(`[Gemini] Denenecek modeller (ilk deneme: ${validModel})`);
+
   const modelsToTry = [
-    modelName,                    // Admin panelinden gelen model
-    MODEL_NAME,                   // gemini-2.5-flash (en iyi F/P)
-    "gemini-2.5-flash-lite",     // Ucuz alternatif
-    "gemini-flash-latest",       // Alias — asla kaldırılmaz
-  ].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i) as string[]; // deduplicate
-  
+    validModel,
+    "gemini-2.0-flash",           // Ana model
+    "gemini-2.5-flash",           // Yeni nesil
+    "gemini-2.0-flash-lite",      // Hafif alternatif
+    "gemini-2.5-flash-lite",      // Son çare
+  ].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i) as string[];
+
   let lastError: any = null;
 
   console.log("Denecek modeller:", modelsToTry);
 
   for (const currentModel of modelsToTry) {
     try {
-      console.log(`Model deneniyor: ${currentModel}`);
+      const validModel = validateModelName(currentModel);
+      console.log(`Model deneniyor: ${validModel}`);
       let styleInstruction = "";
       if (options.customToneName || options.customToneDescription) {
         styleInstruction = `Özel Tarz: ${options.customToneName ? `[${options.customToneName}] ` : ""}${options.customToneDescription || ""}`;
@@ -185,11 +293,17 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions,
         
         KURALLAR:
         1. FORMATI KORU: Kaynak metindeki tüm başlıkları (#, ##), alt başlıkları, numaralandırılmış listeleri (1., 2.), madde işaretlerini (-, *) ve özel noktalamaları AYNEN KORU.
-        2. İNSANİLEŞTİRME: Metni YZ tespitinden kaçacak şekilde, doğal bir dille yeniden yaz.
+        2. İNSANİLEŞTİRME: Metni YZ tespitinden kaçacak şekilde, doğal bir dille yeniden yaz. Perplexity ve Burstiness değerlerini insan standartlarına çek.
            - ${styleInstruction}
            - ${intensityInstruction}
-        3. CÜMLE ANALİZİ: Metni CÜMLE CÜMLE analiz et ve her cümle için YZ olasılığını belirle.
-        4. METRİKLER: Metnin okunabilirliğini, karmaşıklığını ve ton gücünü profesyonel bir denetçi gibi hesapla.
+        3. AKADEMİK ETİK VE İNTİHAL (KRİTİK):
+           - DERİN ÖZÜMSEME: Sadece kelime değiştirme, kavramsal analiz yapıp bilgiyi sentezle.
+           - %15 LİMİTİ: Üretilen metnin orijinal kaynaklarla benzerliği %15'i geçmemelidir.
+           - ALINTILAR: Kanun maddeleri ve teknik tanımları tırnak içinde ("...") koru.
+           - ÇOKLU SENTEZ: Mümkünse bilgiyi 3-4 farklı perspektifi birleştirerek sun.
+           - HİLE YASAK: Görünmez karakter veya harf değişikliği gibi teknik hileler ASLA kullanma.
+        4. CÜMLE ANALİZİ: Metni CÜMLE CÜMLE analiz et ve her cümle için YZ olasılığını belirle.
+        5. METRİKLER: Metnin okunabilirliğini, karmaşıklığını ve ton gücünü profesyonel bir denetçi gibi hesapla.
         
         ÖNEMLİ (JSON GÜVENLİĞİ): 
         - Yanıtını SADECE geçerli bir JSON nesnesi olarak ver. 
@@ -219,38 +333,37 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions,
         }
       `;
 
-      console.log(`Model ${currentModel} ile istek gönderiliyor...`);
+      console.log(`Model ${validModel} ile istek gönderiliyor...`);
       let result;
       try {
-        result = await ai.models.generateContent({
-          model: currentModel,
-          contents: [{ role: "user", parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
+        const client = getGeminiClient();
+        
+        result = await client.models.generateContent({
+          model: validModel,
+          contents: [{ role: 'user', parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
           config: {
-            responseMimeType: "application/json",
             temperature: temp,
-            maxOutputTokens: 4096,
-          } as any
+            maxOutputTokens: 8192,
+            responseMimeType: "application/json"
+          }
         });
       } catch (apiError: any) {
-        console.error(`Model ${currentModel} API Hatası:`, apiError);
+        console.error(`Model ${validModel} API Hatası:`, apiError);
         throw apiError; // Re-throw to be caught by the outer catch
       }
 
-      console.log(`Model ${currentModel} yanıt verdi:`, result);
+      console.log(`Model ${validModel} yanıt verdi:`, result);
 
-      // Extract text from the result - checking both possible formats
-      const resultText = (result as any).text || 
-                         (result as any).response?.text?.() || 
-                         (result as any).candidates?.[0]?.content?.parts?.[0]?.text || 
-                         '';
-      
+      // Extract text from the result
+      const resultText = result.text || '';
+
       if (!resultText) {
-        throw new Error(`Model ${currentModel} boş yanıt döndü.`);
+        throw new Error(`Model ${validModel} boş yanıt döndü.`);
       }
 
       const parsed = robustParse(resultText);
-      
-      console.log(`Model ${currentModel} başarılı bir şekilde parse edildi.`);
+
+      console.log(`Model ${validModel} başarılı bir şekilde parse edildi.`);
 
       return {
         humanizedText: parsed.humanizedText || text,
@@ -271,13 +384,18 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions,
         sentenceScores: Array.isArray(parsed.sentenceScores) ? parsed.sentenceScores : []
       };
     } catch (error: any) {
+      const isQuota = error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED");
+      if (isQuota && retryCount < 2) { 
+        rotateKey(); // <--- OTOMATİK ROTASYON
+        console.log(`🔄 Kota aşıldı, anahtar değiştirildi ve tekrar deneniyor... (Deneme: ${retryCount + 1})`);
+        return analyzeAndHumanize(text, options, currentModel, retryCount + 1);
+      }
       console.warn(`Model ${currentModel} denemesi başarısız:`, error.message || error);
       lastError = error;
-      // If it's a 404 or model not found, we continue to the next model
     }
   }
 
-  throw new Error(`YZ İşlemi Başarısız. Son hata: ${lastError?.message}`);
+  throw new Error(`YZ İşlemi Başarısız. Son hata: ${translateError(lastError)}`);
 };
 
 /**
@@ -285,28 +403,35 @@ export const analyzeAndHumanize = async (text: string, options: HumanizeOptions,
  */
 export const reportServiceError = async (serviceName: string, error: any, context?: any) => {
   console.error(`[ServiceError] ${serviceName}:`, error);
-  // Note: Firestore logging would happen here if integrated.
-  // For now, we'll ensure the UI can display these if we add a local state or a dedicated collection.
 };
 
 export const checkGrammar = async (text: string, _options?: GrammarOptions): Promise<GrammarSuggestion[]> => {
   assertApiKey();
-  // Görev: Dilbilgisi — hafif görev, lite model yeterli
-  const models = ["gemini-2.5-flash-lite", "gemini-flash-latest"];
+  const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-flash-lite"];
   let lastErr = "";
-  
+
   for (const modelName of models) {
     try {
       console.log(`[Grammar] Model deneniyor: ${modelName}`);
-      const result = await ai.models.generateContent({
-        model: modelName,
-        contents: [{ role: "user", parts: [{ text: `Aşağıdaki metni Türkçe dilbilgisi açısından denetle ve JSON formatında suggestions listesi dön. Format: {"suggestions": [{"original": "...", "suggestion": "...", "explanation": "..."}]}. Metin: ${text}` }] }],
-        config: { responseMimeType: "application/json", temperature: 0.1 } as any
+      const validModel = validateModelName(modelName);
+      const client = getGeminiClient();
+      const result = await client.models.generateContent({
+        model: validModel,
+        contents: [{ role: 'user', parts: [{ text: `Aşağıdaki metni Türkçe dilbilgisi açısından denetle ve JSON formatında suggestions listesi dön. Format: {"suggestions": [{"original": "...", "suggestion": "...", "explanation": "..."}]}. Metin: ${text}` }] }],
+        config: { 
+          responseMimeType: "application/json", 
+          temperature: 0.1 
+        }
       });
       const parsed = robustParse(result.text || '{}');
       console.log(`[Grammar] ${modelName} başarılı.`);
       return parsed.suggestions || [];
     } catch (e: any) {
+      const isQuota = e.message?.includes("429") || e.message?.includes("RESOURCE_EXHAUSTED");
+      if (isQuota) {
+        rotateKey(); // <--- GRAMER İÇİN DE ROTASYON
+        console.log("[Grammar] Kota doldu, anahtar rotasyonu yapıldı.");
+      }
       console.warn(`[Grammar] ${modelName} başarısız:`, e.message);
       lastErr = e.message;
     }
@@ -314,41 +439,73 @@ export const checkGrammar = async (text: string, _options?: GrammarOptions): Pro
   throw new Error(`Dilbilgisi hatası: ${lastErr}`);
 };
 
-export const detectAI = async (text: string, sensitivity: number = 50, modelName: string = "gemini-2.5-flash-lite") => {
+export interface DetectAIResult {
+  score: number;
+  reasoning: string;
+  sentenceScores: {
+    sentence: string;
+    score: number;
+    type?: "ai" | "human" | "mixed";
+    reason?: string;
+  }[];
+  metrics: {
+    plagiarism: number;
+    readability: number;
+    complexity: string;
+    burstiness: number;
+    perplexity: number;
+    structureScore: number;
+  };
+  highlights: {
+    text: string;
+    type: string;
+    score: number;
+    source?: string;
+  }[];
+}
+
+export const detectAI = async (text: string, sensitivity: number = 50, modelName: string = "gemini-2.0-flash"): Promise<DetectAIResult> => {
   assertApiKey();
-  
-  // Görev: YZ Tespiti — analitik görev, lite model ile maliyet optimizasyonu
+
+  const validRequestedModel = validateModelName(modelName);
   const modelsToTry = [
-    modelName,                    // Admin panelinden gelen
-    "gemini-2.5-flash-lite",     // Ucuz analiz
-    "gemini-2.5-flash",          // Daha derin analiz
-    "gemini-flash-latest",       // Son çare alias
+    validRequestedModel,
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.5-flash-lite",
   ].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i) as string[];
 
   let lastError: any = null;
 
-  const sensitivityDesc = sensitivity > 70 ? "ÇOK HASSAS (En küçük YZ izini bile yakala)" : 
-                         sensitivity < 30 ? "HOŞGÖRÜLÜ (Sadece bariz YZ metinlerini işaretle)" : 
-                         "DENGELİ (Standart profesyonel denetim)";
+  const sensitivityDesc = sensitivity > 70 ? "ÇOK HASSAS (En küçük YZ izini bile yakala)" :
+    sensitivity < 30 ? "HOŞGÖRÜLÜ (Sadece bariz YZ metinlerini işaretle)" :
+      "DENGELİ (Standart profesyonel denetim)";
 
   for (const currentModel of modelsToTry) {
     try {
-      console.log(`[Auditor] Model deneniyor: ${currentModel}`);
-      const result = await ai.models.generateContent({
-        model: currentModel,
-        contents: [{ role: "user", parts: [{ text: `Aşağıdaki metni bir "Originality Auditor" (YZ Dedektörü) olarak derinlemesine analiz et. 
+      const validatedModel = validateModelName(currentModel);
+      console.log(`[Auditor] Model deneniyor: ${validatedModel}`);
+      const client = getGeminiClient();
+      const result = await client.models.generateContent({
+        model: validatedModel,
+        contents: [{ role: 'user', parts: [{ text: `Aşağıdaki metni bir "Originality Auditor" (YZ Dedektörü) olarak derinlemesine analiz et. 
       
         ANALİZ AYARI: ${sensitivityDesc} (Hassasiyet Değeri: ${sensitivity}/100)
         SEÇİLİ ANALİZ MOTORU: ${currentModel}
 
         GÖREV:
         1. Metnin genel YZ olasılık skorunu belirle (0.0 - 1.0).
-        2. Metni CÜMLE CÜMLE analiz et. Her cümle için:
+        2. İNTİHAL VE ETİK DENETİMİ (SENTENCE LEVEL):
+           - %15'lik benzerlik sınırının aşılıp aşılmadığını kontrol et.
+           - Metinde hileli karakter (görünmez boşluk vb.) olup olmadığını denetle.
+           - Atıf sisteminin (APA/MLA vb.) doğruluğunu ve teknik tanımların tırnak içinde olup olmadığını incele.
+        3. Metni CÜMLE CÜMLE analiz et. Her cümle için:
            - Bir skor (0.0 - 1.0) ata.
            - Bir tip ('ai', 'human', 'mixed') belirle.
            - Detaylı bir "reason" (neden) yaz (Örn: "Düşük perplexity ve tekdüze cümle yapısı", "Beklenen insan varyasyonları mevcut", "Aşırı tahmin edilebilir kelime dizilimi").
-        3. Yapısal metrikleri hesapla (Burstiness, Punctuation, Complexity).
-        4. Metnin genel "Reasoning" (Mantıksal Gerekçe) kısmında neden bu karara vardığını açıkla.
+        4. Yapısal metrikleri hesapla (Burstiness, Punctuation, Complexity).
+        5. Metnin genel "Reasoning" (Mantıksal Gerekçe) kısmında neden bu karara vardığını açıkla.
 
         ÖNEMLİ: Yanıtı SADECE JSON olarak dön.
 
@@ -371,16 +528,27 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
             "burstiness": 0.4,
             "perplexity": 0.3,
             "structureScore": 0.8
-          }
+          },
+          "highlights": [
+            {
+              "text": "Alıntı veya intihal şüphesi olan metin kısmı",
+              "type": "plagiarism",
+              "score": 0.95,
+              "source": "https://example.com/kaynak"
+            }
+          ]
         }
 
         Metin: ${text}` }] }],
-        config: { responseMimeType: "application/json", temperature: 0.1 } as any
+        config: { 
+          responseMimeType: "application/json", 
+          temperature: 0.1 
+        }
       });
-      
+
       const parsed = robustParse(result.text || '{}');
       console.log(`[Auditor] ${currentModel} başarılı.`);
-      
+
       return {
         score: typeof parsed.score === 'number' ? parsed.score : 0.5,
         reasoning: parsed.reasoning || "Analiz tamamlandı.",
@@ -397,26 +565,39 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
           burstiness: parsed.metrics?.burstiness ?? 0.5,
           perplexity: parsed.metrics?.perplexity ?? 0.5,
           structureScore: parsed.metrics?.structureScore ?? 0.5
-        }
+        },
+        highlights: Array.isArray(parsed.highlights) ? parsed.highlights.map((h: any) => ({
+          text: h.text || "",
+          type: h.type || "plagiarism",
+          score: typeof h.score === 'number' ? h.score : 0.5,
+          source: h.source
+        })) : []
       };
     } catch (error: any) {
+      const isQuota = error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED");
+      if (isQuota) {
+        rotateKey(); // <--- AUDITOR İÇİN DE ROTASYON
+        console.log("[Auditor] Kota doldu, anahtar rotasyonu yapıldı.");
+      }
       console.warn(`[Auditor] ${currentModel} başarısız:`, error.message);
       lastError = error;
     }
   }
 
   await reportServiceError("detectAI", lastError, { textLength: text.length });
-  return { 
-    score: 0.5, 
-    reasoning: "Tüm modeller başarısız oldu. Temel analiz yapıldı.", 
+
+  return {
+    score: 0.5,
+    reasoning: "Tüm modeller başarısız oldu. Temel analiz yapıldı.",
     sentenceScores: [],
-    metrics: { 
-      plagiarism: 0, 
-      readability: 0, 
+    metrics: {
+      plagiarism: 0,
+      readability: 0,
       complexity: "Bilinmiyor",
       burstiness: 0,
       perplexity: 0,
       structureScore: 0
-    }
+    },
+    highlights: []
   };
 };

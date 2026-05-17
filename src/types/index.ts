@@ -13,15 +13,16 @@ export interface AppUser {
   email: string | null;
   role: 'admin' | 'user';
   plan: SubscriptionPlan;
-  dailyUsage: number;
+  dailyUsage: number; // Represents daily character usage
   lastResetDate: string;
+  createdAt: string; // ISO date string of account creation
   onboarding?: OnboardingState;
 }
 
-export const PLAN_LIMITS: Record<SubscriptionPlan, number> = {
-  free: 10,
-  pro: 50,
-  premium: 500
+export const PLAN_LIMITS: Record<SubscriptionPlan, { dailyChars: number; promoChars: number; promoDays: number }> = {
+  free: { dailyChars: 1500, promoChars: 5000, promoDays: 7 },
+  pro: { dailyChars: 5000, promoChars: 7500, promoDays: 30 },
+  premium: { dailyChars: 10000, promoChars: 20000, promoDays: 30 }
 };
 
 export interface CustomTone {

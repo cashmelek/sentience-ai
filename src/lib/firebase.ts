@@ -38,9 +38,15 @@ export function setQuotaExhausted(value: boolean): void {
     _quotaExhausted = value;
     if (value) {
       console.error("🚨 FIREBASE KOTA AŞILDI: Uygulama kısıtlı moda geçti.");
+    } else {
+      console.log("✅ KOTA SIFIRLANDI: Uygulama normal moda döndü.");
     }
     _quotaListeners.forEach(fn => fn(value));
   }
+}
+
+export function resetQuotaStatus(): void {
+  setQuotaExhausted(false);
 }
 
 export function onQuotaChange(listener: (exhausted: boolean) => void): () => void {
@@ -59,10 +65,10 @@ export function isQuotaError(error: any): boolean {
   if (!error) return false;
   const code = error?.code || '';
   const message = error?.message || '';
-  const isQuota = code === 'resource-exhausted' || 
-         message.includes('Quota exceeded') || 
-         message.includes('resource-exhausted');
-  
+  const isQuota = code === 'resource-exhausted' ||
+    message.includes('Quota exceeded') ||
+    message.includes('resource-exhausted');
+
   if (isQuota) {
     setQuotaExhausted(true);
   }

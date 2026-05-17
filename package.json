@@ -14,6 +14,7 @@
     "ml:test": "tsx src/ml/demo.ts"
   },
   "dependencies": {
+    "@firebase/vertexai-preview": "^0.0.4",
     "@genkit-ai/google-genai": "^1.33.0",
     "@google/genai": "^1.52.0",
     "@tailwindcss/vite": "^4.1.14",

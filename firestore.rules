@@ -37,6 +37,11 @@ service cloud.firestore {
     }
     match /settings/{settingId} {
       allow read: if request.auth != null;
+      // Sentinel durum güncellemeleri tüm authenticated kullanıcılara açık
+      allow update: if request.auth != null && settingId == 'system' && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['sentinelStatus', 'sentinelLastMessage', 'sentinelLastCheck']
+        );
       allow write: if isAdmin();
     }
     match /activityLogs/{logId} {
@@ -49,6 +54,12 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if request.auth != null;
       allow update, delete: if false;
+    }
+    // API Anahtar Yönetimi (maskelenmiş metadata — tam anahtarlar SAKLANMAZ)
+    match /apiKeys/{keyId} {
+      allow read: if request.auth != null;       // Herkes sağlık durumunu görebilir
+      allow create, update: if request.auth != null; // Anahtar kaydı/güncelleme
+      allow delete: if isAdmin();                // Sadece admin silebilir
     }
   }
 }

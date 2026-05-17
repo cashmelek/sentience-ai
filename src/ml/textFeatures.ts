@@ -105,21 +105,44 @@ export const buildFeatureTensor = (feature: TextFeatureSet): tf.Tensor2D => {
 };
 
 /**
- * Türkçe metinler için optimize edilmiş okunabilirlik skoru (0-1).
+ * Metnin dilini karakter analizi ile tespit eder.
+ */
+export const detectLanguage = (text: string): 'tr' | 'en' => {
+  // Türkçe'ye özgü karakterler
+  const turkishChars = /[ğüşıöçĞÜŞİÖÇ]/;
+  return turkishChars.test(text) ? 'tr' : 'en';
+};
+
+/**
+ * Dile göre optimize edilmiş okunabilirlik skoru (0-1).
  */
 export const simpleReadabilityScore = (text: string): number => {
   const feature = extractTextFeatures(text);
+  const lang = detectLanguage(text);
   
-  // Ateşman 70+ kolay, 50-70 orta, 50 altı zor (0-1 normalize: 1=kolay)
+  // 1. Ateşman (Türkçe Odaklı)
   const atesmanNormalized = Math.min(100, Math.max(0, feature.atesman)) / 100;
   
-  // Çetinkaya-Uzun 35 altı kolay, 70 üstü zor (0-1 normalize: 1=kolay, ters çeviriyoruz)
-  // Çetinkaya-Uzun skoru 0-100 arası varsayımıyla (aslında daha yüksek çıkabilir)
+  // 2. Çetinkaya-Uzun (Türkçe Odaklı)
   const cetinkayaNormalized = 1 - (Math.min(100, Math.max(0, feature.cetinkayaUzun)) / 100);
+
+  // 3. ARI (Global Odaklı) - ARI 1-14 arasıdır, 14+ zor kabul edilir
+  const ariNormalized = 1 - (Math.min(14, Math.max(1, feature.ari)) / 14);
+
+  // 4. Coleman-Liau (Global Odaklı) - 1-12 arasıdır
+  const colemanNormalized = 1 - (Math.min(12, Math.max(1, feature.colemanLiau)) / 12);
   
   const diversityFactor = (feature.perplexity * 0.4 + Math.min(1, feature.burstiness / 30) * 0.6);
   
-  // Türkçe özel ağırlıklandırma
-  const score = (atesmanNormalized * 0.4 + cetinkayaNormalized * 0.4 + diversityFactor * 0.2);
+  let score: number;
+
+  if (lang === 'tr') {
+    // Türkçe metinlerde yerel algoritmalara %80 ağırlık
+    score = (atesmanNormalized * 0.4 + cetinkayaNormalized * 0.4 + diversityFactor * 0.2);
+  } else {
+    // Yabancı metinlerde global (ARI/Coleman) algoritmalara %80 ağırlık
+    score = (ariNormalized * 0.4 + colemanNormalized * 0.4 + diversityFactor * 0.2);
+  }
+
   return Math.min(1, Math.max(0, Number(score.toFixed(4))));
 };

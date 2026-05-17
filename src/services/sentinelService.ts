@@ -1,3 +1,7 @@
+import { apiKeyManager } from './apiKeyManager';
+import { db, auth } from '../lib/firebase';
+import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+
 export interface PlagiarismSource {
   url: string;
   title: string;
@@ -24,31 +28,56 @@ export interface FactCheckReport {
   claims: FactCheckClaim[];
 }
 
-const API_KEY = import.meta.env.VITE_GOOGLE_SEARCH_API_KEY;
-const ENGINE_ID = import.meta.env.VITE_GOOGLE_SEARCH_ENGINE_ID;
+const getSearchConfig = () => ({
+  apiKey: apiKeyManager.getSearchKey(),
+  engineId: import.meta.env.VITE_GOOGLE_SEARCH_ENGINE_ID
+});
 
-import { db, auth } from '../lib/firebase';
-import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+// --- AĞ DURUMU TAKİBİ ---
+let _networkDown = false;
+let _lastNetworkCheck = 0;
+const NETWORK_CHECK_COOLDOWN = 30_000; 
+
+const isNetworkAvailable = (): boolean => {
+  if (!navigator.onLine) {
+    _networkDown = true;
+    return false;
+  }
+  if (_networkDown && (Date.now() - _lastNetworkCheck) < NETWORK_CHECK_COOLDOWN) {
+    return false;
+  }
+  return true;
+};
+
+const markNetworkDown = () => {
+  _networkDown = true;
+  _lastNetworkCheck = Date.now();
+};
+
+const markNetworkUp = () => {
+  _networkDown = false;
+};
 
 /**
  * Sentinel servisinin durumunu günceller.
  */
 export const updateSentinelStatus = async (status: 'online' | 'error' | 'quota_full', message?: string) => {
+  if (!isNetworkAvailable()) return;
   try {
     await updateDoc(doc(db, 'settings', 'system'), {
       sentinelStatus: status,
       sentinelLastMessage: message || '',
       sentinelLastCheck: serverTimestamp()
     });
-  } catch (error) {
-    console.error("Sentinel durum güncelleme hatası:", error);
-  }
+    markNetworkUp();
+  } catch { }
 };
 
 /**
  * Sentinel olaylarını loglar.
  */
 export const logSentinelEvent = async (status: 'success' | 'error', duration: number, message: string) => {
+  if (!isNetworkAvailable()) return;
   try {
     await addDoc(collection(db, 'sentinelLogs'), {
       status,
@@ -57,9 +86,8 @@ export const logSentinelEvent = async (status: 'success' | 'error', duration: nu
       userEmail: auth.currentUser?.email || 'Anonim',
       timestamp: serverTimestamp()
     });
-  } catch (error) {
-    console.error("Sentinel loglama hatası:", error);
-  }
+    markNetworkUp();
+  } catch { }
 };
 
 /**
@@ -67,39 +95,40 @@ export const logSentinelEvent = async (status: 'success' | 'error', duration: nu
  */
 export const chunkText = (text: string): string[] => {
   const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-  
-  return sentences
-    .map(s => s.trim())
-    .filter(s => s.split(' ').length > 4); 
+  return sentences.map(s => s.trim()).filter(s => s.split(' ').length > 4); 
 };
 
 /**
  * Google Custom Search JSON API kullanarak internette tam eşleşme arar.
  */
-export const searchInternetForSnippet = async (snippet: string): Promise<PlagiarismSource | null> => {
-  if (!API_KEY || !ENGINE_ID) {
-    console.warn("⚠️ VITE_GOOGLE_SEARCH_API_KEY veya VITE_GOOGLE_SEARCH_ENGINE_ID bulunamadı.");
-    return null;
-  }
+export const searchInternetForSnippet = async (snippet: string, retryCount = 0): Promise<PlagiarismSource | null> => {
+  const { apiKey, engineId } = getSearchConfig();
+  if (!apiKey || !engineId || !isNetworkAvailable()) return null;
 
   const query = `"${snippet}"`;
-  const url = `https://customsearch.googleapis.com/customsearch/v1?cx=${ENGINE_ID}&q=${encodeURIComponent(query)}&key=${API_KEY}&num=1`;
+  const url = `https://customsearch.googleapis.com/customsearch/v1?cx=${engineId}&q=${encodeURIComponent(query)}&key=${apiKey}&num=1`;
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     const response = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
+    markNetworkUp();
 
     if (response.status === 429 || response.status === 403) {
+      if (retryCount < 1 && apiKeyManager.rotateSearchKey()) {
+        console.warn("🔄 Sentinel: Kota doldu, anahtar değiştiriliyor...");
+        return searchInternetForSnippet(snippet, retryCount + 1);
+      }
       await updateSentinelStatus('quota_full', 'Google API Kotası Doldu');
-      throw new Error('quota_full');
+      return null;
     }
-    if (!response.ok) {
-      throw new Error(`Google Search API hatası: ${response.statusText}`);
-    }
+
+    if (!response.ok) return null;
     const data = await response.json();
+
+    // --- SAYAÇ ARTIMI ---
+    await apiKeyManager.incrementUsage('google-search');
 
     if (data.items && data.items.length > 0) {
       const bestMatch = data.items[0];
@@ -110,64 +139,45 @@ export const searchInternetForSnippet = async (snippet: string): Promise<Plagiar
         matchedText: snippet
       };
     }
-  } catch (error) {
-    console.error("Sentinel arama sırasında hata oluştu:", error);
+  } catch (error: any) {
+    if (error?.name === 'AbortError' || error?.message?.includes('Failed to fetch')) {
+      markNetworkDown();
+    }
   }
-
   return null;
 };
 
 /**
  * Tüm metni tarayıp gerçek intihal oranını ve kaynaklarını hesaplar.
  */
-export const verifyPlagiarism = async (text: string, enabled: boolean = true): Promise<PlagiarismReport> => {
-  if (!enabled) {
-    return { similarityScore: 0, sources: [] };
-  }
-
+export const verifyPlagiarism = async (text: string, enabled: boolean = true): Promise<PlagiarismReport & { matchedPhrases: { text: string, source: string, score: number }[] }> => {
+  if (!enabled) return { similarityScore: 0, sources: [], matchedPhrases: [] };
   const startTime = Date.now();
   const chunks = chunkText(text);
-
-  if (chunks.length === 0) {
-    return { similarityScore: 0, sources: [] };
-  }
+  if (chunks.length === 0) return { similarityScore: 0, sources: [], matchedPhrases: [] };
 
   let matchCount = 0;
   const sources: PlagiarismSource[] = [];
+  const matchedPhrases: { text: string, source: string, score: number }[] = [];
 
   try {
-    const sampleSize = Math.min(chunks.length, 2); 
-    const targetChunks = [...chunks].sort((a, b) => b.length - a.length).slice(0, sampleSize);
-
+    const targetChunks = [...chunks].sort((a, b) => b.length - a.length).slice(0, 5);
     for (const chunk of targetChunks) {
       const result = await searchInternetForSnippet(chunk);
       if (result) {
         matchCount++;
-        if (!sources.some(s => s.url === result.url)) {
-          sources.push(result);
-        }
+        matchedPhrases.push({ text: chunk, source: result.url, score: 1 });
+        if (!sources.some(s => s.url === result.url)) sources.push(result);
       }
-      await new Promise(resolve => setTimeout(resolve, 1000)); 
+      await new Promise(resolve => setTimeout(resolve, 800)); 
     }
 
     const similarityScore = Math.round((matchCount / targetChunks.length) * 100);
-    const duration = Date.now() - startTime;
-
-    await logSentinelEvent('success', duration, `${targetChunks.length} cümle tarandı, %${similarityScore} eşleşme.`);
+    await logSentinelEvent('success', Date.now() - startTime, `${targetChunks.length} ifade tarandı.`);
     await updateSentinelStatus('online', 'Sistem Kararlı');
-
-    return { similarityScore, sources };
-
+    return { similarityScore, sources, matchedPhrases };
   } catch (error: any) {
-    const duration = Date.now() - startTime;
-    const isQuota = error.message === 'quota_full';
-    
-    await logSentinelEvent('error', duration, isQuota ? 'API Kotası Doldu' : error.message);
-    if (!isQuota) {
-      await updateSentinelStatus('error', error.message);
-    }
-    
-    return { similarityScore: 0, sources: [] };
+    return { similarityScore: 0, sources: [], matchedPhrases: [] };
   }
 };
 
@@ -175,72 +185,44 @@ export const verifyPlagiarism = async (text: string, enabled: boolean = true): P
  * Metindeki doğrulanabilir iddiaları ayıklar ve internet üzerinde gerçekliğini denetler.
  */
 export const verifyFactCheck = async (text: string, enabled: boolean = true): Promise<FactCheckReport> => {
-  if (!enabled || !API_KEY || !ENGINE_ID) {
-    return { confidenceScore: 0, claims: [] };
-  }
+  const { apiKey, engineId } = getSearchConfig();
+  if (!enabled || !apiKey || !engineId || !isNetworkAvailable()) return { confidenceScore: 0, claims: [] };
 
   const startTime = Date.now();
-  
   try {
-    // 1. İddiaları Ayıkla (Basit mantık: Rakamlar, Tarihler veya Özel İsimler içeren cümleler)
-    // Gerçek uygulamada burada LLM ile "İddia Ayıklama" yapılmalıdır. 
-    // Prototip için metinden en güçlü 3 cümleyi seçiyoruz.
     const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-    const potentialClaims = sentences
-      .map(s => s.trim())
-      .filter(s => s.length > 30 && (/\d+/.test(s) || /[A-Z]/.test(s)))
-      .slice(0, 3); // Kota dostu: Sadece 3 iddia
-
-    if (potentialClaims.length === 0) {
-      return { confidenceScore: 1, claims: [] };
-    }
+    const potentialClaims = sentences.map(s => s.trim()).filter(s => s.length > 30 && (/\d+/.test(s) || /[A-Z]/.test(s))).slice(0, 3);
+    if (potentialClaims.length === 0) return { confidenceScore: 1, claims: [] };
 
     const claims: FactCheckClaim[] = [];
     let verifiedCount = 0;
 
     for (const claimText of potentialClaims) {
-      // 2. İddiayı Google'da Arat
-      const url = `https://customsearch.googleapis.com/customsearch/v1?cx=${ENGINE_ID}&q=${encodeURIComponent(claimText)}&key=${API_KEY}&num=3`;
-      const response = await fetch(url);
-      
-      if (response.status === 429 || response.status === 403) break;
-      
-      const data = await response.json();
-      
-      if (data.items && data.items.length > 0) {
-        const source = data.items[0];
-        // 3. Basit Doğrulama Mantığı (Gelecekte LLM ile metin karşılaştırması yapılacak)
-        // Şimdilik kaynak bulunması "Doğrulandı" (Unverified/Verified arası) kabul ediliyor.
-        claims.push({
-          claim: claimText,
-          status: 'Verified',
-          confidence: 0.85,
-          source: source.link,
-          sourceTitle: source.title,
-          explanation: "İnternet üzerindeki güvenilir kaynaklarla eşleşme sağlandı."
-        });
-        verifiedCount++;
-      } else {
-        claims.push({
-          claim: claimText,
-          status: 'Unverified',
-          confidence: 0.5,
-          explanation: "Bu iddiayı doğrulayacak doğrudan bir kaynak bulunamadı."
-        });
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 500)); // Rate limit koruması
+      if (!isNetworkAvailable()) break;
+      try {
+        const url = `https://customsearch.googleapis.com/customsearch/v1?cx=${engineId}&q=${encodeURIComponent(claimText)}&key=${apiKey}&num=3`;
+        const response = await fetch(url);
+        markNetworkUp();
+        if (response.status === 429 || response.status === 403) {
+           if (apiKeyManager.rotateSearchKey()) continue; 
+           break;
+        }
+        const data = await response.json();
+        
+        // --- SAYAÇ ARTIMI ---
+        await apiKeyManager.incrementUsage('google-search');
+
+        if (data.items && data.items.length > 0) {
+          const source = data.items[0];
+          claims.push({ claim: claimText, status: 'Verified', confidence: 0.85, source: source.link, sourceTitle: source.title, explanation: "Kaynak eşleşti." });
+          verifiedCount++;
+        } else {
+          claims.push({ claim: claimText, status: 'Unverified', confidence: 0.5, explanation: "Kaynak bulunamadı." });
+        }
+      } catch { break; }
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
-
-    const confidenceScore = claims.length > 0 ? (verifiedCount / claims.length) : 1;
-    const duration = Date.now() - startTime;
-    
-    await logSentinelEvent('success', duration, `Doğruluk Kontrolü: ${claims.length} iddia incelendi.`);
-
-    return { confidenceScore, claims };
-
-  } catch (error: any) {
-    console.error("Doğruluk kontrolü hatası:", error);
-    return { confidenceScore: 0, claims: [] };
-  }
+    await logSentinelEvent('success', Date.now() - startTime, `Doğruluk: ${claims.length} iddia.`);
+    return { confidenceScore: claims.length > 0 ? (verifiedCount / claims.length) : 1, claims };
+  } catch { return { confidenceScore: 0, claims: [] }; }
 };

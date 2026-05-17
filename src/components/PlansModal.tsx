@@ -17,7 +17,7 @@ const PLANS = [
     color: 'text-gray-400',
     bgColor: 'bg-gray-400/10',
     borderColor: 'border-gray-400/20',
-    features: ['Temel İnsanlaştırma', 'Günlük 10 İşlem', 'Standart Hız', 'Sınırlı Özel Tonlar'],
+    features: ['Temel İnsanlaştırma', 'Günlük 1.500 Karakter', 'Standart Hız', 'Sınırlı Özel Tonlar'],
     price: 'Ücretsiz'
   },
   {
@@ -27,7 +27,7 @@ const PLANS = [
     color: 'text-emerald-500',
     bgColor: 'bg-emerald-500/10',
     borderColor: 'border-emerald-500/50',
-    features: ['Gelişmiş İnsanlaştırma', 'Günlük 50 İşlem', 'Öncelikli Hız', 'Sınırsız Özel Tonlar', 'Word/Txt Çıktı'],
+    features: ['Gelişmiş İnsanlaştırma', 'Günlük 5.000 Karakter', 'Öncelikli Hız', 'Sınırsız Özel Tonlar', 'Word/Txt Çıktı'],
     price: '₺199/ay',
     popular: true
   },
@@ -38,7 +38,7 @@ const PLANS = [
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/50',
-    features: ['Radikal İnsanlaştırma', 'Günlük 500 İşlem', 'Maksimum Hız', 'Sınırsız Özel Tonlar', 'API Erişimi', '7/24 Destek'],
+    features: ['Radikal İnsanlaştırma', 'Günlük 10.000 Karakter', 'Maksimum Hız', 'Sınırsız Özel Tonlar', 'API Erişimi', '7/24 Destek'],
     price: '₺499/ay'
   }
 ];
@@ -87,7 +87,7 @@ export function PlansModal({ user, onClose }: PlansModalProps) {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white">{plan.name}</h3>
-                    <p className="text-[11px] font-mono text-gray-500 uppercase">Günde {PLAN_LIMITS[plan.id]} İşlem</p>
+                    <p className="text-[11px] font-mono text-gray-500 uppercase">Günde {PLAN_LIMITS[plan.id].dailyChars.toLocaleString()} Karakter</p>
                   </div>
                 </div>
 

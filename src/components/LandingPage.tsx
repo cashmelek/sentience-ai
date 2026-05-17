@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Fingerprint, 
-  Sparkles, 
-  ShieldCheck, 
-  Zap, 
-  Search, 
-  MousePointer2, 
-  ArrowRight, 
-  CheckCircle2, 
-  Globe, 
+import {
+  Fingerprint,
+  Sparkles,
+  ShieldCheck,
+  Zap,
+  Search,
+  MousePointer2,
+  ArrowRight,
+  CheckCircle2,
+  Globe,
   Lock,
   Cpu,
   RefreshCw,
@@ -25,6 +25,7 @@ import { cn } from '../lib/utils';
 import { detectAI } from '../services/geminiService';
 import toast from 'react-hot-toast';
 import { InfoTooltip } from './InfoTooltip';
+import { UserManualSection } from './UserManualSection';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -34,9 +35,9 @@ interface LandingPageProps {
 const AGENTS = [
   {
     id: "auditor",
-    name: "YZ Denetçisi",
-    role: "Tespit Uzmanı",
-    description: "Metindeki yapay zeka parmak izlerini ve sentetik yapıları saniyeler içinde analiz eder.",
+    name: "Denetçi",
+    role: "Risk Analisti",
+    description: "Metindeki YZ izlerini, intihal risklerini ve akademik tutarsızlıkları saniyeler içinde haritalandırır.",
     icon: Search,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10"
@@ -44,8 +45,8 @@ const AGENTS = [
   {
     id: "ghostwriter",
     name: "Hayalet Yazar",
-    role: "Üslup Mimarı",
-    description: "Metni sizin sesinizden çıkmış gibi doğal, akıcı ve YZ dedektörlerini aşacak şekilde yeniden kurgular.",
+    role: "İnsanlaştırma",
+    description: "Metni akademik etik kurallara göre yeniden inşa eder. Turnitin ve iThenticate gibi sistemlerden tam not alır.",
     icon: Sparkles,
     color: "text-emerald-500",
     bgColor: "bg-emerald-500/10"
@@ -54,7 +55,7 @@ const AGENTS = [
     id: "sentinel",
     name: "Gözcü",
     role: "Doğruluk Muhafızı",
-    description: "İntihal denetimi yapar ve kaynakları 2026 canlı verisiyle doğrular. Asla uydurma bağlantı vermez.",
+    description: "Akademik intihal denetiminde asla uydurma kaynak/link üretilemez. Sadece geçmiş ve en son hangi tarihi Gün, Ay, Yıl içerisinde ise ismi bilinen ve erişilebilir kaynaklar sunar.",
     icon: ShieldCheck,
     color: "text-red-500",
     bgColor: "bg-red-500/10"
@@ -62,8 +63,8 @@ const AGENTS = [
   {
     id: "stylemaster",
     name: "Stil Ustası",
-    role: "Hafıza Merkezi",
-    description: "Özel tonlarınızı ve marka dilinizi öğrenerek her yazıda aynı yüksek kaliteyi korur.",
+    role: "Marka Hafızası",
+    description: "Özel tonlarınızı, makale formatlarınızı (APA, MLA, IEEE) öğrenerek her yazıda tutarlılık sağlar.",
     icon: Layers,
     color: "text-amber-500",
     bgColor: "bg-amber-500/10"
@@ -72,25 +73,25 @@ const AGENTS = [
 
 const PLANS = [
   {
-    name: "Ücretsiz",
-    price: "0",
-    features: ["Günlük 10 İşlem", "Standart İnsanlaştırma", "Temel YZ Tespiti", "Topluluk Desteği"],
+    name: "Öğrenci",
+    price: "199",
+    features: ["10.000 Kelime / Ay", "%15 İntihal Koruma Sınırı", "Temel İnsanlaştırma", "7 Gün Geçmiş Hafızası"],
     recommended: false,
-    button: "Ücretsiz Başla"
+    button: "Çırak Olarak Başla"
   },
   {
-    name: "Pro",
-    price: "29",
-    features: ["Günlük 50 İşlem", "Gelişmiş Hayalet Yazar Modu", "Gözcü Canlı Kaynak", "7/24 Öncelikli Destek"],
+    name: "Akademik",
+    price: "599",
+    features: ["100.000 Kelime / Ay", "Gelişmiş Hayalet Yazar", "Sentinel Canlı Doğrulama", "Turnitin & iThenticate Uyumu"],
     recommended: true,
-    button: "Pro'ya Geç"
+    button: "Usta Ajanı Görevlendir"
   },
   {
-    name: "Premium",
-    price: "99",
-    features: ["Sınırsız İşlem", "Tüm Ajanlara Tam Erişim", "API Anahtarı Desteği", "Özel Marka Sesi Eğitimi"],
+    name: "Kurumsal",
+    price: "1.999",
+    features: ["Sınırsız Kelime (Fair Use)", "Tam API Erişimi", "Özel Marka Sesi Eğitimi", "VİP Öncelikli Destek"],
     recommended: false,
-    button: "İşletme İçin"
+    button: "Sentient Gücünü Al"
   }
 ];
 
@@ -131,21 +132,22 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             <Fingerprint className="w-8 h-8 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]" />
             <span className="text-2xl font-black tracking-tighter">SENTIENCE</span>
           </div>
-          
+
           {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">
             <a href="#features" className="hover:text-white transition-colors">Ajanlar</a>
+            <a href="#guide" className="hover:text-white transition-colors">Rehber</a>
             <a href="#demo" className="hover:text-white transition-colors">Demo</a>
             <a href="#pricing" className="hover:text-white transition-colors">Fiyatlandırma</a>
           </div>
-          
+
           <div className="hidden lg:flex items-center gap-4">
             <button onClick={onLogin} className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-white transition-all mr-2">Giriş Yap</button>
             <button onClick={onGetStarted} className="px-6 py-3 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all active:scale-95 shadow-xl shadow-white/5">Hemen Başla</button>
           </div>
 
           {/* Mobile Menu Button */}
-          <button 
+          <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors"
           >
@@ -165,6 +167,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
           >
             <div className="flex flex-col gap-6 text-xl font-black uppercase tracking-widest mb-12">
               <a href="#features" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Ajanlar</a>
+              <a href="#guide" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Rehber</a>
               <a href="#demo" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Demo</a>
               <a href="#pricing" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Fiyatlandırma</a>
             </div>
@@ -184,7 +187,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
         </div>
 
         <div className="max-w-4xl mx-auto relative z-10">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-emerald-500 text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] mb-8 lg:mb-10"
@@ -192,8 +195,8 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             <Zap className="w-3 h-3 fill-emerald-500" />
             2026 Model Sentience Protokolü
           </motion.div>
-          
-          <motion.h1 
+
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -203,16 +206,16 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500 text-shadow-glow">Sentience İnsanlaştırdı.</span>
           </motion.h1>
 
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
             className="text-base lg:text-xl text-gray-400 mb-10 lg:mb-14 max-w-2xl mx-auto leading-relaxed font-medium"
           >
-            Yapay zeka dedektörlerini aşan, formatı milimetrik koruyan ve kaynakları 2026 canlı verisiyle doğrulayan dünyanın ilk ajan tabanlı insanlaştırma ağı.
+            Yapay zeka dedektörlerini aşan, formatı milimetrik koruyan ve güvenli bir şekilde doğrulayan dünyanın ilk ajan tabanlı insanlaştırma ağı.
           </motion.p>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
@@ -239,7 +242,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             {AGENTS.map((agent, i) => {
               const Icon = agent.icon;
               return (
-                <motion.div 
+                <motion.div
                   key={i}
                   whileHover={{ y: -15 }}
                   className="group p-8 lg:p-10 rounded-[32px] lg:rounded-[48px] bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-all premium-card"
@@ -274,7 +277,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                   <p className="text-[9px] lg:text-[10px] text-gray-500 uppercase font-black tracking-[0.2em] mt-1 text-blue-400">Ücretsiz Risk Analizi</p>
                 </div>
               </div>
-              <textarea 
+              <textarea
                 value={demoText}
                 onChange={(e) => setInputText(e.target.value)}
                 className="w-full h-56 lg:h-72 bg-white/5 outline-none resize-none text-gray-300 leading-relaxed text-sm p-6 lg:p-8 rounded-[24px] lg:rounded-[32px] border border-white/5 focus:border-blue-500/40 transition-all custom-scrollbar placeholder:text-gray-700"
@@ -289,10 +292,10 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                   </div>
                   <span className="text-[10px] font-black text-blue-400">%{demoSensitivity}</span>
                 </div>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="100" 
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
                   value={demoSensitivity}
                   onChange={(e) => setDemoSensitivity(parseInt(e.target.value))}
                   className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
@@ -303,7 +306,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                   <span>Çok Hassas</span>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={handleDemoAnalyze}
                 disabled={isAnalyzing}
                 className="w-full mt-6 lg:mt-8 py-4 lg:py-5 bg-blue-600 text-white rounded-2xl font-black text-[9px] lg:text-[10px] uppercase tracking-[0.2em] hover:bg-blue-500 transition-all flex items-center justify-center gap-4 active:scale-95 disabled:opacity-50 shadow-xl shadow-blue-500/20"
@@ -312,11 +315,11 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 Risk Analizini Başlat
               </button>
             </div>
-            
+
             <div className="lg:w-1/2 p-8 lg:p-20 flex flex-col items-center justify-center text-center bg-emerald-500/[0.01]">
               <AnimatePresence mode="wait">
                 {demoResult !== null ? (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="space-y-8 lg:space-y-10"
@@ -324,7 +327,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                     <div className="relative flex items-center justify-center">
                       <svg className="w-48 lg:w-64 h-48 lg:h-64" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-white/5" />
-                        <motion.circle 
+                        <motion.circle
                           cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="6" fill="transparent"
                           className={cn(demoResult.score > 0.5 ? "text-red-500" : "text-emerald-500")}
                           initial={{ pathLength: 0 }}
@@ -340,7 +343,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                     <div className="max-w-sm mx-auto">
                       <h4 className="text-lg lg:text-xl font-bold mb-3">Denetçi Raporu</h4>
                       <p className="text-xs lg:text-sm text-gray-400 leading-relaxed font-medium mb-4">
-                        {demoResult.reasoning || (demoResult.score > 0.5 
+                        {demoResult.reasoning || (demoResult.score > 0.5
                           ? "Yüksek YZ izine rastlandı. Hayalet Yazar ajanını kullanarak bu metni insanlaştırmanız önerilir."
                           : "Düşük YZ riski. Metin doğal bir yapı sergiliyor.")}
                       </p>
@@ -348,13 +351,13 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                       {/* Demo Heatmap Preview */}
                       <div className="p-4 rounded-2xl bg-black/40 border border-white/5 text-left text-[11px] leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">
                         {demoResult.sentenceScores.map((s, idx) => (
-                          <span 
-                            key={idx} 
+                          <span
+                            key={idx}
                             className={cn(
                               "px-0.5 rounded",
-                              s.score > 0.7 ? "bg-red-500/20 border-b border-red-500/40" : 
-                              s.score > 0.3 ? "bg-amber-500/20 border-b border-amber-500/40" : 
-                              "bg-emerald-500/10 border-b border-emerald-500/20"
+                              s.score > 0.7 ? "bg-red-500/20 border-b border-red-500/40" :
+                                s.score > 0.3 ? "bg-amber-500/20 border-b border-amber-500/40" :
+                                  "bg-emerald-500/10 border-b border-emerald-500/20"
                             )}
                           >
                             {s.sentence}{" "}
@@ -435,6 +438,9 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
         </div>
       </section>
 
+      {/* User Manual Section */}
+      <UserManualSection />
+
       {/* Pricing Section */}
       <section id="pricing" className="py-24 lg:py-32 px-6">
         <div className="max-w-7xl mx-auto">
@@ -445,12 +451,12 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-center">
             {PLANS.map((plan, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className={cn(
                   "p-8 lg:p-10 rounded-[32px] lg:rounded-[48px] border transition-all relative flex flex-col",
-                  plan.recommended 
-                    ? "bg-white/[0.04] border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.1)] md:scale-105 z-10 py-12 lg:py-14" 
+                  plan.recommended
+                    ? "bg-white/[0.04] border-emerald-500/30 shadow-[0_0_40px_rgba(16,185,129,0.1)] md:scale-105 z-10 py-12 lg:py-14"
                     : "bg-white/[0.02] border-white/5 hover:border-white/10"
                 )}
               >
@@ -459,7 +465,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 )}
                 <div className="text-xl lg:text-2xl font-bold mb-1 uppercase tracking-tighter">{plan.name}</div>
                 <div className="flex items-baseline gap-1 mb-8">
-                  <span className="text-4xl lg:text-5xl font-black">${plan.price}</span>
+                  <span className="text-4xl lg:text-5xl font-black">{plan.price}₺</span>
                   <span className="text-xs lg:text-sm text-gray-500 font-bold uppercase">/aylık</span>
                 </div>
                 <div className="space-y-4 mb-10 flex-1">
@@ -470,7 +476,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                     </div>
                   ))}
                 </div>
-                <button 
+                <button
                   onClick={onGetStarted}
                   className={cn(
                     "w-full py-4 lg:py-5 rounded-[20px] font-black text-xs uppercase tracking-widest transition-all active:scale-95",
