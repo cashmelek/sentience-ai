@@ -15,7 +15,7 @@ service cloud.firestore {
     // B22: sabit platform admin'leri (useAppUser/AdminPanel'deki ADMIN_EMAILS ile birebir aynı olmalı)
     function isPlatformAdminEmail() {
       return request.auth != null &&
-             request.auth.token.email in {'ismail.kaleci@gmail.com', 'tonguc.urunler@gmail.com', 'yasindemir111@gmail.com'};
+             request.auth.token.email in ['ismail.kaleci@gmail.com', 'tonguc.urunler@gmail.com', 'yasindemir111@gmail.com'];
     }
 
     // B21: sınıf eğitmeni kontrolü
