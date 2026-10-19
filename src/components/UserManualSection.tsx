@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { 
-  UserPlus, 
-  FileEdit, 
-  Search, 
-  Zap, 
+import {
+  UserPlus,
+  FileEdit,
+  Search,
+  Zap,
   ArrowRight,
   Monitor,
   Database,
@@ -57,7 +57,7 @@ export function UserManualSection() {
             Platform Kullanım Klavuzu
           </motion.div>
           <h2 className="text-4xl lg:text-6xl font-black tracking-tight mb-8 uppercase">
-            Sentience Nasıl Kullanılır?
+            Sentıence Nasıl Kullanılır?
           </h2>
           <p className="text-gray-500 max-w-2xl mx-auto font-medium text-lg">
             Karmaşık akademik süreçleri dört basit adımda yönetin. İşte profesyonel dürüstlük yolculuğunuz.

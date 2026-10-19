@@ -8,20 +8,54 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // B22: sabit platform admin'leri (useAppUser/AdminPanel'deki ADMIN_EMAILS ile birebir aynı olmalı)
+    function isPlatformAdminEmail() {
+      return request.auth != null &&
+             request.auth.token.email in {'ismail.kaleci@gmail.com', 'tonguc.urunler@gmail.com', 'yasindemir111@gmail.com'};
+    }
+
+    // B21: sınıf eğitmeni kontrolü
+    function isInstructor(classId) {
+      return signedIn() &&
+             get(/databases/$(database)/documents/classes/$(classId)).data.instructorId == request.auth.uid;
+    }
+
+    // B21: sınıfa kayıtlı öğrenci kontrolü
+    function isEnrolled(classId) {
+      return signedIn() &&
+             exists(/databases/$(database)/documents/classes/$(classId)/enrollments/$(request.auth.uid));
+    }
+
     // Kullanıcılar Koleksiyonu
     match /users/{userId} {
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      // B22: kendi belgesini oluşturan kullanıcı için role/plan/featureGrants YASAK (yetki kaçışı kapısı)
+      allow create: if request.auth != null && request.auth.uid == userId &&
+        (isPlatformAdminEmail() || (
+          request.resource.data.get('role', 'user') == 'user' &&
+          request.resource.data.get('plan', 'free') == 'free' &&
+          !('featureGrants' in request.resource.data)
+        ));
+      // B22: kendi güncellemesi dailyUsage/onboarding vb. ile sınırlı; role/plan/featureGrants yalnız
+      // admin veya sabit platform admin e-postası üzerinden değişebilir (özel-atama senkronu dahil)
+      allow update: if isAdmin() || (request.auth.uid == userId &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['featureGrants']) &&
+        (isPlatformAdminEmail() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'plan'])));
       allow delete: if isAdmin();
     }
 
     // Projeler Koleksiyonu (GİZLİLİK GÜNCELLEMESİ)
     match /projects/{projectId} {
-      // Sadece sahibi içeriği okuyabilir, ADMİNLER OKUYAMAZ (Privacy)
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Sahibi okuyabilir veya Admin metrikler için görebilir
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Adminler projeleri güncelleyebilir (Eğitildi olarak işaretlemek için)
+      allow update: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
     // Anonim Feedback Koleksiyonu (ADMİN PANELİ İÇİN)
@@ -60,6 +94,66 @@ service cloud.firestore {
       allow read: if request.auth != null;       // Herkes sağlık durumunu görebilir
       allow create, update: if request.auth != null; // Anahtar kaydı/güncelleme
       allow delete: if isAdmin();                // Sadece admin silebilir
+    }
+
+    // ===== B21 — SINIF/ÖDEV/TESLİM AĞACI (Turnitin kurumsal modeli) =====
+
+    match /classes/{classId} {
+      allow read: if isAdmin() || isInstructor(classId) || isEnrolled(classId);
+      allow create: if signedIn() && request.resource.data.instructorId == request.auth.uid;
+      // Eğitmen sınıfı düzenleyebilir; instructorId ve classCode değiştirilemez
+      allow update: if isAdmin() || (isInstructor(classId) &&
+        request.resource.data.instructorId == resource.data.instructorId &&
+        request.resource.data.classCode == resource.data.classCode);
+      // Faz 1: sınıf silme yalnız admin (alt koleksiyon temizliği Faz 2 sunucu fonksiyonuna bırakıldı)
+      allow delete: if isAdmin();
+
+      match /enrollments/{studentId} {
+        allow read: if isAdmin() || request.auth.uid == studentId || isInstructor(classId);
+        allow create: if signedIn() && (
+          (request.auth.uid == studentId &&
+           request.resource.data.studentId == request.auth.uid &&
+           get(/databases/$(database)/documents/classes/$(classId)).data.archived == false) ||
+          // B21 Faz 2: eğitmen toplu liste yüklemesi — hesabı olmayan öğrenciler için bekleme kaydı
+          (isInstructor(classId) &&
+           request.resource.data.pending == true &&
+           request.resource.data.addedBy == request.auth.uid &&
+           request.resource.data.studentId == studentId &&
+           get(/databases/$(database)/documents/classes/$(classId)).data.archived == false)
+        );
+        allow delete: if isAdmin() || request.auth.uid == studentId || isInstructor(classId);
+        allow update: if false; // kayıt kaydı değiştirilemez; çıkış = delete
+      }
+
+      match /assignments/{assignmentId} {
+        allow read: if isAdmin() || isInstructor(classId) || isEnrolled(classId);
+        allow create, update, delete: if isAdmin() || isInstructor(classId);
+      }
+
+      match /assignments/{assignmentId}/submissions/{submissionId} {
+        // Öğrenci yalnızca KENDİ teslimini görür; eğitmen ve admin hepsini görür
+        allow read: if isAdmin() || isInstructor(classId) || request.auth.uid == submissionId;
+        // B21 Faz 2: asıl skorlama sunucu-tarafında (scoreSubmission CF, Admin SDK kurallardan bağımsız yazar).
+        // İstemci yazısı yalnız CF erişilemezse devreye giren yedek yol içindir (skor sahteciliği riski
+        // yedek açıkken tamamen kalkmaz; yedek kapatıldığında bu dal öğrenci için yalnız create'a indirilecek).
+        allow create, update: if isAdmin() || isInstructor(classId) ||
+          (request.auth.uid == submissionId && isEnrolled(classId) &&
+           request.resource.data.studentId == submissionId);
+      }
+
+      // Faz 3: intihal deposu — okuma eğitmen/admin, yazma yalnız sunucu
+      match /repository/{docId} {
+        allow read: if isAdmin() || isInstructor(classId);
+        allow write: if false;
+      }
+    }
+
+    // Öğrencinin kayıtlı olduğu sınıfların aynası (listeleme için)
+    match /users/{userId}/classEnrollments/{mirrorClassId} {
+      allow read, delete: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if signedIn() && request.auth.uid == userId &&
+        exists(/databases/$(database)/documents/classes/$(mirrorClassId)/enrollments/$(userId));
+      allow update: if false;
     }
   }
 }

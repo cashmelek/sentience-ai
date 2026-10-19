@@ -3,6 +3,8 @@
  * Bu servis metin analizi, özellik çıkarımı ve yerel model yönetimini sağlar.
  */
 
+import { extractTextFeatures } from '../ml/textFeatures';
+
 export interface MLAnalysisResult {
   readabilityScore: number;
   complexityIndex: number;
@@ -14,7 +16,15 @@ export interface MLAnalysisResult {
     atesman: number;
     cetinkayaUzun: number;
   };
-  recommendations: string[];
+  recommendations: {
+    text: string;
+    type: 'long_sentence' | 'low_readability' | 'complex_words' | 'general';
+    position?: {
+      start: number;
+      end: number;
+      text: string;
+    };
+  }[];
 }
 
 /**
@@ -76,34 +86,66 @@ export const calculateQualityScore = (
 /**
  * Yerel modelleri kullanarak derin metin analizi yapar.
  */
+const countSyllables = (word: string): number => {
+  const vowels = "aeıioöuüAEIİOÖUÜ";
+  let count = 0;
+  for (let char of word) {
+    if (vowels.includes(char)) count++;
+  }
+  return Math.max(1, count);
+};
+
 export const performDeepMLAnalysis = async (text: string): Promise<MLAnalysisResult> => {
   const words = text.trim().split(/\s+/).filter(w => w.length > 0);
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-  
-  // Basit hece sayımı (Türkçe için sesli harf bazlı)
-  const vowels = "aeıioöuüAEIİOÖUÜ";
-  let syllableCount = 0;
-  for (let char of text) {
-    if (vowels.includes(char)) syllableCount++;
-  }
 
-  const wordCount = words.length;
-  const sentenceCount = sentences.length;
-  const avgWordLength = words.reduce((acc, w) => acc + w.length, 0) / (wordCount || 1);
-
-  // Ateşman Okunabilirlik Formülü (Türkçe için)
-  // 199.5 - (1.015 * avgSentenceLength) - (84.6 * avgSyllablesPerWord)
-  const avgSentenceLength = wordCount / (sentenceCount || 1);
-  const avgSyllablesPerWord = syllableCount / (wordCount || 1);
-  const atesman = Math.round(199.5 - (1.015 * avgSentenceLength) - (84.6 * avgSyllablesPerWord));
-
-  // Çetinkaya-Uzun Okunabilirlik (Türkçe için alternatif)
-  const cetinkayaUzun = Math.round(avgSentenceLength + (avgSyllablesPerWord * 10));
+  // Okunabilirlik endeksleri tek kanonik kaynaktan (textFeatures) alınır — kartlar arasında tutarsızlık oluşmaz.
+  const features = extractTextFeatures(text);
+  const wordCount = features.wordCount;
+  const sentenceCount = features.sentenceCount;
+  const syllableCount = features.syllableCount;
+  const avgWordLength = features.avgWordLength;
+  const avgSyllablesPerWord = wordCount ? syllableCount / wordCount : 0;
+  const atesman = Math.round(features.atesman);
+  const cetinkayaUzun = Math.round(features.cetinkayaUzun);
 
   const recommendations = [];
-  if (avgSentenceLength > 20) recommendations.push("Cümleler çok uzun, daha kısa yapılar tercih edin.");
-  if (atesman < 50) recommendations.push("Okunabilirlik düşük, daha sade bir dil kullanın.");
-  if (avgSyllablesPerWord > 3) recommendations.push("Kelime karmaşıklığı yüksek, daha yaygın kelimeler seçin.");
+  
+  // Uzun cümleleri tespit et ve konum bilgisi ekle
+  const longSentences = sentences.filter(s => s.split(/\s+/).length > 20);
+  if (longSentences.length > 0) {
+    longSentences.forEach(sentence => {
+      const start = text.indexOf(sentence);
+      if (start !== -1) {
+        recommendations.push({
+          text: "Cümle çok uzun, daha kısa yapılar tercih edin.",
+          type: 'long_sentence',
+          position: {
+            start,
+            end: start + sentence.length,
+            text: sentence.substring(0, 50) + (sentence.length > 50 ? '...' : '')
+          }
+        });
+      }
+    });
+  }
+  
+  // Okunabilirlik düşükse genel öneri
+  if (atesman < 50) {
+    recommendations.push({
+      text: "Okunabilirlik düşük, daha sade bir dil kullanın.",
+      type: 'low_readability'
+    });
+  }
+  
+  // Karmaşık kelimeleri tespit et
+  const complexWords = words.filter(w => countSyllables(w) > 3);
+  if (complexWords.length > 5) {
+    recommendations.push({
+      text: "Kelime karmaşıklığı yüksek, daha yaygın kelimeler seçin.",
+      type: 'complex_words'
+    });
+  }
 
   return {
     readabilityScore: Math.min(1, Math.max(0, atesman / 100)),

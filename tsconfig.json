@@ -9,7 +9,7 @@
       "DOM",
       "DOM.Iterable"
     ],
-    "types": ["vite/client"],
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "isolatedModules": true,

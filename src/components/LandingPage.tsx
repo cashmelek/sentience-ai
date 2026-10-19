@@ -19,7 +19,14 @@ import {
   Twitter,
   Menu,
   X,
-  Gauge
+  Gauge,
+  FileCheck,
+  ArrowRightLeft,
+  Award,
+  TrendingUp,
+  Users,
+  Check,
+  FileText
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { detectAI } from '../services/geminiService';
@@ -28,24 +35,24 @@ import { InfoTooltip } from './InfoTooltip';
 import { UserManualSection } from './UserManualSection';
 
 interface LandingPageProps {
-  onGetStarted: () => void;
+  onGetStarted: (text?: string) => void;
   onLogin: () => void;
 }
 
-const AGENTS = [
+const FEATURES = [
   {
     id: "auditor",
-    name: "Denetçi",
-    role: "Risk Analisti",
-    description: "Metindeki YZ izlerini, intihal risklerini ve akademik tutarsızlıkları saniyeler içinde haritalandırır.",
+    name: "YZ Tespiti",
+    role: "Risk Analizi",
+    description: "Metindeki yapay zeka izlerini, intihal risklerini ve akademik tutarsızlıkları saniyeler içinde haritalandırır.",
     icon: Search,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10"
   },
   {
-    id: "ghostwriter",
-    name: "Hayalet Yazar",
-    role: "İnsanlaştırma",
+    id: "humanizer",
+    name: "İnsanlaştırma",
+    role: "Metin Dönüşümü",
     description: "Metni akademik etik kurallara göre yeniden inşa eder. Turnitin ve iThenticate gibi sistemlerden tam not alır.",
     icon: Sparkles,
     color: "text-emerald-500",
@@ -53,7 +60,7 @@ const AGENTS = [
   },
   {
     id: "sentinel",
-    name: "Gözcü",
+    name: "İntihal Kontrolü",
     role: "Doğruluk Muhafızı",
     description: "Akademik intihal denetiminde asla uydurma kaynak/link üretilemez. Sadece geçmiş ve en son hangi tarihi Gün, Ay, Yıl içerisinde ise ismi bilinen ve erişilebilir kaynaklar sunar.",
     icon: ShieldCheck,
@@ -62,8 +69,8 @@ const AGENTS = [
   },
   {
     id: "stylemaster",
-    name: "Stil Ustası",
-    role: "Marka Hafızası",
+    name: "Format Desteği",
+    role: "Akademik Standartlar",
     description: "Özel tonlarınızı, makale formatlarınızı (APA, MLA, IEEE) öğrenerek her yazıda tutarlılık sağlar.",
     icon: Layers,
     color: "text-amber-500",
@@ -82,9 +89,9 @@ const PLANS = [
   {
     name: "Akademik",
     price: "599",
-    features: ["100.000 Kelime / Ay", "Gelişmiş Hayalet Yazar", "Sentinel Canlı Doğrulama", "Turnitin & iThenticate Uyumu"],
+    features: ["100.000 Kelime / Ay", "Gelişmiş İnsanlaştırma", "Canlı İntihal Kontrolü", "Turnitin & iThenticate Uyumu"],
     recommended: true,
-    button: "Usta Ajanı Görevlendir"
+    button: "Profesyonel Planı Seç"
   },
   {
     name: "Kurumsal",
@@ -101,6 +108,19 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [demoResult, setDemoResult] = useState<{ score: number, sentenceScores: any[], reasoning: string } | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [compareMode, setCompareMode] = useState<'split' | 'before' | 'after'>('split');
+
+  // Mobil Menü Scroll Kilidi
+  React.useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMenuOpen]);
 
   const handleDemoAnalyze = async () => {
     if (!demoText.trim() || demoText.length < 50) {
@@ -115,7 +135,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
         sentenceScores: res.sentenceScores,
         reasoning: res.reasoning
       });
-      toast.success("Denetçi Ajan analizi tamamladı!");
+      toast.success("Analiz tamamlandı!");
     } catch (err) {
       toast.error("Bağlantı hatası.");
     } finally {
@@ -130,20 +150,21 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Fingerprint className="w-8 h-8 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]" />
-            <span className="text-2xl font-black tracking-tighter">SENTIENCE</span>
+            <span className="text-2xl font-black tracking-tighter"><span lang="en">SENTIENCE</span></span>
           </div>
 
           {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">
-            <a href="#features" className="hover:text-white transition-colors">Ajanlar</a>
-            <a href="#guide" className="hover:text-white transition-colors">Rehber</a>
+            <a href="#features" className="hover:text-white transition-colors">Özellikler</a>
+            <a href="#how-it-works" className="hover:text-white transition-colors">Nasıl Çalışır?</a>
             <a href="#demo" className="hover:text-white transition-colors">Demo</a>
+            <a href="#guide" className="hover:text-white transition-colors">Rehber</a>
             <a href="#pricing" className="hover:text-white transition-colors">Fiyatlandırma</a>
           </div>
 
           <div className="hidden lg:flex items-center gap-4">
-            <button onClick={onLogin} className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-white transition-all mr-2">Giriş Yap</button>
-            <button onClick={onGetStarted} className="px-6 py-3 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all active:scale-95 shadow-xl shadow-white/5">Hemen Başla</button>
+            <button onClick={onLogin} className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-white transition-all mr-2">GİRİŞ YAP</button>
+            <button onClick={() => onGetStarted()} className="px-6 py-3 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all active:scale-95 shadow-xl shadow-white/5">HEMEN BAŞLA</button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -166,14 +187,15 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             className="fixed inset-0 z-[90] bg-brand-bg flex flex-col p-8 pt-24 lg:hidden"
           >
             <div className="flex flex-col gap-6 text-xl font-black uppercase tracking-widest mb-12">
-              <a href="#features" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Ajanlar</a>
-              <a href="#guide" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Rehber</a>
+              <a href="#features" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Özellikler</a>
+              <a href="#how-it-works" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Nasıl Çalışır?</a>
               <a href="#demo" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Demo</a>
+              <a href="#guide" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Rehber</a>
               <a href="#pricing" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Fiyatlandırma</a>
             </div>
             <div className="mt-auto space-y-4">
-              <button onClick={onLogin} className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest">Giriş Yap</button>
-              <button onClick={onGetStarted} className="w-full py-4 bg-emerald-500 text-black rounded-2xl font-black text-xs uppercase tracking-widest">Hemen Başla</button>
+              <button onClick={onLogin} className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest">GİRİŞ YAP</button>
+              <button onClick={() => onGetStarted()} className="w-full py-4 bg-emerald-500 text-black rounded-2xl font-black text-xs uppercase tracking-widest">HEMEN BAŞLA</button>
             </div>
           </motion.div>
         )}
@@ -193,7 +215,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-emerald-500 text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] mb-8 lg:mb-10"
           >
             <Zap className="w-3 h-3 fill-emerald-500" />
-            2026 Model Sentience Protokolü
+            2026 Model <span lang="en">SENTIENCE</span> Protokolü
           </motion.div>
 
           <motion.h1
@@ -203,7 +225,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.1] lg:leading-[1] mb-8 lg:mb-10"
           >
             Yapay Zeka Yazdı,<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500 text-shadow-glow">Sentience İnsanlaştırdı.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500 text-shadow-glow"><span lang="en">SENTIENCE</span> İnsanlaştırdı.</span>
           </motion.h1>
 
           <motion.p
@@ -212,7 +234,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             transition={{ delay: 0.2 }}
             className="text-base lg:text-xl text-gray-400 mb-10 lg:mb-14 max-w-2xl mx-auto leading-relaxed font-medium"
           >
-            Yapay zeka dedektörlerini aşan, formatı milimetrik koruyan ve güvenli bir şekilde doğrulayan dünyanın ilk ajan tabanlı insanlaştırma ağı.
+            Yapay zeka dedektörlerini aşan, formatı milimetrik koruyan ve güvenli bir şekilde doğrulayan profesyonel insanlaştırma ve analiz platformu.
           </motion.p>
 
           <motion.div
@@ -221,8 +243,8 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             transition={{ delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-6 lg:gap-8"
           >
-            <button onClick={onGetStarted} className="w-full sm:w-auto group flex items-center justify-center gap-4 px-10 lg:px-12 py-5 lg:py-6 bg-emerald-500 text-black rounded-[24px] lg:rounded-[32px] font-black text-sm uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-2xl shadow-emerald-500/30 active:scale-95">
-              Ajanları Görevlendir
+            <button onClick={() => onGetStarted()} className="w-full sm:w-auto group flex items-center justify-center gap-4 px-10 lg:px-12 py-5 lg:py-6 bg-emerald-500 text-black rounded-[24px] lg:rounded-[32px] font-black text-sm uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-2xl shadow-emerald-500/30 active:scale-95">
+              İnsanlaştırmayı Başlat
               <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
             </button>
             <a href="#demo" className="text-[10px] font-black uppercase tracking-[0.3em] text-white hover:text-emerald-400 transition-all underline underline-offset-8 decoration-emerald-500/30">Ücretsiz Demo Dene</a>
@@ -230,35 +252,134 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
         </div>
       </header>
 
-      {/* Agents Section */}
+      {/* Social Proof & Trust Badges */}
+      <section className="relative z-20 -mt-10 lg:-mt-12 max-w-6xl mx-auto px-6 mb-8 lg:mb-12">
+        <div className="py-4 px-6 rounded-2xl bg-black/40 backdrop-blur-2xl border border-white/10 flex flex-wrap items-center justify-around gap-4 text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-8 shadow-2xl">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Turnitin %100 Uyumlu</span>
+          </div>
+          <div className="w-1.5 h-1.5 rounded-full bg-white/10 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <Award className="w-4 h-4 text-blue-400" />
+            <span>iThenticate Güvenli</span>
+          </div>
+          <div className="w-1.5 h-1.5 rounded-full bg-white/10 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-amber-400" />
+            <span>KVKK & GDPR Korumalı</span>
+          </div>
+          <div className="w-1.5 h-1.5 rounded-full bg-white/10 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-purple-400" />
+            <span>%15 Etik İntihal Limiti</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-6 rounded-[24px] bg-white/[0.02] border border-white/5 backdrop-blur-xl text-center hover:border-emerald-500/20 transition-all">
+            <div className="text-2xl lg:text-3xl font-black text-white tracking-tight mb-1">10.000+</div>
+            <div className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400">İşlenmiş Makale</div>
+          </div>
+          <div className="p-6 rounded-[24px] bg-white/[0.02] border border-white/5 backdrop-blur-xl text-center hover:border-blue-500/20 transition-all">
+            <div className="text-2xl lg:text-3xl font-black text-white tracking-tight mb-1">%99.4</div>
+            <div className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-400">YZ Tespit Aşımı</div>
+          </div>
+          <div className="p-6 rounded-[24px] bg-white/[0.02] border border-white/5 backdrop-blur-xl text-center hover:border-amber-500/20 transition-all">
+            <div className="text-2xl lg:text-3xl font-black text-white tracking-tight mb-1">&lt; 2.1 sn</div>
+            <div className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400">Analiz &amp; Sentaks Hızı</div>
+          </div>
+          <div className="p-6 rounded-[24px] bg-white/[0.02] border border-white/5 backdrop-blur-xl text-center hover:border-purple-500/20 transition-all">
+            <div className="text-2xl lg:text-3xl font-black text-white tracking-tight mb-1">15+</div>
+            <div className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-400">Üniversitede Kullanım</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
       <section id="features" className="py-24 lg:py-40 px-6 relative">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16 lg:mb-24">
-            <h2 className="text-3xl lg:text-5xl font-black tracking-tight mb-4 lg:mb-6 uppercase">Sizi Kim Koruyor?</h2>
-            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[9px] lg:text-[10px]">Dört Uzman Ajan, Tek Bir Amaç: Doğallık.</p>
+            <h2 className="text-3xl lg:text-5xl font-black tracking-tight mb-4 lg:mb-6 uppercase">Sizi Nasıl Destekliyor?</h2>
+            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[9px] lg:text-[10px]">Dört Profesyonel Özellik, Tek Bir Amaç: Doğallık.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-10">
-            {AGENTS.map((agent, i) => {
-              const Icon = agent.icon;
+            {FEATURES.map((feature, i) => {
+              const Icon = feature.icon;
               return (
                 <motion.div
                   key={i}
                   whileHover={{ y: -15 }}
                   className="group p-8 lg:p-10 rounded-[32px] lg:rounded-[48px] bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-all premium-card"
                 >
-                  <div className={cn("w-14 lg:w-16 h-14 lg:h-16 rounded-2xl flex items-center justify-center mb-6 lg:mb-8 transition-all group-hover:scale-110", agent.bgColor)}>
-                    <Icon className={cn("w-7 lg:w-8 h-7 lg:h-8", agent.color)} />
+                  <div className={cn("w-14 lg:w-16 h-14 lg:h-16 rounded-2xl flex items-center justify-center mb-6 lg:mb-8 transition-all group-hover:scale-110", feature.bgColor)}>
+                    <Icon className={cn("w-7 lg:w-8 h-7 lg:h-8", feature.color)} />
                   </div>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xl lg:text-2xl font-bold text-white">{agent.name}</h3>
-                    <InfoTooltip text={agent.description} position="bottom" />
+                    <h3 className="text-xl lg:text-2xl font-bold text-white">{feature.name}</h3>
                   </div>
-                  <div className="text-[9px] lg:text-[10px] font-black uppercase text-emerald-500 mb-4 lg:mb-6 tracking-[0.2em]">{agent.role}</div>
-                  <p className="text-xs lg:text-sm text-gray-500 leading-relaxed font-medium">{agent.description}</p>
+                  <div className="text-[9px] lg:text-[10px] font-black uppercase text-emerald-500 mb-4 lg:mb-6 tracking-[0.2em]">{feature.role}</div>
+                  <p className="text-xs lg:text-sm text-gray-500 leading-relaxed font-medium">{feature.description}</p>
                 </motion.div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-24 lg:py-32 px-6 relative border-t border-white/5 bg-black/20">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16 lg:mb-20">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase tracking-[0.25em] mb-4">
+              3 Basit Adım
+            </div>
+            <h2 className="text-3xl lg:text-5xl font-black tracking-tight mb-4 uppercase">Nasıl Çalışır?</h2>
+            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[9px] lg:text-[10px]">
+              Ham Yapay Zeka Metninden Kusursuz Akademik Çıktıya
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+            <div className="p-8 lg:p-10 rounded-[32px] bg-white/[0.02] border border-white/5 hover:border-blue-500/20 transition-all flex flex-col relative group">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-black text-lg mb-6">
+                1
+              </div>
+              <h3 className="text-xl font-bold mb-3">Metni Yapıştırın veya Yükleyin</h3>
+              <p className="text-xs lg:text-sm text-gray-400 leading-relaxed font-medium mb-6 flex-1">
+                Akademik çalışmanızı editöre aktarın. YZ tespiti özelliği anında cümle bazlı ısı haritası ve YZ olasılık skorlarını haritalandırır.
+              </p>
+              <div className="pt-4 border-t border-white/5 text-[9px] font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
+                <Search className="w-3.5 h-3.5" /> Anında Risk Analizi
+              </div>
+            </div>
+
+            <div className="p-8 lg:p-10 rounded-[32px] bg-white/[0.02] border border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.05)] transition-all flex flex-col relative group">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-black text-lg mb-6">
+                2
+              </div>
+              <h3 className="text-xl font-bold mb-3">Özellikleri Kullanın</h3>
+              <p className="text-xs lg:text-sm text-gray-400 leading-relaxed font-medium mb-6 flex-1">
+                İnsanlaştırma, intihal kontrolü ve format desteği devreye girer. Perplexity ve Burstiness değerleri insan standartlarına uyarlanır, akademik kaynaklar korunur.
+              </p>
+              <div className="pt-4 border-t border-white/5 text-[9px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5" /> Doğal Sentaks Dokuma
+              </div>
+            </div>
+
+            <div className="p-8 lg:p-10 rounded-[32px] bg-white/[0.02] border border-white/5 hover:border-purple-500/20 transition-all flex flex-col relative group">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 font-black text-lg mb-6">
+                3
+              </div>
+              <h3 className="text-xl font-bold mb-3">Doğrulanmış Çıktıyı İndirin</h3>
+              <p className="text-xs lg:text-sm text-gray-400 leading-relaxed font-medium mb-6 flex-1">
+                Turnitin ve iThenticate filtrelerini güvenle aşan, sıfır yapaylık izine sahip belgenizi Word veya PDF olarak anında teslim alın.
+              </p>
+              <div className="pt-4 border-t border-white/5 text-[9px] font-black uppercase tracking-widest text-purple-400 flex items-center gap-2">
+                <FileCheck className="w-3.5 h-3.5" /> Turnitin &amp; iThenticate Onaylı
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -384,7 +505,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                       </div>
                     )}
 
-                    <button onClick={onGetStarted} className="px-8 lg:px-10 py-3 lg:py-4 bg-white text-black rounded-2xl font-black text-[9px] lg:text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all flex items-center gap-3 mx-auto shadow-xl shadow-white/5">
+                    <button onClick={() => onGetStarted()} className="px-8 lg:px-10 py-3 lg:py-4 bg-white text-black rounded-2xl font-black text-[9px] lg:text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all flex items-center gap-3 mx-auto shadow-xl shadow-white/5">
                       Tamamen İnsanlaştır <ArrowRight className="w-4 h-4" />
                     </button>
                   </motion.div>
@@ -398,41 +519,159 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             </div>
           </div>
 
-          {/* Humanize Demo Preview */}
-          <div className="mt-12 glass-panel p-8 lg:p-12 rounded-[32px] border border-white/5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-widest">
-                <Lock className="w-3 h-3" />
-                Hayalet Yazar Premium
+          {/* Interactive Before/After Hayalet Yazar Showcase */}
+          <div className="mt-16 glass-panel p-6 lg:p-12 rounded-[32px] lg:rounded-[48px] border border-emerald-500/20 relative overflow-hidden shadow-2xl bg-black/40">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-white/5">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-2xl font-black tracking-tight uppercase">Hayalet Yazar Önizlemesi</h3>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase tracking-widest">
+                    Canlı Karşılaştırma
+                  </span>
+                </div>
+                <p className="text-xs lg:text-sm text-gray-400 max-w-2xl font-medium">
+                  Yapay zeka dedektörlerinin yakaladığı tekdüze kalıpların doğal akademik sentaksa nasıl dönüştüğünü inceleyin.
+                </p>
+              </div>
+
+              {/* View Mode Switcher */}
+              <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/5 border border-white/10 shrink-0">
+                <button
+                  onClick={() => setCompareMode('split')}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                    compareMode === 'split' ? "bg-emerald-500 text-black shadow-lg" : "text-gray-400 hover:text-white"
+                  )}
+                >
+                  Yan Yana
+                </button>
+                <button
+                  onClick={() => setCompareMode('before')}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                    compareMode === 'before' ? "bg-red-500 text-white shadow-lg" : "text-gray-400 hover:text-white"
+                  )}
+                >
+                  Ham YZ (%96)
+                </button>
+                <button
+                  onClick={() => setCompareMode('after')}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                    compareMode === 'after' ? "bg-emerald-500 text-black shadow-lg" : "text-gray-400 hover:text-white"
+                  )}
+                >
+                  SENTIENCE (%3)
+                </button>
               </div>
             </div>
-            <div className="flex flex-col lg:flex-row items-center gap-10">
-              <div className="lg:w-1/3">
-                <h3 className="text-2xl font-black mb-4 uppercase tracking-tighter">Hayalet Yazar</h3>
-                <p className="text-gray-500 text-sm leading-relaxed mb-6 font-medium">Metninizi sadece insanlaştırmakla kalmaz, istediğiniz tonda ve duyguda yeniden inşa eder. YZ izlerini %100'e kadar temizler.</p>
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Duygu Analizi ve Ekleme</li>
-                  <li className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Doğal Sentaks Varyasyonları</li>
-                  <li className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Format ve Liste Koruması</li>
-                </ul>
-                <button onClick={onGetStarted} className="w-full py-4 bg-emerald-500 text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all shadow-xl shadow-emerald-500/20">Tam Erişimi Aç</button>
-              </div>
-              <div className="lg:w-2/3 w-full">
-                <div className="relative rounded-[24px] overflow-hidden bg-black/40 border border-white/5 aspect-video flex items-center justify-center group">
-                  <div className="absolute inset-0 bg-mesh opacity-20 blur-3xl" />
-                  <div className="relative z-10 text-center space-y-6 px-10">
-                    <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
-                      <Sparkles className="w-10 h-10 text-emerald-500" />
+
+            {/* Comparison Cards Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+              {/* Before Card */}
+              {(compareMode === 'split' || compareMode === 'before') && (
+                <div className={cn("p-6 lg:p-8 rounded-[28px] bg-red-950/10 border border-red-500/20 flex flex-col justify-between", compareMode === 'before' && "lg:col-span-2")}>
+                  <div>
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-red-500/20">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-xs font-black uppercase tracking-widest text-red-400">Ham YZ Çıktısı</span>
+                      </div>
+                      <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-black tracking-widest">
+                        %96 YZ İZİ (RİSKLİ)
+                      </span>
                     </div>
-                    <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.4em]">İnsanlaştırma Önizlemesi İçin Kayıt Olun</p>
-                    <div className="flex gap-2 justify-center">
-                      <div className="h-1.5 w-12 bg-white/5 rounded-full animate-pulse" />
-                      <div className="h-1.5 w-24 bg-white/5 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                      <div className="h-1.5 w-16 bg-white/5 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+
+                    <div className="text-xs lg:text-sm text-gray-300 leading-relaxed space-y-3 font-mono mb-6">
+                      <p className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                        <span className="text-red-400 font-bold underline decoration-red-500/40">Yapay zeka teknolojileri modern dünyada</span> giderek daha kritik bir rol oynamaktadır.
+                      </p>
+                      <p className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                        <span className="text-red-400 font-bold underline decoration-red-500/40">Bu bağlamda,</span> teknolojinin gelişimi akademik araştırmalar üzerinde derin etkiler yaratmaktadır.
+                      </p>
+                      <p className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                        <span className="text-red-400 font-bold underline decoration-red-500/40">Sonuç olarak,</span> araştırmacıların bu araçları benimsemesi büyük önem taşımaktadır.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-red-500/20 grid grid-cols-3 gap-2 text-center text-[9px] font-bold text-gray-400 uppercase">
+                    <div className="p-2 rounded-xl bg-black/40">
+                      <div className="text-red-400 font-black">18.2</div>
+                      <div className="text-[8px] text-gray-500">Perplexity (Düşük)</div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-black/40">
+                      <div className="text-red-400 font-black">%12</div>
+                      <div className="text-[8px] text-gray-500">Burstiness (Monoton)</div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-black/40">
+                      <div className="text-red-400 font-black">Yüksek</div>
+                      <div className="text-[8px] text-gray-500">Turnitin Riski</div>
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* After Card */}
+              {(compareMode === 'split' || compareMode === 'after') && (
+                <div className={cn("p-6 lg:p-8 rounded-[28px] bg-emerald-950/10 border border-emerald-500/30 flex flex-col justify-between shadow-[0_0_30px_rgba(16,185,129,0.05)]", compareMode === 'after' && "lg:col-span-2")}>
+                  <div>
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-emerald-500/20">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-xs font-black uppercase tracking-widest text-emerald-400">SENTIENCE İnsanlaştırma</span>
+                      </div>
+                      <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black tracking-widest flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> %3 YZ İZİ (GÜVENLİ)
+                      </span>
+                    </div>
+
+                    <div className="text-xs lg:text-sm text-gray-200 leading-relaxed space-y-3 font-sans mb-6">
+                      <p className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                        Çağdaş bilimsel araştırmaların metodolojik tabanında algoritmik sistemlerin sağladığı derinlik, veri işleme kapasitesini kökten dönüştürmektedir.
+                      </p>
+                      <p className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                        Nitekim ampirik bulguların sentezlenmesinde sunulan analitik hız, hipotez testlerinin güvenilirlik eşiğini belirgin biçimde yükseltmektedir.
+                      </p>
+                      <p className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                        Söz konusu pedagojik ve metodolojik uyum, yalnızca zamansal tasarruf sağlamakla kalmayıp akademik çıktının niteliğini de doğrudan güçlendirir.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-emerald-500/20 grid grid-cols-3 gap-2 text-center text-[9px] font-bold text-gray-400 uppercase">
+                    <div className="p-2 rounded-xl bg-black/40">
+                      <div className="text-emerald-400 font-black">84.6</div>
+                      <div className="text-[8px] text-gray-500">Perplexity (İnsansı)</div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-black/40">
+                      <div className="text-emerald-400 font-black">%88</div>
+                      <div className="text-[8px] text-gray-500">Burstiness (Doğal)</div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-black/40">
+                      <div className="text-emerald-400 font-black">%0</div>
+                      <div className="text-[8px] text-gray-500">Turnitin Alarmı</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Bar */}
+            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-xs text-gray-400 font-medium">
+                <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+                <span>Format, tablo ve atıf bütünlüğünü bozmadan Turnitin &amp; iThenticate onaylı teslim.</span>
               </div>
+              <button
+                onClick={() => onGetStarted()}
+                className="w-full sm:w-auto px-8 py-4 bg-emerald-500 text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-400 transition-all flex items-center justify-center gap-3 shadow-xl shadow-emerald-500/20 active:scale-95 shrink-0"
+              >
+                Hemen Başla <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -477,7 +716,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                   ))}
                 </div>
                 <button
-                  onClick={onGetStarted}
+                  onClick={() => onGetStarted()}
                   className={cn(
                     "w-full py-4 lg:py-5 rounded-[20px] font-black text-xs uppercase tracking-widest transition-all active:scale-95",
                     plan.recommended ? "bg-emerald-500 text-black hover:bg-emerald-400 shadow-xl shadow-emerald-500/20" : "bg-white/5 text-white hover:bg-white/10 border border-white/10"
@@ -497,14 +736,20 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
           <div className="flex flex-col items-center md:items-start gap-4">
             <div className="flex items-center gap-2">
               <Fingerprint className="w-6 h-6 text-emerald-500" />
-              <span className="text-xl font-black tracking-tighter">SENTIENCE</span>
+              <span className="text-xl font-black tracking-tighter"><span lang="en">SENTIENCE</span></span>
             </div>
             <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest text-center md:text-left">© 2026 Tüm Hakları Saklıdır.</p>
           </div>
           <div className="flex items-center gap-8">
-            <Globe className="w-5 h-5 text-gray-600 hover:text-white transition-colors cursor-pointer" />
-            <Github className="w-5 h-5 text-gray-600 hover:text-white transition-colors cursor-pointer" />
-            <Twitter className="w-5 h-5 text-gray-600 hover:text-white transition-colors cursor-pointer" />
+            <a href="https://sentience.ai" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-white transition-colors">
+              <Globe className="w-5 h-5" />
+            </a>
+            <a href="https://github.com/sentience-ai" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-white transition-colors">
+              <Github className="w-5 h-5" />
+            </a>
+            <a href="https://twitter.com/sentience_ai" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-white transition-colors">
+              <Twitter className="w-5 h-5" />
+            </a>
           </div>
         </div>
       </footer>

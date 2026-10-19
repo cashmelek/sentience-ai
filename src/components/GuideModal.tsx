@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  X, 
-  Sparkles, 
-  Search, 
-  History, 
-  ShieldCheck, 
-  Zap, 
+import {
+  X,
+  Sparkles,
+  Search,
+  History,
+  ShieldCheck,
+  Zap,
   BookOpen,
   MousePointer2,
   Settings2,
@@ -34,8 +34,8 @@ const GUIDE_SECTIONS = [
     content: (
       <div className="space-y-4">
         <p className="text-gray-400 leading-relaxed">
-          Sentience AI, metinlerinizi yapay zeka tespitinden (AI Detection) arındıran, 
-          akışını doğallaştıran ve derinlemesine teknik analiz sunan profesyonel bir araçtır. 
+          Sentience AI, metinlerinizi yapay zeka tespitinden (AI Detection) arındıran,
+          akışını doğallaştıran ve derinlemesine teknik analiz sunan profesyonel bir araçtır.
           Bu rehber, platformun her bir özelliğini en verimli şekilde kullanmanıza yardımcı olacaktır.
         </p>
         <div className="grid grid-cols-2 gap-3">
@@ -90,9 +90,9 @@ const GUIDE_SECTIONS = [
             <h4 className="text-xs font-bold uppercase tracking-wider">Halüsinasyon Koruması</h4>
           </div>
           <p className="text-xs text-gray-400 leading-relaxed">
-            Sistemimiz, uydurma internet linkleri (404 hatası veren sahte kaynaklar) üretmez. 
-            İntihal bölümünde gördüğünüz tüm kaynaklar 2026 canlı verisi ile doğrulanmış gerçek kaynaklardır. 
-            YZ kaynak bulamazsa listeyi boş bırakır.
+            Metinlerimiz, uydurma internet linkleri (404 hatası veren sahte kaynaklar) üretmez.
+            İntihal bölümünde gördüğünüz tüm kaynaklar canlı veri ile doğrulanmış gerçek kaynaklardır.
+            Sistemimiz gerekli kaynak bulamazsa listeyi boş bırakır.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -145,18 +145,18 @@ export function GuideModal({ onClose }: GuideModalProps) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
-        exit={{ opacity: 0 }} 
-        className="absolute inset-0 bg-black/95 backdrop-blur-xl" 
-        onClick={onClose} 
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/95 backdrop-blur-xl"
+        onClick={onClose}
       />
-      
-      <motion.div 
-        initial={{ scale: 0.9, opacity: 0, y: 30 }} 
-        animate={{ scale: 1, opacity: 1, y: 0 }} 
-        exit={{ scale: 0.9, opacity: 0, y: 30 }} 
+
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 30 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 30 }}
         className="relative w-full max-w-3xl bg-brand-card border border-brand-border rounded-[48px] shadow-2xl overflow-hidden flex flex-col min-h-[600px]"
       >
         {/* Dekoratif Işıklar */}
@@ -174,8 +174,8 @@ export function GuideModal({ onClose }: GuideModalProps) {
               <p className="text-emerald-500/80 font-bold text-xs uppercase tracking-[0.2em] mt-1">{step.subtitle}</p>
             </div>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-3 hover:bg-white/5 rounded-2xl text-gray-500 transition-all border border-white/5"
           >
             <X className="w-6 h-6" />
@@ -202,8 +202,8 @@ export function GuideModal({ onClose }: GuideModalProps) {
         <div className="p-10 pt-6 border-t border-brand-border bg-black/20 relative z-10 flex items-center justify-between">
           <div className="flex gap-2">
             {GUIDE_SECTIONS.map((_, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className={cn(
                   "h-1 rounded-full transition-all duration-500",
                   i === currentStep ? "w-8 bg-emerald-500" : "w-2 bg-white/10"
@@ -211,18 +211,18 @@ export function GuideModal({ onClose }: GuideModalProps) {
               />
             ))}
           </div>
-          
+
           <div className="flex items-center gap-4">
             {currentStep > 0 && (
-              <button 
+              <button
                 onClick={() => setCurrentStep(prev => prev - 1)}
                 className="p-3 border border-white/5 rounded-2xl text-gray-500 hover:text-white transition-all"
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
             )}
-            
-            <button 
+
+            <button
               onClick={() => {
                 if (currentStep < GUIDE_SECTIONS.length - 1) {
                   setCurrentStep(prev => prev + 1);

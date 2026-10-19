@@ -1,12 +1,12 @@
-import { db } from '../lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs, addDoc, query, where, updateDoc, increment } from 'firebase/firestore';
+import { db, auth } from '../lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs, addDoc, query, where, updateDoc, increment, onSnapshot, Unsubscribe } from 'firebase/firestore';
 
 export interface ApiKeyMetadata {
   id?: string;
   provider: 'gemini' | 'google-search';
   index?: number;
   maskedKey: string;
-  status: 'active' | 'exhausted' | 'invalid';
+  status: 'active' | 'exhausted' | 'invalid' | 'busy';
   usageCount: number;
   lastUsed?: any;
   updatedAt?: any;
@@ -14,119 +14,244 @@ export interface ApiKeyMetadata {
   value?: string;
 }
 
+export interface PoolItem {
+  key: string;
+  isDynamic: boolean;
+  id?: string;
+  usageCount: number;
+  status: 'active' | 'exhausted' | 'invalid' | 'busy';
+}
+
 class ApiKeyManager {
-  private geminiPool: { key: string; isDynamic: boolean; id?: string; usageCount: number }[] = [];
-  private searchPool: { key: string; isDynamic: boolean; id?: string; usageCount: number }[] = [];
+  private geminiPool: PoolItem[] = [];
+  private searchPool: PoolItem[] = [];
   private currentGeminiIndex = 0;
   private currentSearchIndex = 0;
+  private unsubscribe: Unsubscribe | null = null;
 
   constructor() {
     this.initFromEnv();
-    this.syncWithFirestore();
+    this.startLiveSync();
   }
 
   private initFromEnv() {
     const rawGemini = import.meta.env.VITE_GEMINI_API_KEY || "";
     const envGemini = rawGemini.split(",").map(k => k.trim()).filter(Boolean);
-    this.geminiPool = envGemini.map(key => ({ key, isDynamic: false, usageCount: 0 }));
+    this.geminiPool = envGemini.map(key => ({ key, isDynamic: false, usageCount: 0, status: 'active' }));
 
     const rawSearch = import.meta.env.VITE_GOOGLE_SEARCH_API_KEY || "";
     const envSearch = rawSearch.split(",").map(k => k.trim()).filter(Boolean);
-    this.searchPool = envSearch.map(key => ({ key, isDynamic: false, usageCount: 0 }));
+    this.searchPool = envSearch.map(key => ({ key, isDynamic: false, usageCount: 0, status: 'active' }));
+  }
+
+  public getActiveKeysCount(provider: 'gemini' | 'google-search'): number {
+    const pool = provider === 'gemini' ? this.geminiPool : this.searchPool;
+    return pool.filter(p => p.status === 'active' || p.status === 'busy').length;
   }
 
   async syncWithFirestore() {
-    try {
-      const snap = await getDocs(collection(db, 'apiKeys'));
-      const dbKeys = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-      
-      // Havuzları temizle ve ENV anahtarlarını hazırla
-      this.initFromEnv();
-
-      dbKeys.forEach(dk => {
-        if (dk.isDynamic) {
-          const item = { key: dk.value, isDynamic: true, id: dk.id, usageCount: dk.usageCount || 0 };
-          if (dk.provider === 'gemini') this.geminiPool.push(item);
-          else this.searchPool.push(item);
-        } else {
-          // ENV anahtarlarının DB'deki kullanım sayılarını eşle
-          const pool = dk.provider === 'gemini' ? this.geminiPool : this.searchPool;
-          if (typeof dk.index === 'number' && pool[dk.index] && !pool[dk.index].isDynamic) {
-            pool[dk.index].usageCount = dk.usageCount || 0;
-            pool[dk.index].id = dk.id;
-          }
-        }
-      });
-    } catch (e) {
-      console.error("[ApiKeyManager] Sync Error:", e);
-    }
+    const snap = await getDocs(collection(db, 'apiKeys'));
+    this.processSnapshot(snap.docs);
   }
 
-  /**
-   * Bir anahtarın kullanım sayısını artırır ve Firestore'a yazar.
-   */
-  async incrementUsage(provider: 'gemini' | 'google-search') {
+  private processSnapshot(docs: any[]) {
+    console.log("[ApiKeyManager] Syncing pools with DB data...");
+    const dbKeys = docs.map(d => ({ id: d.id, ...d.data() } as any));
+    
+    this.initFromEnv();
+
+    // ENV anahtarlarını dökümanlarla eşleştir veya oluştur
+    this.geminiPool.forEach((p, idx) => {
+       const maskedLocal = this.getMaskedKey(p.key);
+       const match = dbKeys.find(dk => dk.provider === 'gemini' && !dk.isDynamic && (dk.maskedKey === maskedLocal || dk.value === p.key));
+       if (match) {
+         p.id = match.id;
+         p.status = match.status || 'active';
+         p.usageCount = match.usageCount || 0;
+       } else {
+         if (auth.currentUser) {
+           const docId = `gemini_${maskedLocal.replace(/[^a-zA-Z0-9]/g, '_')}`;
+           setDoc(doc(db, 'apiKeys', docId), {
+             provider: 'gemini',
+             maskedKey: maskedLocal,
+             status: 'active',
+             usageCount: 0,
+             isDynamic: false,
+             index: idx,
+             createdAt: serverTimestamp(),
+             updatedAt: serverTimestamp()
+           }).catch(() => {});
+         }
+       }
+    });
+
+    this.searchPool.forEach((p, idx) => {
+       const maskedLocal = this.getMaskedKey(p.key);
+       const match = dbKeys.find(dk => dk.provider === 'google-search' && !dk.isDynamic && (dk.maskedKey === maskedLocal || dk.value === p.key));
+       if (match) {
+         p.id = match.id;
+         p.status = match.status || 'active';
+         p.usageCount = match.usageCount || 0;
+       } else {
+         if (auth.currentUser) {
+           const docId = `google_search_${maskedLocal.replace(/[^a-zA-Z0-9]/g, '_')}`;
+           setDoc(doc(db, 'apiKeys', docId), {
+             provider: 'google-search',
+             maskedKey: maskedLocal,
+             status: 'active',
+             usageCount: 0,
+             isDynamic: false,
+             index: idx,
+             createdAt: serverTimestamp(),
+             updatedAt: serverTimestamp()
+           }).catch(() => {});
+         }
+       }
+    });
+
+    // Dinamik anahtarları ekle
+    dbKeys.filter(dk => dk.isDynamic && dk.value).forEach(dk => {
+      const pool = dk.provider === 'gemini' ? this.geminiPool : this.searchPool;
+      const existingIdx = pool.findIndex(p => p.key === dk.value);
+      if (existingIdx !== -1) {
+        pool[existingIdx].status = dk.status || 'active';
+        pool[existingIdx].usageCount = dk.usageCount || 0;
+        pool[existingIdx].id = dk.id;
+      } else {
+        pool.push({ key: dk.value, isDynamic: true, id: dk.id, usageCount: dk.usageCount || 0, status: dk.status || 'active' });
+      }
+    });
+  }
+
+  private startLiveSync() {
+    if (this.unsubscribe) this.unsubscribe();
+    this.unsubscribe = onSnapshot(collection(db, 'apiKeys'), (snap) => {
+      this.processSnapshot(snap.docs);
+    });
+  }
+
+  public getMaskedKey(key: string): string {
+    if (!key) return "******";
+    if (key.includes('...')) return key;
+    if (key.length <= 12) return `${key.substring(0, 4)}...`;
+    return `${key.substring(0, 6)}...${key.substring(key.length - 4)}`;
+  }
+
+  private findNextAvailableIndex(provider: 'gemini' | 'google-search'): number {
+    const pool = provider === 'gemini' ? this.geminiPool : this.searchPool;
+    const startIndex = provider === 'gemini' ? this.currentGeminiIndex : this.currentSearchIndex;
+    if (pool.length === 0) return -1;
+    for (let i = 0; i < pool.length; i++) {
+      const idx = (startIndex + i) % pool.length;
+      if (pool[idx].status === 'active' || pool[idx].status === 'busy') {
+        if (provider === 'gemini') this.currentGeminiIndex = idx;
+        else this.currentSearchIndex = idx;
+        return idx;
+      }
+    }
+    return -1;
+  }
+
+  async markCurrentKeyExhausted(provider: 'gemini' | 'google-search') {
+    const id = this.getCurrentKeyId(provider);
+    if (!id) return;
+    try {
+      await updateDoc(doc(db, 'apiKeys', id), { 
+        status: 'exhausted', 
+        usageCount: 5,
+        updatedAt: serverTimestamp() 
+      });
+    } catch (e) {}
+  }
+
+  async markCurrentKeyInvalid(provider: 'gemini' | 'google-search') {
+    const id = this.getCurrentKeyId(provider);
+    if (!id) return;
+    try {
+      await updateDoc(doc(db, 'apiKeys', id), { 
+        status: 'invalid',
+        updatedAt: serverTimestamp() 
+      });
+    } catch (e) {}
+  }
+
+  private getCurrentKeyId(provider: 'gemini' | 'google-search'): string | null {
     const pool = provider === 'gemini' ? this.geminiPool : this.searchPool;
     const index = provider === 'gemini' ? this.currentGeminiIndex : this.currentSearchIndex;
-    const item = pool[index];
+    return pool[index]?.id || null;
+  }
 
-    if (!item) return;
-
-    item.usageCount++;
-    
+  async setKeyActivity(provider: 'gemini' | 'google-search', isBusy: boolean) {
+    const id = this.getCurrentKeyId(provider);
+    if (!id) return;
     try {
-      const keyId = item.id || `${provider}_${index}`;
-      const keyRef = doc(db, 'apiKeys', keyId);
-      
-      await setDoc(keyRef, {
-        provider,
-        index,
-        usageCount: increment(1),
-        lastUsed: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        isDynamic: item.isDynamic,
-        maskedKey: item.id ? undefined : `${item.key.substring(0, 6)}...` // Sadece yeni döküman ise yaz
-      }, { merge: true });
+      await updateDoc(doc(db, 'apiKeys', id), { status: isBusy ? 'busy' : 'active', updatedAt: serverTimestamp() });
+    } catch (e) {}
+  }
 
-      // Eğer Search limiti dolduysa (100) otomatik rotasyon yap
-      if (provider === 'google-search' && item.usageCount >= 100) {
-        await this.setKeyStatus(keyId, 'exhausted');
-        this.rotateSearchKey();
+  async incrementUsage(provider: 'gemini' | 'google-search') {
+    const id = this.getCurrentKeyId(provider);
+    if (!id) return;
+    try {
+      const pool = provider === 'gemini' ? this.geminiPool : this.searchPool;
+      const index = provider === 'gemini' ? this.currentGeminiIndex : this.currentSearchIndex;
+      const item = pool[index];
+      
+      const maxRequests = 5;
+      const newUsage = (item.usageCount || 0) + 1;
+      const newStatus = newUsage >= maxRequests ? 'exhausted' : item.status;
+      await updateDoc(doc(db, 'apiKeys', id), { usageCount: newUsage, status: newStatus, lastUsed: serverTimestamp(), updatedAt: serverTimestamp() });
+      if (newStatus === 'exhausted') {
+        if (provider === 'gemini') this.rotateGeminiKey();
+        else this.rotateSearchKey();
       }
-    } catch (e) {
-      console.error("Increment usage failed:", e);
+    } catch (e) {}
+  }
+
+  async verifyKeyHealth(keyId: string, provider: 'gemini' | 'google-search', keyValue: string): Promise<boolean> {
+    try {
+      if (provider === 'gemini') {
+        const { GoogleGenAI } = await import("@google/genai");
+        const client = new GoogleGenAI({ apiKey: keyValue });
+        await client.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: [{ role: 'user', parts: [{ text: "hi" }] }],
+          config: { maxOutputTokens: 5 }
+        });
+      }
+      
+      await updateDoc(doc(db, 'apiKeys', keyId), { status: 'active', usageCount: 0, updatedAt: serverTimestamp() });
+      return true;
+    } catch (e: any) {
+      console.error("[ApiKeyManager] Key verification failed:", e);
+      if (e.message?.includes("API key not valid") || e.status === 400) {
+        await updateDoc(doc(db, 'apiKeys', keyId), { status: 'invalid', updatedAt: serverTimestamp() });
+      }
+      return false;
     }
   }
 
   async addNewKey(provider: 'gemini' | 'google-search', keyValue: string) {
     if (!keyValue || keyValue.length < 10) throw new Error("Geçersiz API Anahtarı");
-    const masked = `${keyValue.substring(0, 6)}...${keyValue.substring(keyValue.length - 4)}`;
-    await addDoc(collection(db, 'apiKeys'), {
-      provider,
-      value: keyValue,
-      maskedKey: masked,
-      status: 'active',
-      usageCount: 0,
-      isDynamic: true,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-    await this.syncWithFirestore();
+    const masked = this.getMaskedKey(keyValue);
+    await addDoc(collection(db, 'apiKeys'), { provider, value: keyValue, maskedKey: masked, status: 'active', usageCount: 0, isDynamic: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     return true;
   }
 
-  private async setKeyStatus(id: string, status: 'active' | 'exhausted' | 'invalid') {
-    await updateDoc(doc(db, 'apiKeys', id), { status, updatedAt: serverTimestamp() });
+  async resetAllKeys() {
+    const snap = await getDocs(collection(db, 'apiKeys'));
+    for (const d of snap.docs) { await updateDoc(d.ref, { usageCount: 0, status: 'active', updatedAt: serverTimestamp() }); }
+    return true;
   }
 
   getGeminiKey(): string {
-    if (this.geminiPool.length === 0) throw new Error("Gemini API anahtarı bulunamadı.");
-    return this.geminiPool[this.currentGeminiIndex].key;
+    const idx = this.findNextAvailableIndex('gemini');
+    return idx === -1 ? (this.geminiPool[0]?.key || "") : this.geminiPool[idx].key;
   }
 
   getSearchKey(): string {
-    if (this.searchPool.length === 0) return import.meta.env.VITE_GOOGLE_SEARCH_API_KEY || "";
-    return this.searchPool[this.currentSearchIndex].key;
+    const idx = this.findNextAvailableIndex('google-search');
+    return idx === -1 ? (this.searchPool[0]?.key || "") : this.searchPool[idx].key;
   }
 
   rotateGeminiKey(): boolean {
@@ -138,17 +263,6 @@ class ApiKeyManager {
   rotateSearchKey(): boolean {
     if (this.searchPool.length <= 1) return false;
     this.currentSearchIndex = (this.currentSearchIndex + 1) % this.searchPool.length;
-    return true;
-  }
-
-  async resetAllKeys() {
-    const snap = await getDocs(collection(db, 'apiKeys'));
-    for (const d of snap.docs) {
-      await updateDoc(d.ref, { usageCount: 0, status: 'active', updatedAt: serverTimestamp() });
-    }
-    this.currentGeminiIndex = 0;
-    this.currentSearchIndex = 0;
-    await this.syncWithFirestore();
     return true;
   }
 

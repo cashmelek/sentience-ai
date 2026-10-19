@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// B21 Faz 2 — Teslim dosyaları (PDF/DOCX) için Storage kuralları
+// Yol şablonu: classes/{classId}/assignments/{assignmentId}/submissions/{studentId}/{fileName}
+// Diğer tüm yollar varsayılan olarak kapalıdır.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isInstructor(classId) {
+      return firestore.get(/databases/(default)/documents/classes/$(classId)).data.instructorId == request.auth.uid;
+    }
+
+    match /classes/{classId}/assignments/{assignmentId}/submissions/{studentId}/{fileName} {
+      // Okuma: dosyanın sahibi öğrenci, sınıfın eğitmeni veya admin
+      allow read: if request.auth != null &&
+        (request.auth.uid == studentId ||
+         isInstructor(classId) ||
+         isAdmin());
+
+      // Yazma: dosya sahibi öğrenci (kendi teslimi) veya eğitmen (adına teslim); 20 MB ve PDF/DOCX sınırı
+      allow create, update: if request.auth != null &&
+        (request.auth.uid == studentId || isInstructor(classId)) &&
+        request.resource.size <= 20 * 1024 * 1024 &&
+        (request.resource.contentType == 'application/pdf' ||
+         request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+
+      // Silme: öğrenci (yeniden teslim), eğitmen veya admin
+      allow delete: if request.auth != null &&
+        (request.auth.uid == studentId ||
+         isInstructor(classId) ||
+         isAdmin());
+    }
+  }
+}

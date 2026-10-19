@@ -1,1 +1,7 @@
-{"projects": {"default": "sentience-ai-free-2026"}}
+{
+  "projects": {
+    "default": "sentience-ai-free-2026"
+  },
+  "targets": {},
+  "etags": {}
+}

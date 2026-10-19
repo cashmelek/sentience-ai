@@ -9,6 +9,8 @@ if (typeof (window as any).process === 'undefined') {
   (window as any).process = { env: {} };
 }
 
+console.log("%c SENTIENCE AI ", "background: #10b981; color: #000; font-weight: bold; padding: 2px 4px; border-radius: 4px;", "v1.0.5 - Gemini 3.5 Ready");
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

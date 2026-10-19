@@ -174,7 +174,11 @@ Platform her işlemde şu şablonu izler:
 * **Gizlilik:** Kayıtlar asla kullanıcı metninin ham halini içermez, sadece meta verileri (sayısal başarı oranlarını) tutar.
 * **Hibrit Yapı:** Ağır işlemler (Gemini) bulutta, hafif analizler (Okunabilirlik/Heceleme) yerel JavaScript motorunda (`@tensorflow/tfjs`) koşturulur.
 
+## 5. Gelecek Vizyonu: Yerel LLM ve Desktop Setup (Gemma 2B)
+- **Standalone Çalışma:** Projenin Electron veya PWA olarak paketlenip, kullanıcının yerel donanımını (WebGPU) kullanarak Ollama/Python gerektirmeden çalışması.
+- **Gemma 2B Entegrasyonu:** MediaPipe LLM Inference API ile yerelde ücretsiz insanlaştırma ve analiz.
+- **Gizli Yerel Eğitim:** Kullanıcı verilerinin sadece kendi cihazında kalarak modeli kişiselleştirmesi (Fine-tuning hibrit model).
+
 ---
 **Hazırlayan:** Sentience AI Geliştirme Asistanı
-**Son Güncelleme:** Mayıs 2026 (v2.6 - ML Altyapısı ve Kayıt Sistemi Dökümantasyonu)
-ve "Google Kredileri" ile en verimli şekilde ölçeklenmesi için bir rehberdir.*
+**Son Güncelleme:** Mayıs 2026 (v2.7 - Yerel Vektör Motoru Geçişi)

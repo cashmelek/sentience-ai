@@ -6,3 +6,18 @@ coverage/
 *.log
 .env*
 !.env.example
+
+functions/.env
+functions/lib/
+
+.vercel
+
+# --- Commit hijyeni: geçici artefaktlar (Bölüm 35) ---
+scratch/
+*.bak
+*.resolved
+tsc_output.txt
+end_check.txt
+.firecrawl/
+.antigravitycli/
+*.docx

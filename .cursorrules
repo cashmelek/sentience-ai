@@ -1,0 +1,17 @@
+# Sentience AI - Project Rules
+
+## Communication Protocols
+- **Direct Output:** No preambles, no conversational filler. Go straight to the code or technical answer.
+- **Concise Responses:** Keep explanations to a minimum. Focus on high-signal content.
+
+## Coding Standards
+- **Surgical Edits:** Only provide the changed lines or functions. Do not rewrite the entire file.
+- **Clean Code:** No inline comments (//, #) unless absolutely necessary for logic.
+- **Diff Format:** Prefer showing changes in a diff format or isolated blocks.
+
+## Debugging & Analysis
+- **Verification:** Respond with "Correct" or "Incorrect: [Brief Reason]" when checking code.
+- **Dry Run:** For complex tasks, propose the strategy in one sentence for confirmation before implementing.
+
+## Context Management
+- **Recent Focus:** Prioritize the latest message and attached code. Avoid redundant historical context processing.
