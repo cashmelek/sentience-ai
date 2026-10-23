@@ -9,7 +9,7 @@ Sentience AI, yapay zeka tarafından üretilen metinleri sadece "insanlaştırma
 Platform, karmaşık analiz ve üretim süreçlerini her biri alanında uzman dört farklı ajana böler:
 
 1. **Auditor-2.5 (Tespit Uzmanı):** Metindeki YZ parmak izlerini, sentetik yapıları ve tekrarlayan desenleri analiz eder. Risk skorunuzu belirler.
-2. **İnsanlşatırma (Üslup Mimarı):** Metni sizin sesinizden çıkmış gibi doğal, akıcı ve tüm YZ dedektörlerini (GPTZero, Originality vb.) aşacak şekilde yeniden kurgular.
+2. **İnsanlaştırma (Üslup Mimarı):** Metni sizin sesinizden çıkmış gibi doğal, akıcı ve tüm YZ dedektörlerini (GPTZero, Originality vb.) aşacak şekilde yeniden kurgular.
 3. **Sentinel (Doğruluk Muhafızı):** Canlı kaynak doğrulaması yapar. Asla uydurma kaynak (halüsinasyon) üretmez; verileri 2026 güncel internet verisiyle çapraz sorgular.
 4. **StyleMaster (Hafıza Merkezi):** Sizin özel tonlarınızı ve marka sesinizi öğrenir. Steve Jobs tarzı mı? Akademik bir dil mi? StyleMaster hatırlar ve her metinde bu standardı korur.
 
