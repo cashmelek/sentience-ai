@@ -88,6 +88,10 @@ Aşağıdaki maddeler bu oturumda sırasıyla ele alınmış, kodlanmış, birim
 - **Sistem Ayarları Halka Açık Okuma:** settings/{settingId} için allow read: if true; tanımlandı.
 - **Canlı Dağıtım:** https://sentience-ai-free-2026.web.app adresine deploy edildi.
 
+### 1.15 GitHub Actions CI/CD ve Firebase Proje Kimliği Eşitlemesi (25 Ekim 2026)
+- **Proje Kimliği Düzeltmesi:** `.github/workflows/ci.yml` içerisindeki `projectId: sentience-ai` tanımları, `.firebaserc` ile tam uyumlu olan `sentience-ai-free-2026` olarak güncellendi ve GitHub'a push edildi.
+- **Jules PR Hazırlığı:** Jules ve GitHub üzerinden açılacak Pull Request'lerin otomatik preview ve live deployment adımları hazırlandı.
+
 ---
 
 ## 2. ÖNCEKİ OTURUMLARDA TAMAMLANAN GELİŞTİRMELER (EKİM 2026 ORTASI)
