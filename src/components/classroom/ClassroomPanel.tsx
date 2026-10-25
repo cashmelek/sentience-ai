@@ -16,6 +16,7 @@ import { AssignmentDetailView } from './AssignmentDetailView';
 import { StudentClassView } from './StudentClassView';
 import { StudentSubmitView } from './StudentSubmitView';
 import { SubmissionReportView } from './SubmissionReportView';
+import { InstituteQueueView } from './InstituteQueueView';
 import { OnBehalfSubmitModal } from './OnBehalfSubmitModal';
 import { exportSubmissionsCSV, exportSubmissionsExcel } from './submissionExport';
 
@@ -34,9 +35,12 @@ type View =
 const subKey = (classId: string, assignmentId: string) => `${classId}/${assignmentId}`;
 
 export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPanelProps) {
+  const isStudent = appUser.academicProfile === 'student';
   const [consent, setConsent] = useState(!!appUser.kvkkAcceptedAt);
-  const [tab, setTab] = useState<'teaching' | 'enrolled'>('teaching');
+  const [tab, setTab] = useState<'teaching' | 'enrolled' | 'institute_queue'>(isStudent ? 'enrolled' : 'teaching');
   const [data, setData] = useState<{ teaching: ClassRoom[]; enrolled: ClassRoom[] }>({ teaching: [], enrolled: [] });
+  const [instituteQueue, setInstituteQueue] = useState<svc.InstituteQueueItem[]>([]);
+  const [queueLoading, setQueueLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>({ type: 'list' });
 
@@ -66,9 +70,37 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
     }
   }, [appUser.uid]);
 
+  const loadInstituteQueue = useCallback(async () => {
+    if (isStudent) return;
+    setQueueLoading(true);
+    try {
+      const items = await svc.listInstituteQueue(appUser.uid, appUser.role === 'admin');
+      setInstituteQueue(items);
+    } catch {
+      // sessiz yedek
+    } finally {
+      setQueueLoading(false);
+    }
+  }, [appUser.uid, appUser.role, isStudent]);
+
   useEffect(() => {
-    if (consent) loadClasses();
-  }, [consent, loadClasses]);
+    if (consent) {
+      loadClasses();
+      if (!isStudent) {
+        loadInstituteQueue();
+      }
+    }
+  }, [consent, loadClasses, loadInstituteQueue, isStudent]);
+
+  // B23: Ödev detayındayken gerçek zamanlı canlı teslim senkronizasyonu
+  useEffect(() => {
+    if (view.type !== 'assignment') return;
+    const { cls, assignment } = view;
+    const unsub = svc.subscribeSubmissions(cls.id, assignment.id, (list) => {
+      setSubmissions((prev) => ({ ...prev, [subKey(cls.id, assignment.id)]: list }));
+    });
+    return () => unsub();
+  }, [view]);
 
   const loadAssignments = async (classId: string) => {
     const list = await svc.listAssignments(classId);
@@ -272,6 +304,34 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
     }
   };
 
+  const handleSaveGrade = async (grade: number | null, feedback: string) => {
+    if (!reportCtx) return;
+    const { cls, assignment, submission } = reportCtx;
+    try {
+      await svc.gradeSubmission(cls.id, assignment.id, submission.studentId, {
+        grade,
+        feedback,
+        gradedBy: appUser.uid,
+      });
+      const updatedSub: Submission = {
+        ...submission,
+        grade: grade ?? undefined,
+        feedback,
+        gradedBy: appUser.uid,
+        gradedAt: new Date().toISOString(),
+      };
+      setReportCtx({ cls, assignment, submission: updatedSub });
+      const k = subKey(cls.id, assignment.id);
+      setSubmissions((prev) => ({
+        ...prev,
+        [k]: (prev[k] || []).map((s) => (s.id === updatedSub.id ? updatedSub : s)),
+      }));
+      toast.success('Not ve geri bildirim kaydedildi');
+    } catch (err: any) {
+      toast.error(err?.message || 'Değerlendirme kaydedilemedi');
+    }
+  };
+
   const handleSubmitDone = async (cls: ClassRoom, assignment: Assignment, s: Submission) => {
     setView({ type: 'class', cls, role: 'student' });
     try {
@@ -323,44 +383,70 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-emerald-500" /> Sınıflarım
+                <GraduationCap className={cn("w-5 h-5", isStudent ? "text-blue-400" : "text-emerald-500")} />
+                {isStudent ? 'Öğrenci Sınıf Portalı' : 'Akademik Sınıf & Jüri Yönetimi'}
               </h3>
-              <p className="text-xs text-gray-500 mt-1">Sınıf oluşturun ya da kod ile katılın; teslimler otomatik skorlanır.</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {isStudent
+                  ? 'Eğitmeninizin verdiği kod ile sınıflarınıza katılın ve ödevlerinizi yükleyin.'
+                  : 'Sınıf oluşturun, ödevleri yönetin ve Lisansüstü Enstitü onay havuzundaki çalışmaları denetleyin.'}
+              </p>
             </div>
-            <button
-              onClick={loadClasses}
-              className="p-2.5 bg-white/5 border border-white/5 rounded-xl text-gray-400 hover:text-white transition-all"
-              title="Yenile"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              {isStudent && (
+                <button
+                  onClick={() => setShowJoin(true)}
+                  className="px-4 py-2.5 bg-blue-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-400 transition-all shadow-lg shadow-blue-500/20"
+                >
+                  + Sınıfa Katıl
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  loadClasses();
+                  if (!isStudent) loadInstituteQueue();
+                }}
+                className="p-2.5 bg-white/5 border border-white/5 rounded-xl text-gray-400 hover:text-white transition-all"
+                title="Yenile"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex gap-2 p-1 bg-white/[0.03] border border-white/5 rounded-2xl w-fit">
-            {(
-              [
-                ['teaching', `Verdiğim Sınıflar (${data.teaching.length})`],
+          {!isStudent && (
+            <div className="flex gap-2 p-1 bg-white/[0.03] border border-white/5 rounded-2xl w-fit flex-wrap">
+              {[
+                ['teaching', `Sınıflarım / Klasörler (${data.teaching.length})`],
+                ['institute_queue', `Enstitü Onay Havuzu (${instituteQueue.length})`],
                 ['enrolled', `Katıldığım Sınıflar (${data.enrolled.length})`],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                className={cn(
-                  'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all',
-                  tab === key ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'text-gray-500 hover:text-gray-300'
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setTab(key as any);
+                    if (key === 'institute_queue') loadInstituteQueue();
+                  }}
+                  className={cn(
+                    'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all',
+                    tab === key
+                      ? key === 'institute_queue'
+                        ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                        : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                      : 'text-gray-500 hover:text-gray-300'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin" />
             </div>
-          ) : tab === 'teaching' ? (
+          ) : !isStudent && tab === 'teaching' ? (
             <InstructorClassesView
               classes={data.teaching}
               onCreate={() => { setEditingClass(null); setShowClassForm(true); }}
@@ -369,19 +455,29 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
               onArchiveToggle={handleArchiveToggle}
               onRegenerateKey={handleRegenerateKey}
             />
+          ) : !isStudent && tab === 'institute_queue' ? (
+            <InstituteQueueView
+              items={instituteQueue}
+              loading={queueLoading}
+              onRefresh={loadInstituteQueue}
+              onOpenReport={(item) => setReportCtx({ cls: item.cls, assignment: item.assignment, submission: item.submission })}
+              reviewerName={appUser.email?.split('@')[0] || 'Enstitü Yetkilisi'}
+            />
           ) : (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight">Katıldığım Sınıflar</h3>
-                  <p className="text-xs text-gray-500 mt-1">Eğitmeninizin verdiği kod ve anahtar ile katılın.</p>
+                  <h3 className="text-lg font-black text-white uppercase tracking-tight">Kayıtlı Sınıflarım</h3>
+                  <p className="text-xs text-gray-500 mt-1">Eğitmeninizin verdiği kod ve anahtar ile dahil olduğunuz sınıflar.</p>
                 </div>
-                <button
-                  onClick={() => setShowJoin(true)}
-                  className="px-4 py-2.5 bg-blue-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-400 transition-all"
-                >
-                  Sınıfa Katıl
-                </button>
+                {!isStudent && (
+                  <button
+                    onClick={() => setShowJoin(true)}
+                    className="px-4 py-2.5 bg-blue-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-400 transition-all"
+                  >
+                    Sınıfa Katıl
+                  </button>
+                )}
               </div>
               {data.enrolled.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 border border-dashed border-white/10 rounded-3xl">
@@ -492,6 +588,7 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
             onToggleExclude={handleToggleExclude}
             onRerun={() => handleRerun(reportCtx.cls, reportCtx.assignment, reportCtx.submission)}
             onClose={() => setReportCtx(null)}
+            onSaveGrade={handleSaveGrade}
           />
         )}
         {behalfCtx && (

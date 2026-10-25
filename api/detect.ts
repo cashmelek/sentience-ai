@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const apiKey = getApiKey();
   const client = new GoogleGenAI({ apiKey });
-  const selectedModel = modelName || "gemini-2.5-flash";
+  const selectedModel = modelName || "gemini-2.5-flash-lite";
   const sens = sensitivity || 50;
 
   const sensitivityDesc = sens > 70 ? "ÇOK HASSAS" : sens < 30 ? "HOŞGÖRÜLÜ" : "DENGELİ";
@@ -64,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const result = await client.models.generateContent({
       model: selectedModel,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { temperature: 0.1, responseMimeType: "application/json" }
+      config: { temperature: 0, responseMimeType: "application/json" }
     });
     return res.status(200).json(JSON.parse(result.text || "{}"));
   } catch (err: any) {

@@ -38,6 +38,7 @@ export function StudentSubmitView({
   const [mode, setMode] = useState<'text' | 'file'>('text');
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
+  const [noRepositoryOverride, setNoRepositoryOverride] = useState(Boolean(assignment.noRepository));
 
   const today = todayIso();
   const usedToday = appUser.submissionResetDate === today ? (appUser.submissionUsage || 0) : 0;
@@ -79,7 +80,12 @@ export function StudentSubmitView({
       if (mode === 'file' && file) {
         fileMeta = await uploadSubmissionFile(appUser.uid, cls.id, assignment.id, file);
       }
-      const submission = await submitText(appUser, cls.id, assignment.id, { title, text: text.trim(), file: fileMeta });
+      const submission = await submitText(appUser, cls.id, assignment.id, {
+        title,
+        text: text.trim(),
+        file: fileMeta,
+        noRepository: noRepositoryOverride
+      });
       setPhase('scoring');
       toast.success('Teslim alındı, skorlar hesaplanıyor...');
       try {
@@ -108,7 +114,7 @@ export function StudentSubmitView({
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">{cls.name}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">{cls.name} • {cls.instructorName || 'Akademisyen'}</p>
           <h3 className="text-xl font-black text-white uppercase tracking-tight truncate">{assignment.title}</h3>
           <p className="text-xs text-gray-500">Son teslim: <span className="text-amber-500 font-bold">{fmtDate(assignment.dueDate)}</span></p>
         </div>
@@ -214,6 +220,27 @@ export function StudentSubmitView({
             placeholder={mode === 'file' ? 'Dosya seçildiğinde çıkarılan metin burada görünür; düzenleyebilirsiniz...' : 'Ödev metninizi buraya yapıştırın...'}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 transition-all resize-y disabled:opacity-60 custom-scrollbar"
           />
+        </div>
+
+        <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+              <span>Ön Değerlendirme Modu (Havuza Kaydetme)</span>
+            </div>
+            <p className="text-[10px] text-gray-500">
+              İşaretlendiğinde metin kurum/sınıf havuzuna kaydedilmez; gelecekteki nihai tesliminizle öz-intihal çakışması oluşturmaz.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+            <input
+              type="checkbox"
+              checked={noRepositoryOverride}
+              onChange={e => setNoRepositoryOverride(e.target.checked)}
+              disabled={phase !== 'edit'}
+              className="w-4 h-4 rounded accent-blue-500 cursor-pointer"
+            />
+          </label>
         </div>
 
         <button

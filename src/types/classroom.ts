@@ -25,6 +25,10 @@ export interface Assignment {
   dueDate?: string;
   // D2: depo varsayılanı AÇIK; ödev başına kapatılabilir (KVKK aydınlatması 21.8'e bak)
   noRepository: boolean;
+  // D4: Öğrencinin benzerlik raporunu görüp göremeyeceği (varsayılan: true)
+  allowStudentViewReport?: boolean;
+  // D5: Süresi geçen ödevlere gecikmiş teslim izni (varsayılan: true)
+  allowLateSubmissions?: boolean;
   createdBy: string;
   createdAt: any;
 }
@@ -79,6 +83,19 @@ export interface Submission {
   scoredAt?: any;
   // B21 Faz 2: skorun üretildiği yer — sunucu-tarafı CF (asıl) veya istemci yedeği
   scoredBy?: 'server' | 'client';
+  // Eğitmen değerlendirmesi ve notlandırma
+  grade?: number;
+  feedback?: string;
+  gradedAt?: any;
+  gradedBy?: string;
+  // Gecikmiş teslim bilgisi
+  isLate?: boolean;
+  lateDurationMinutes?: number;
+  noRepository?: boolean;
+  forwardedToInstitute?: boolean;
+  forwardedToInstituteAt?: string;
+  instituteDecision?: 'pending' | 'approved' | 'revision_required' | 'rejected';
+  instituteNotes?: string;
 }
 
 export interface RepositoryEntry {

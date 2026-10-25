@@ -16,7 +16,8 @@
     "ml:test": "tsx src/ml/demo.ts",
     "generate:training": "tsx scripts/generate_training_data.ts",
     "fine:tune": "tsx scripts/tune_model.ts",
-    "export:local": "tsx scripts/export_local_training.ts"
+    "export:local": "tsx scripts/export_local_training.ts",
+    "deploy:netlify": "netlify deploy --prod --dir dist"
   },
   "dependencies": {
     "@firebase/vertexai-preview": "^0.0.4",
@@ -34,6 +35,7 @@
     "firebase": "^12.13.0",
     "framer-motion": "^12.38.0",
     "genkit": "^1.33.0",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.546.0",
     "mammoth": "^1.13.0",
     "motion": "^12.23.24",

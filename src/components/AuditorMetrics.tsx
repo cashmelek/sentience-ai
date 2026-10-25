@@ -21,12 +21,13 @@ export const ScoreCircle: React.FC<ScoreCircleProps> = ({
   inverse = false,
   type = 'ai'
 }) => {
-  const displayScore = inverse ? 1 - score : score;
+  const normalizedScore = score > 1 ? score / 100 : Math.max(0, score);
+  const displayScore = inverse ? Math.max(0, 1 - normalizedScore) : normalizedScore;
   const percentage = Math.round(displayScore * 100);
   const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - displayScore * circumference;
+  const offset = circumference - Math.min(1, Math.max(0, displayScore)) * circumference;
 
   const isHighRisk = type === 'ai' ? displayScore > 0.7 : displayScore < 0.5;
   const isSafe = type === 'ai' ? displayScore < 0.3 : displayScore > 0.85;
@@ -113,7 +114,9 @@ export const AuditMetricCard: React.FC<AuditMetricCardProps> = ({
   detail,
   trend,
   tooltip
-}) => (
+}) => {
+  const normalizedPct = percentage > 1 ? percentage / 100 : Math.max(0, percentage);
+  return (
   <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 hover:bg-white/[0.06] transition-all group relative">
     <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
       <Icon className={cn('w-12 h-12', color)} />
@@ -135,10 +138,10 @@ export const AuditMetricCard: React.FC<AuditMetricCardProps> = ({
         <div className="h-1 bg-white/5 rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
-            animate={{ width: `${Math.min(1, Math.max(0, percentage)) * 100}%` }}
+            animate={{ width: `${Math.min(1, Math.max(0, normalizedPct)) * 100}%` }}
             className={cn(
               'h-full shadow-[0_0_10px_rgba(255,255,255,0.1)] transition-all duration-1000',
-              percentage > 0.7 ? 'bg-red-500' : percentage > 0.3 ? 'bg-amber-500' : 'bg-emerald-500'
+              normalizedPct > 0.7 ? 'bg-red-500' : normalizedPct > 0.3 ? 'bg-amber-500' : 'bg-emerald-500'
             )}
           />
         </div>
@@ -160,6 +163,7 @@ export const AuditMetricCard: React.FC<AuditMetricCardProps> = ({
     </div>
   </div>
 );
+};
 
 interface MetricProgressProps {
   label: string;
@@ -173,7 +177,9 @@ export const MetricProgress: React.FC<MetricProgressProps> = ({
   value,
   percentage,
   icon: Icon
-}) => (
+}) => {
+  const normalized = percentage > 1 ? percentage / 100 : Math.max(0, Math.min(1, percentage));
+  return (
   <div className="space-y-1.5">
     <div className="flex justify-between items-center px-1">
       <div className="flex items-center gap-1.5">
@@ -185,9 +191,10 @@ export const MetricProgress: React.FC<MetricProgressProps> = ({
     <div className="h-1 bg-white/5 rounded-full overflow-hidden">
       <motion.div
         initial={{ width: 0 }}
-        animate={{ width: `${percentage * 100}%` }}
+        animate={{ width: `${normalized * 100}%` }}
         className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
       />
     </div>
   </div>
 );
+};

@@ -12,6 +12,8 @@ interface AssignmentFormProps {
     startDate: string;
     dueDate: string;
     noRepository: boolean;
+    allowStudentViewReport: boolean;
+    allowLateSubmissions: boolean;
   }) => void;
 }
 
@@ -21,11 +23,21 @@ export function AssignmentForm({ initial, onClose, onSubmit }: AssignmentFormPro
   const [startDate, setStartDate] = useState(initial?.startDate || '');
   const [dueDate, setDueDate] = useState(initial?.dueDate || '');
   const [noRepository, setNoRepository] = useState(initial?.noRepository ?? false);
+  const [allowStudentViewReport, setAllowStudentViewReport] = useState(initial?.allowStudentViewReport !== false);
+  const [allowLateSubmissions, setAllowLateSubmissions] = useState(initial?.allowLateSubmissions !== false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onSubmit({ title: title.trim(), instructions: instructions.trim(), startDate, dueDate, noRepository });
+    onSubmit({
+      title: title.trim(),
+      instructions: instructions.trim(),
+      startDate,
+      dueDate,
+      noRepository,
+      allowStudentViewReport,
+      allowLateSubmissions,
+    });
     onClose();
   };
 
@@ -82,6 +94,32 @@ export function AssignmentForm({ initial, onClose, onSubmit }: AssignmentFormPro
             <span className="text-sm text-gray-300">
               <span className="font-bold text-white block">Teslimleri depoya alma</span>
               İşaretliyse teslimler bu sınıfın karşılaştırma deposunda saklanmaz (öğrenci beyanı gerektiren durumlar için).
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 p-4 bg-white/[0.03] border border-white/5 rounded-2xl cursor-pointer hover:bg-white/[0.05] transition-all">
+            <input
+              type="checkbox"
+              checked={allowStudentViewReport}
+              onChange={(e) => setAllowStudentViewReport(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-emerald-500"
+            />
+            <span className="text-sm text-gray-300">
+              <span className="font-bold text-white block">Öğrenciler benzerlik raporunu görebilsin</span>
+              Açıkken öğrenciler teslim sonrası detaylı benzerlik ve YZ raporunu inceleyebilir; kapalıyken rapor yalnızca eğitmene görünür.
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 p-4 bg-white/[0.03] border border-white/5 rounded-2xl cursor-pointer hover:bg-white/[0.05] transition-all">
+            <input
+              type="checkbox"
+              checked={allowLateSubmissions}
+              onChange={(e) => setAllowLateSubmissions(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-emerald-500"
+            />
+            <span className="text-sm text-gray-300">
+              <span className="font-bold text-white block">Son teslimden sonra gecikmiş teslime izin ver</span>
+              Açıkken son teslim tarihi geçse dahi teslim alınır ve "Gecikmiş" olarak etiketlenir; kapalıyken süre dolunca teslimat engellenir.
             </span>
           </label>
 

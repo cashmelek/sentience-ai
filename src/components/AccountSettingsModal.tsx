@@ -12,13 +12,15 @@ import {
   Settings,
   Mail,
   Zap,
-  Info
+  Info,
+  Bell
 } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
 import { updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { deleteUser, signOut } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import { AppUser } from '../types';
+import { requestNotificationPermission, getNotificationPermission, isNotificationSupported } from '../utils/browserNotification';
 
 interface AccountSettingsModalProps {
   user: AppUser;
@@ -29,6 +31,21 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ user
   const [activeTab, setActiveTab] = useState<'profile' | 'subscription' | 'danger'>('profile');
   const [isProcessing, setIsProcessing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState('');
+  const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
+
+  const handleToggleNotification = async () => {
+    if (!isNotificationSupported()) {
+      toast.error('Tarayıcınız bildirim özelliğini desteklemiyor.');
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    setNotifPermission(granted ? 'granted' : 'denied');
+    if (granted) {
+      toast.success('Tarayıcı bildirimleri etkinleştirildi.');
+    } else {
+      toast.error('Bildirim izni verilmedi veya engellendi.');
+    }
+  };
 
   const handleCancelSubscription = async () => {
     if (user.plan === 'free') return;
@@ -175,6 +192,28 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ user
                       <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-0.5">Mevcut Plan</div>
                       <div className="text-white font-bold uppercase tracking-tighter">{user.plan} Planı</div>
                     </div>
+                  </div>
+
+                  <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                        <Bell className="w-6 h-6 text-purple-400" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-0.5">Masaüstü Bildirimleri</div>
+                        <div className="text-white text-xs font-semibold">
+                          {notifPermission === 'granted' ? 'Etkin (Arka planda analiz bitince uyarır)' : notifPermission === 'denied' ? 'Engellendi' : 'İzin Verilmedi'}
+                        </div>
+                      </div>
+                    </div>
+                    {notifPermission !== 'granted' && (
+                      <button
+                        onClick={handleToggleNotification}
+                        className="px-3.5 py-1.5 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 rounded-xl text-purple-300 text-xs font-bold transition-colors"
+                      >
+                        İzin Ver
+                      </button>
+                    )}
                   </div>
                 </div>
 

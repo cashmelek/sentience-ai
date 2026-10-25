@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { RefreshCw, FileDown, Printer, Download, Copy, Layers } from 'lucide-react';
+import { RefreshCw, FileDown, Printer, Download, Copy, Layers, Eye } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { DiffView } from '../DiffView';
 import { HeatmapText } from '../HeatmapView';
@@ -27,6 +27,7 @@ interface ResultPanelProps {
   onExportDocx: () => void;
   onExportPdf: () => void;
   onExportTxt: () => void;
+  onExportPreview?: () => void;
   onCopy: () => void;
 }
 
@@ -44,6 +45,7 @@ export function ResultPanel(props: ResultPanelProps) {
     onExportDocx,
     onExportPdf,
     onExportTxt,
+    onExportPreview,
     onCopy
   } = props;
 
@@ -70,6 +72,11 @@ export function ResultPanel(props: ResultPanelProps) {
           )}
         </div>
         <div className="flex items-center gap-1">
+          {onExportPreview && (
+            <button onClick={onExportPreview} disabled={!humanizedText} title="Dışa Aktarım Önizleme" className="p-1.5 text-gray-500 hover:text-emerald-500 disabled:opacity-30 disabled:hover:text-gray-500 transition-colors">
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button onClick={onExportDocx} disabled={!humanizedText} title="Word (.docx) İndir" className="p-1.5 text-gray-500 hover:text-emerald-500 disabled:opacity-30 disabled:hover:text-gray-500 transition-colors"><FileDown className="w-3.5 h-3.5" /></button>
           <button onClick={onExportPdf} disabled={!humanizedText} title="PDF Olarak Yazdır / Kaydet" className="p-1.5 text-gray-500 hover:text-emerald-500 disabled:opacity-30 disabled:hover:text-gray-500 transition-colors"><Printer className="w-3.5 h-3.5" /></button>
           <button onClick={onExportTxt} disabled={!humanizedText} title="Düz Metin (.txt) İndir" className="p-1.5 text-gray-500 hover:text-emerald-500 disabled:opacity-30 disabled:hover:text-gray-500 transition-colors"><Download className="w-3.5 h-3.5" /></button>

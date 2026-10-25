@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Plus,
   Trash2,
@@ -10,6 +11,9 @@ import {
   ExternalLink,
   Database,
   GraduationCap,
+  Sparkles,
+  RefreshCw,
+  Users,
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
@@ -35,6 +39,7 @@ export interface ProjectSidebarProps {
   onOpenClassroom: () => void;
   onDownloadTrainingData: () => void;
   onOpenAccountSettings: () => void;
+  onSeedDemoProjects?: () => Promise<void>;
   // B22: kapılı özelliklerin bu kullanıcı için görünürlüğü (admin/yetki verilmiş/Global açık)
   featureVisibility: { promoSite: boolean; classroom: boolean; trainingData: boolean };
 }
@@ -57,8 +62,10 @@ export function ProjectSidebar({
   onOpenClassroom,
   onDownloadTrainingData,
   onOpenAccountSettings,
+  onSeedDemoProjects,
   featureVisibility,
 }: ProjectSidebarProps) {
+  const [isSeeding, setIsSeeding] = useState(false);
   const drafts = projects.filter((p) => p.isDraft);
   const historyItems = projects.filter((p) => !p.isDraft);
   const list = sidebarTab === 'history' ? historyItems : drafts;
@@ -111,6 +118,31 @@ export function ProjectSidebar({
         </button>
       </div>
 
+      <div className="px-4 py-2 border-b border-brand-border/40 flex items-center justify-between bg-black/5">
+        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+          {sidebarTab === 'history' ? `Kayıtlı (${historyItems.length})` : `Taslak (${drafts.length})`}
+        </span>
+        {isAdmin && onSeedDemoProjects && (
+          <button
+            onClick={async () => {
+              if (!window.confirm("Mevcut taslaklar temizlenip yerine 4 farklı anlatımda gerçekçi test projeleri yüklensin mi?")) return;
+              setIsSeeding(true);
+              try {
+                await onSeedDemoProjects();
+              } finally {
+                setIsSeeding(false);
+              }
+            }}
+            disabled={isSeeding}
+            className="text-[9px] font-black uppercase text-emerald-400 hover:text-emerald-300 flex items-center gap-1 hover:underline transition-all disabled:opacity-50"
+            title="Eski taslakları temizle ve örnek projeleri yükle"
+          >
+            {isSeeding ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+            {isSeeding ? 'Yükleniyor...' : 'Örnekleri Sıfırla & Yükle'}
+          </button>
+        )}
+      </div>
+
       <div className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
         {list.map((p) => (
           <div
@@ -120,7 +152,12 @@ export function ProjectSidebar({
           >
             <div className="flex items-center gap-3">
               <FileText className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-400 truncate w-32">{p.title}</span>
+              <span className="text-sm text-gray-400 truncate w-28">{p.title}</span>
+              {p.isShared && (
+                <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[8px] font-mono" title="Paylaşılan Proje">
+                  <Users className="w-2.5 h-2.5" /> Ortak
+                </span>
+              )}
             </div>
             <button
               onClick={(e) => {
@@ -143,43 +180,51 @@ export function ProjectSidebar({
         )}
       </div>
 
-      <div className="p-4 border-t border-brand-border space-y-3 bg-black/20">
-        {featureVisibility.promoSite && (
-          <a
-            href="/?preview=landing"
-            target="_blank"
-            rel="noreferrer"
-            className="w-full py-2 bg-white/[0.03] hover:bg-white/[0.06] text-gray-400 hover:text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 border border-white/5"
-          >
-            <ExternalLink className="w-3 h-3 text-emerald-400" /> Tanıtım Sitesini Görüntüle
-          </a>
-        )}
-        {featureVisibility.classroom && (
-          <button
-            onClick={onOpenClassroom}
-            className="w-full py-2.5 bg-sky-500/10 text-sky-400 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-sky-500/20 transition-all flex items-center justify-center gap-2"
-          >
-            <GraduationCap className="w-3.5 h-3.5" /> Sınıflarım
-          </button>
-        )}
-        {isAdmin && (
-          <>
+      <div className="p-4 border-t border-brand-border space-y-2 bg-black/20">
+        <div className="grid grid-cols-2 gap-2">
+          {featureVisibility.promoSite && (
+            <a
+              href="/?preview=landing"
+              target="_blank"
+              rel="noreferrer"
+              className="py-2 px-2.5 bg-white/[0.03] hover:bg-white/[0.06] text-gray-400 hover:text-white rounded-xl text-[10px] font-bold tracking-tight transition-all flex items-center justify-center gap-1.5 border border-white/5 truncate"
+              title="Tanıtım Sitesini Görüntüle"
+            >
+              <ExternalLink className="w-3 h-3 text-emerald-400 shrink-0" />
+              <span className="truncate">Tanıtım</span>
+            </a>
+          )}
+          {featureVisibility.classroom && (
+            <button
+              onClick={onOpenClassroom}
+              className="py-2 px-2.5 bg-sky-500/10 text-sky-400 rounded-xl text-[10px] font-bold tracking-tight hover:bg-sky-500/20 transition-all flex items-center justify-center gap-1.5 border border-sky-500/20 truncate"
+              title="Sınıflarım"
+            >
+              <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Sınıflarım</span>
+            </button>
+          )}
+          {isAdmin && (
             <button
               onClick={onOpenAdmin}
-              className="w-full py-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+              className="py-2 px-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl text-[10px] font-bold tracking-tight hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-1.5 border border-emerald-500/20 truncate"
+              title="Admin Paneli"
             >
-              Admin Paneli
+              <Settings2 className="w-3 h-3 shrink-0" />
+              <span className="truncate">Yönetim</span>
             </button>
-          </>
-        )}
-        {featureVisibility.trainingData && (
-          <button
-            onClick={onDownloadTrainingData}
-            className="w-full py-2.5 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-500/20 transition-all flex items-center justify-center gap-2"
-          >
-            <Database className="w-3 h-3" /> Veri İndir (JSONL)
-          </button>
-        )}
+          )}
+          {featureVisibility.trainingData && (
+            <button
+              onClick={onDownloadTrainingData}
+              className="py-2 px-2.5 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-bold tracking-tight hover:bg-blue-500/20 transition-all flex items-center justify-center gap-1.5 border border-blue-500/20 truncate"
+              title="Eğitim Verisi İndir"
+            >
+              <Database className="w-3 h-3 shrink-0" />
+              <span className="truncate">Veri İndir</span>
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-3 p-3 bg-white/[0.02] rounded-2xl border border-white/5 overflow-hidden">
           <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 flex-shrink-0">
             <UserIcon className="w-4 h-4 text-emerald-500" />

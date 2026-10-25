@@ -11,6 +11,12 @@ if (typeof (window as any).process === 'undefined') {
 
 console.log("%c SENTIENCE AI ", "background: #10b981; color: #000; font-weight: bold; padding: 2px 4px; border-radius: 4px;", "v1.0.5 - Gemini 3.5 Ready");
 
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

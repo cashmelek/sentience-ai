@@ -20,6 +20,13 @@ const CustomToneModal = lazy(() => import('./components/CustomToneModal').then(m
 const GuideModal = lazy(() => import('./components/GuideModal').then(m => ({ default: m.GuideModal })));
 const AccountSettingsModal = lazy(() => import('./components/AccountSettingsModal').then(m => ({ default: m.AccountSettingsModal })));
 const ClassroomPanel = lazy(() => import('./components/classroom/ClassroomPanel').then(m => ({ default: m.ClassroomPanel })));
+const ExportPreviewModal = lazy(() => import('./components/ExportPreviewModal').then(m => ({ default: m.ExportPreviewModal })));
+const BlogIndexView = lazy(() => import('./components/BlogIndexView').then(m => ({ default: m.BlogIndexView })));
+const BlogArticleView = lazy(() => import('./components/BlogArticleView').then(m => ({ default: m.BlogArticleView })));
+const UserGuideView = lazy(() => import('./components/UserGuideView').then(m => ({ default: m.UserGuideView })));
+import { BLOG_POSTS } from './data/blogPosts';
+import { blogService } from './services/blogService';
+import { BlogPost } from './types/blog';
 import toast, { Toaster } from 'react-hot-toast';
 // Sınıf bileşenleri `sonner` toast kullanıyor; onun <Toaster/>'ı mount edilmezse hata/başarı
 // bildirimleri sessizce kaybolur (Bölüm 34 — "Sınıflarım" hatasının görünmezlik nedeni).
@@ -29,9 +36,10 @@ import { LandingPage } from './components/LandingPage';
 import { LoginView } from './components/LoginView';
 import { EditorPanel } from './components/editor/EditorPanel';
 import { ResultPanel } from './components/result/ResultPanel';
-import { AuditorSidebar } from './components/auditor/AuditorSidebar';
+import { AuditorSidebar, SentinelFilter } from './components/auditor/AuditorSidebar';
 import { PresetSelector } from './components/PresetSelector';
 import { buildBibliography } from './services/citationService';
+import { resetAndSeedDemoProjects } from './services/demoProjectsService';
 import { exportToDocx, exportToPDF, exportToTxt, downloadTrainingData } from './lib/exporters';
 import { PLAN_LIMITS, CitationStyle, CombinedAnalysisResult, AuditorResult } from './types';
 import { useAppUser } from './hooks/useAppUser';
@@ -49,12 +57,42 @@ export default function App() {
 
   // UI State
   const [view, setView] = useState<'landing' | 'login'>('landing');
+  const [currentPath, setCurrentPath] = useState(() =>
+    typeof window !== 'undefined' ? window.location.pathname : '/'
+  );
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigate = (path: string) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const [activeArticlePost, setActiveArticlePost] = useState<BlogPost | null>(null);
+
+  useEffect(() => {
+    if (currentPath.startsWith('/blog/')) {
+      const slug = currentPath.replace('/blog/', '').replace(/\/$/, '');
+      blogService.fetchPostBySlug(slug).then((post) => {
+        if (post) setActiveArticlePost(post);
+      });
+    } else {
+      setActiveArticlePost(null);
+    }
+  }, [currentPath]);
   const [activeTab, setActiveTab] = useState<MainTab>('editor');
   const [sidebarTab, setSidebarTab] = useState<'history' | 'drafts'>('history');
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [showCustomToneModal, setShowCustomToneModal] = useState(false);
   const [showAccountSettingsModal, setShowAccountSettingsModal] = useState(false);
+  const [showExportPreviewModal, setShowExportPreviewModal] = useState(false);
   const [isToneDropdownOpen, setIsToneDropdownOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -91,7 +129,7 @@ export default function App() {
   const [hoveredInsight, setHoveredInsight] = useState<string | null>(null);
   const [hoveredSourceUrl, setHoveredSourceUrl] = useState<string | null>(null);
   const [factCheckResult, setFactCheckResult] = useState<FactCheckReport | null>(null);
-  const [sentinelFilter, setSentinelFilter] = useState<'all' | 'not_cited_or_quoted' | 'missing_quotations' | 'missing_citation' | 'cited_and_quoted' | 'exclude_minor' | 'exclude_bibliography'>('all');
+  const [sentinelFilter, setSentinelFilter] = useState<SentinelFilter>('all');
 
   const { appUser, setAppUser, isAdmin } = useAppUser(user);
   const { systemSettings, localAuditorSensitivity, handleSensitivityChange } = useSystemSettings(!!isAdmin);
@@ -253,10 +291,73 @@ export default function App() {
     );
   }
 
+  if (currentPath === '/blog' || currentPath === '/blog/') {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-mesh flex items-center justify-center text-emerald-400 font-bold">Yükleniyor...</div>}>
+        <BlogIndexView
+          onSelectPost={(post) => navigate(`/blog/${post.slug}`)}
+          onGoHome={() => navigate('/')}
+          onLogin={() => {
+            navigate('/');
+            setView('login');
+          }}
+          onGetStarted={() => {
+            navigate('/');
+            setView('login');
+          }}
+        />
+      </Suspense>
+    );
+  }
+
+  if (currentPath.startsWith('/blog/')) {
+    const slug = currentPath.replace('/blog/', '').replace(/\/$/, '');
+    const matchedPost =
+      activeArticlePost && activeArticlePost.slug === slug
+        ? activeArticlePost
+        : BLOG_POSTS.find((p) => p.slug === slug);
+    if (matchedPost) {
+      return (
+        <Suspense fallback={<div className="min-h-screen bg-mesh flex items-center justify-center text-emerald-400 font-bold">Yükleniyor...</div>}>
+          <BlogArticleView
+            post={matchedPost}
+            onBack={() => navigate('/blog')}
+            onGoHome={() => navigate('/')}
+            onSelectPost={(p) => navigate(`/blog/${p.slug}`)}
+            allPosts={BLOG_POSTS}
+            onGetStarted={() => {
+              navigate('/');
+              setView('login');
+            }}
+            onLogin={() => {
+              navigate('/');
+              setView('login');
+            }}
+          />
+        </Suspense>
+      );
+    }
+  }
+
+  if (currentPath === '/guide' || currentPath === '/guide/' || currentPath === '/rehber' || currentPath === '/rehber/') {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-mesh flex items-center justify-center text-emerald-400 font-bold">Yükleniyor...</div>}>
+        <UserGuideView
+          onBack={() => navigate('/')}
+          onNavigateAuth={() => {
+            navigate('/');
+            setView('login');
+          }}
+        />
+      </Suspense>
+    );
+  }
+
   const isLandingPreview = typeof window !== 'undefined' && window.location.search.includes('preview=landing');
 
   if ((!user || isLandingPreview) && view === 'landing') return (
     <LandingPage
+      showBlog={systemSettings.showBlogOnLanding !== false}
       onGetStarted={(text) => {
         if (text) setInputText(text);
         if (isLandingPreview && user) {
@@ -272,6 +373,7 @@ export default function App() {
           setView('login');
         }
       }}
+      onNavigate={navigate}
     />
   );
 
@@ -324,6 +426,16 @@ export default function App() {
         featureVisibility={featureVisibility}
         onDownloadTrainingData={() => downloadTrainingData({ permitted: canUseFeature('trainingData'), onDone: () => fetchProjects() })}
         onOpenAccountSettings={() => setShowAccountSettingsModal(true)}
+        onSeedDemoProjects={isAdmin ? async () => {
+          if (!user) return;
+          try {
+            await resetAndSeedDemoProjects(user.uid);
+            await fetchProjects(20);
+            toast.success("Eski taslaklar silindi ve 4 farklı anlatımda test projesi yüklendi.");
+          } catch (e: any) {
+            toast.error("İşlem başarısız: " + e.message);
+          }
+        } : undefined}
       />
 
       <main className="flex-1 flex flex-col relative overflow-hidden h-full">
@@ -358,29 +470,49 @@ export default function App() {
               inputText={inputText}
               isAdmin={!!isAdmin}
               isOverLimit={isOverLimit}
+              userPlan={appUser?.plan}
             />
 
-            {/* Mobile Navigation Tabs */}
-            <div className="lg:hidden flex items-center bg-black/40 border-b border-brand-border px-3 py-2 gap-1.5 shrink-0 z-30">
+            {/* Mobile Navigation Tabs (Segmented Switcher) */}
+            <div className="lg:hidden flex items-center bg-black/60 backdrop-blur-md border-b border-brand-border px-3 py-2 gap-2 shrink-0 z-30">
               <button
                 onClick={() => setMobileTab('editor')}
-                className={cn("flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all", mobileTab === 'editor' ? "bg-emerald-500 text-black shadow-lg" : "text-gray-400 hover:text-white bg-white/5")}
+                className={cn(
+                  "flex-1 py-2 px-2 text-center rounded-xl text-xs font-bold uppercase tracking-wider transition-all min-h-[42px] flex items-center justify-center gap-1.5 active:scale-95 touch-manipulation cursor-pointer",
+                  mobileTab === 'editor'
+                    ? "bg-emerald-500 text-black shadow-md shadow-emerald-500/20 font-black"
+                    : "text-gray-400 hover:text-white bg-white/5 border border-white/5"
+                )}
               >
-                Giriş
+                <span>📝 Giriş</span>
               </button>
               <button
                 onClick={() => setMobileTab('result')}
-                className={cn("flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all relative", mobileTab === 'result' ? "bg-emerald-500 text-black shadow-lg" : "text-gray-400 hover:text-white bg-white/5")}
+                className={cn(
+                  "flex-1 py-2 px-2 text-center rounded-xl text-xs font-bold uppercase tracking-wider transition-all min-h-[42px] flex items-center justify-center gap-1.5 relative active:scale-95 touch-manipulation cursor-pointer",
+                  mobileTab === 'result'
+                    ? "bg-emerald-500 text-black shadow-md shadow-emerald-500/20 font-black"
+                    : "text-gray-400 hover:text-white bg-white/5 border border-white/5"
+                )}
               >
-                Sonuç
-                {humanizedText && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 ml-1.5 align-middle" />}
+                <span>✨ Sonuç</span>
+                {humanizedText && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+                )}
               </button>
               <button
                 onClick={() => setMobileTab('analysis')}
-                className={cn("flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all relative", mobileTab === 'analysis' ? "bg-emerald-500 text-black shadow-lg" : "text-gray-400 hover:text-white bg-white/5")}
+                className={cn(
+                  "flex-1 py-2 px-2 text-center rounded-xl text-xs font-bold uppercase tracking-wider transition-all min-h-[42px] flex items-center justify-center gap-1.5 relative active:scale-95 touch-manipulation cursor-pointer",
+                  mobileTab === 'analysis'
+                    ? "bg-emerald-500 text-black shadow-md shadow-emerald-500/20 font-black"
+                    : "text-gray-400 hover:text-white bg-white/5 border border-white/5"
+                )}
               >
-                Denetçi Raporu
-                {auditorResult && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 ml-1.5 align-middle" />}
+                <span>🛡️ Denetçi</span>
+                {auditorResult && (
+                  <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse ml-0.5" />
+                )}
               </button>
             </div>
 
@@ -420,6 +552,7 @@ export default function App() {
                   remainingChars={remainingChars}
                   currentLimit={currentLimit}
                   currentUsage={currentUsage}
+                  onClearText={() => setInputText('')}
                 />
 
                 <ResultPanel
@@ -435,6 +568,7 @@ export default function App() {
                   onExportDocx={() => exportToDocx(exportCtx)}
                   onExportPdf={() => exportToPDF(exportCtx)}
                   onExportTxt={() => exportToTxt(humanizedText)}
+                  onExportPreview={() => setShowExportPreviewModal(true)}
                   onCopy={() => copyToClipboard(humanizedText)}
                 />
               </div>
@@ -468,6 +602,10 @@ export default function App() {
                 onCopyCitations={handleCopyCitations}
                 onRemovePlagiarism={handleHumanize}
                 canHumanize={!isProcessing && !!inputText.trim() && (!!isAdmin || !isOverLimit)}
+                onApplySanitizedText={(clean) => {
+                  setInputText(clean);
+                  toast.success('Metin harf ikamelerinden ve gizli manipülasyonlardan arındırıldı.');
+                }}
               />
             </div>
           </>
@@ -479,6 +617,18 @@ export default function App() {
         {showGuideModal && (<Suspense fallback={null}><GuideModal onClose={() => setShowGuideModal(false)} /></Suspense>)}
         {showCustomToneModal && (<Suspense fallback={null}><CustomToneModal onClose={() => setShowCustomToneModal(false)} onApply={(name, description) => { setOptions({ ...options, tone: name || 'Özel', customToneName: name, customToneDescription: description }); setShowCustomToneModal(false); }} /></Suspense>)}
         {showAccountSettingsModal && (<Suspense fallback={null}><AccountSettingsModal user={appUser || { uid: '', email: user?.email || '', role: 'user', plan: 'free', dailyUsage: 0, lastResetDate: '', createdAt: new Date().toISOString() } as any} onClose={() => setShowAccountSettingsModal(false)} /></Suspense>)}
+        {showExportPreviewModal && (
+          <Suspense fallback={null}>
+            <ExportPreviewModal
+              isOpen={showExportPreviewModal}
+              onClose={() => setShowExportPreviewModal(false)}
+              ctx={exportCtx}
+              onExportDocx={() => exportToDocx(exportCtx)}
+              onExportPdf={() => exportToPDF(exportCtx)}
+              onExportTxt={() => exportToTxt(humanizedText)}
+            />
+          </Suspense>
+        )}
       </AnimatePresence>
     </div>
   );

@@ -29,6 +29,10 @@ export interface AppUser {
   kvkkAcceptedAt?: string;
   // B22: admin tarafından tanınan özellik erişimleri (kullanıcı kendi yazamaz — firestore.rules)
   featureGrants?: FeatureGrants;
+  academicProfile?: 'academic' | 'student' | 'professional';
+  institution?: string | null;
+  institutionDomain?: string | null;
+  companyName?: string | null;
 }
 
 export const PLAN_LIMITS: Record<SubscriptionPlan, { dailyRequests: number; promoRequests: number; promoDays: number; dailyChars: number; promoChars: number }> = {
@@ -103,8 +107,25 @@ export interface SystemSettings {
   sentinelUseDynamicSimilarity: boolean;
   sentinelTrustFilter: boolean;
   sentinelRegionFilter: boolean;
+  // Akademik Protokol Eşikleri & Çapraz Doğrulama
+  sentinelMaxPlagiarismRate?: number;
+  sentinelPerSourceLimit?: number;
+  sentinelAcademicCrossCheck?: {
+    crossref: boolean;
+    semanticScholar: boolean;
+    pubmed: boolean;
+    core: boolean;
+  };
   // B22: özelliklerin herkese açık olup olmadığı (false = yalnız admin + yetki verilen kullanıcılar)
   featureAccess?: Record<GatedFeature, boolean>;
+  showBlogOnLanding?: boolean;
+  // Model & Yapay Zeka Motoru Parametreleri
+  modelTemperature?: number;
+  modelTopP?: number;
+  fallbackToCloudOnFailure?: boolean;
+  // Embedding & Semantik Doğrulama
+  embeddingProvider?: 'cloud' | 'local' | 'browser';
+  embeddingThreshold?: number;
 }
 
 export interface Project {
@@ -126,4 +147,7 @@ export interface Project {
   auditorResult?: any;
   mlAnalysis?: any;
   analysis?: any;
+  collaborators?: string[];
+  isShared?: boolean;
+  sharedBy?: string;
 }

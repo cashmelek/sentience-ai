@@ -69,26 +69,46 @@ export function StudentClassView({
                   </div>
 
                   {mine ? (
+                    <>
                     <div className="flex items-center gap-4 flex-wrap">
                       <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-500">
                         <FileCheck2 className="w-3.5 h-3.5" /> Teslim Edildi
                       </span>
                       {mine.status === 'scored' ? (
                         <>
-                          <span className={`text-xs font-black ${scoreColor(mine.similarityScore)}`}>Benzerlik: {pct(mine.similarityScore)}</span>
-                          <span className={`text-xs font-black ${scoreColor(mine.aiScore)}`}>YZ: {pct(mine.aiScore)}</span>
+                          {typeof mine.grade === 'number' && (
+                            <span className="text-xs font-black font-mono text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg">
+                              Not: {mine.grade}
+                            </span>
+                          )}
+                          {a.allowStudentViewReport !== false ? (
+                            <>
+                              <span className={`text-xs font-black ${scoreColor(mine.similarityScore)}`}>Benzerlik: {pct(mine.similarityScore)}</span>
+                              <span className={`text-xs font-black ${scoreColor(mine.aiScore)}`}>YZ: {pct(mine.aiScore)}</span>
+                            </>
+                          ) : (
+                            <span className="text-[10px] font-bold text-gray-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg">
+                              Rapor Eğitmene Özel
+                            </span>
+                          )}
                         </>
                       ) : (
                         <span className="text-[10px] text-gray-500 uppercase font-black">{mine.status === 'failed' ? 'Skorlama hatası' : 'Skorlanıyor...'}</span>
                       )}
+                      {mine.isLate && (
+                        <span className="text-[9px] font-black uppercase tracking-wider text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded">
+                          Gecikmeli
+                        </span>
+                      )}
                       <span className="text-[10px] text-gray-600">{fmtDateTime(mine.createdAt)}</span>
                       <div className="flex-1" />
                       <button
-                        onClick={() => mine.status === 'scored' && onViewReport(a, mine)}
-                        disabled={mine.status !== 'scored'}
-                        className="px-4 py-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all disabled:opacity-40"
+                        onClick={() => mine.status === 'scored' && a.allowStudentViewReport !== false && onViewReport(a, mine)}
+                        disabled={mine.status !== 'scored' || a.allowStudentViewReport === false}
+                        title={a.allowStudentViewReport === false ? 'Bu ödevde benzerlik raporu eğitmen tarafından öğrencilere kapatılmıştır' : 'Raporu Gör'}
+                        className="px-4 py-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        Raporu Gör
+                        {a.allowStudentViewReport === false ? 'Rapor Gizli' : 'Raporu Gör'}
                       </button>
                       <button
                         onClick={() => onSubmit(a)}
@@ -97,16 +117,30 @@ export function StudentClassView({
                         Yeniden Teslim Et
                       </button>
                     </div>
+
+                    {mine.feedback && (
+                      <div className="w-full text-xs text-gray-300 bg-emerald-500/[0.04] border border-emerald-500/15 rounded-2xl p-3.5 mt-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 block mb-1">
+                          Eğitmen Değerlendirmesi &amp; Geri Bildirim:
+                        </span>
+                        <p className="whitespace-pre-wrap text-gray-300 font-medium leading-relaxed">{mine.feedback}</p>
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => onSubmit(a)}
-                        disabled={overdue}
+                        disabled={overdue && a.allowLateSubmissions === false}
                         className="flex items-center gap-2 px-5 py-2.5 bg-blue-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        <UploadCloud className="w-4 h-4" /> Teslim Et
+                        <UploadCloud className="w-4 h-4" /> {overdue && a.allowLateSubmissions !== false ? 'Gecikmeli Teslim Et' : 'Teslim Et'}
                       </button>
-                      {overdue && <span className="text-[10px] text-gray-600 font-bold">Teslim süresi geçmiş.</span>}
+                      {overdue && (
+                        <span className="text-[10px] text-gray-500 font-bold">
+                          {a.allowLateSubmissions === false ? 'Son teslim tarihi doldu, teslim kabul edilmiyor.' : 'Son teslim geçti (gecikmeli teslim aktif).'}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

@@ -2,7 +2,9 @@ import { apiKeyManager } from './apiKeyManager';
 import { db, auth } from '../lib/firebase';
 import { doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getGeminiClient, validateModelName, handleApiKeyError } from './geminiService';
-import { semanticSearch } from './vectorService';
+import { semanticSearch, generateEmbedding } from './vectorService';
+import { vectorEngine } from './vectorEngine';
+import { AcademicSearchService } from './academicSearchService';
 
 export type MatchGroup =
   | 'not_cited_or_quoted'
@@ -34,11 +36,20 @@ export interface PlagiarismSource {
   trust?: SourceTrust;
   similarity?: number;
   matchedSnippet?: string;
+  semanticScore?: number;
+}
+
+export interface AcademicCompliance {
+  isCompliant: boolean;
+  maxPlagiarismRate: number;
+  perSourceLimit: number;
+  violations: string[];
 }
 
 export interface PlagiarismReport {
   similarityScore: number;
   sources: PlagiarismSource[];
+  academicCompliance?: AcademicCompliance;
 }
 
 // B22: Taramanın gerçek durumu — 'ok' dışında kaynak/skor verisi yoktur ve UI bunu kullanıcıya söylemek zorundadır
@@ -263,17 +274,16 @@ const calculateDynamicSimilarity = (originalText: string, snippet: string): numb
   const originalLower = originalText.toLowerCase();
   const snippetLower = snippet.toLowerCase();
   
-  // Tam eşleşme kontrolü
   if (originalLower.includes(snippetLower)) {
     return 1.0;
   }
   
-  // Kelime bazlı benzerlik
-  const originalWords = originalLower.split(/\s+/);
-  const snippetWords = snippetLower.split(/\s+/);
-  const intersection = snippetWords.filter(w => originalWords.includes(w));
+  const STOPWORDS = new Set(['ve', 'veya', 'ile', 'için', 'bir', 'her', 'bu', 'şu', 'o', 'da', 'de', 'ise', 'gibi', 'kadar', 'en', 'daha', 'çok', 'ama', 'fakat', 'ancak', 'zira', 'çünkü', 'dolayısıyla', 'olarak']);
+  const originalWords = originalLower.split(/\s+/).filter(w => !STOPWORDS.has(w) && w.length > 2);
+  const snippetWords = snippetLower.split(/\s+/).filter(w => !STOPWORDS.has(w) && w.length > 2);
   
   if (snippetWords.length === 0) return 0;
+  const intersection = snippetWords.filter(w => originalWords.includes(w));
   return intersection.length / snippetWords.length;
 };
 
@@ -290,6 +300,16 @@ export const verifyPlagiarism = async (
     useDynamicSimilarity?: boolean;
     trustFilter?: boolean;
     regionFilter?: boolean;
+    maxPlagiarismRate?: number;
+    perSourceLimit?: number;
+    academicCrossCheck?: {
+      crossref?: boolean;
+      semanticScholar?: boolean;
+      pubmed?: boolean;
+      core?: boolean;
+    };
+    embeddingProvider?: 'cloud' | 'local' | 'browser';
+    embeddingThreshold?: number;
     userId?: string;
   }
 ): Promise<PlagiarismReport & PlagiarismScanMeta & { matchedPhrases: { text: string, source: string, score: number }[] }> => {
@@ -297,25 +317,16 @@ export const verifyPlagiarism = async (
   if (!isNetworkAvailable()) return { similarityScore: 0, sources: [], matchedPhrases: [], scanStatus: 'offline', queriesRun: 0, queriesFailed: 0 };
   const startTime = Date.now();
 
-  // B22: yapılandırma eksikse sessizce "%0 intihal" yerine değil, net durum döndür
-  if (!apiKeyManager.getSearchKey() || !import.meta.env.VITE_GOOGLE_SEARCH_ENGINE_ID) {
-    await logSentinelEvent('error', 0, 'Google Search yapılandırılmamış (API key / Engine ID eksik) — tarama yapılmadı.');
-    await updateSentinelStatus('error', 'Search API yapılandırılmamış');
-    return { similarityScore: 0, sources: [], matchedPhrases: [], scanStatus: 'not_configured', queriesRun: 0, queriesFailed: 0 };
-  }
-  
-  // Admin ayarları veya varsayılan değerler
   const searchPhrasesCount = customSettings?.searchPhrasesCount || 10;
   const minWordCount = customSettings?.minWordCount || 8;
-  const useDynamicSimilarity = customSettings?.useDynamicSimilarity !== false; // varsayılan true
-  const trustFilter = customSettings?.trustFilter !== false; // varsayılan true
-  const regionFilter = customSettings?.regionFilter !== false; // varsayılan true
-  
+  const useDynamicSimilarity = customSettings?.useDynamicSimilarity !== false;
+  const trustFilter = customSettings?.trustFilter !== false;
+  const regionFilter = customSettings?.regionFilter !== false;
+
   const sentences = chunkText(text).slice(0, searchPhrasesCount);
   const allSources: PlagiarismSource[] = [];
   const allMatchedPhrases: { text: string, source: string, score: number }[] = [];
 
-  // B22: sorgu sayaçları — kaç gerçek arama yapıldı, kaçı başarısız
   let queriesRun = 0;
   let queriesFailed = 0;
   let quotaHit = false;
@@ -324,10 +335,8 @@ export const verifyPlagiarism = async (
     const words = sentence.trim().split(/\s+/);
     if (words.length < minWordCount) continue;
 
-    const query = encodeURIComponent('"' + sentence.trim().slice(0, 120) + '"');
-
     const isQuoted = /["""'].*?["""']/.test(sentence) || /[\u201C\u201D\u2018\u2019]/.test(sentence);
-    const hasCitation = /\(\d{4}\)|\[\d+\]|(et al\.)|(doi:)|https?:\/\//.test(sentence);
+    const hasCitation = /(\(\d{4}\)|\[\d+\]|(et al\.)|(doi:)|https?:\/\/)/.test(sentence);
 
     const matchGroup: MatchGroup =
       isQuoted && hasCitation ? 'cited_and_quoted' :
@@ -335,103 +344,109 @@ export const verifyPlagiarism = async (
       !isQuoted && hasCitation ? 'missing_quotations' :
       'not_cited_or_quoted';
 
-    // B22: her cümlede canlı anahtar al — kota yenen anahtar havuzdan düşer, sıradaki devralır
-    const { apiKey, engineId } = getSearchConfig();
-    if (apiKey && engineId) {
-      // AŞAMA 1: Türkçe kaynak araması (öncelikli)
-      try {
-        queriesRun++;
-        const trRes = await fetch(
-          `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${engineId}&q=${query}&num=3&lr=lang_tr`
-        );
-        if (trRes.ok) {
-          const data = await trRes.json();
-          const items: any[] = data.items || [];
-          for (const item of items) {
-            const url: string = item.link || '';
-            if (!url || !url.startsWith('http')) continue;
-            if (allSources.some(s => s.url === url)) continue;
-            
-            // Halüsinasyon kapısı: URL doğrulama
-            if (!isValidUrl(url)) continue;
-            
-            // Güvenilirlik kontrolü (admin ayarı)
-            const trust = detectSourceTrust(url);
-            if (trustFilter && trust === 'low') continue; // Düşük güvenilirlik kaynakları atla
-            
-            const rawSnippet = typeof item.snippet === 'string' ? item.snippet.trim() : '';
-            const dynamicScore = useDynamicSimilarity 
-              ? calculateDynamicSimilarity(sentence, rawSnippet || item.title || '')
-              : (rawSnippet ? 0.8 : 0.4);
-            
-            allSources.push({
-              url,
-              title: item.title || '',
-              snippet: rawSnippet,
-              matchedSnippet: rawSnippet,
-              matchedText: sentence,
-              matchGroup,
-              region: regionFilter ? detectSourceRegion(url) : undefined,
-              trust,
-              similarity: dynamicScore
-            });
-            allMatchedPhrases.push({ text: sentence, source: url, score: dynamicScore });
-          }
-        } else {
-          // B22: sessizce yutma — hatayı say ve anahtarı işaretle (429/403 kota, 400 geçersiz)
-          queriesFailed++;
-          if (trRes.status === 429 || trRes.status === 403) quotaHit = true;
-          await handleSearchApiKeyError(trRes.status);
-        }
-      } catch { queriesFailed++; }
+    try {
+      const client = getGeminiClient();
+      const groundingModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-2.5-flash-lite', 'gemini-3.1-flash-lite'];
+      let groundingDone = false;
+      for (const gModel of groundingModels) {
+        if (groundingDone) break;
+          try {
+            queriesRun++;
+            const prompt = `Sen Sentinel İntihal ve Akademik Kaynak Doğrulama motorusun.
+Aşağıdaki cümle veya metin kesitini Google Search ile internette ara. Bu metnin veya içindeki alıntıların geçtiği orijinal makale, tez, kitap veya web kaynaklarını bul.
+Sadece gerçekten mevcut ve erişilebilir kaynakları listele. Uydurma URL üretme.
 
-      // AŞAMA 2: Global kaynak araması (Türkçe sonuç yetersizse)
-      if (allSources.length < 2) {
-        try {
-          queriesRun++;
-          const globalRes = await fetch(
-            `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${engineId}&q=${query}&num=3`
-          );
-          if (globalRes.ok) {
-            const data = await globalRes.json();
-            const items: any[] = data.items || [];
-            for (const item of items) {
-              const url: string = item.link || '';
-              if (!url || !url.startsWith('http')) continue;
-              if (allSources.some(s => s.url === url)) continue;
-              
-              // Halüsinasyon kapısı: URL doğrulama
-              if (!isValidUrl(url)) continue;
-              
-              // Güvenilirlik kontrolü (admin ayarı)
-              const trust = detectSourceTrust(url);
-              if (trustFilter && trust === 'low') continue;
-              
-              const rawSnippet = typeof item.snippet === 'string' ? item.snippet.trim() : '';
-              const dynamicScore = useDynamicSimilarity 
-                ? calculateDynamicSimilarity(sentence, rawSnippet || item.title || '') * 0.9
-                : (rawSnippet ? 0.7 : 0.35);
-              
-              allSources.push({
-                url,
-                title: item.title || '',
-                snippet: rawSnippet,
-                matchedSnippet: rawSnippet,
+SADECE geçerli JSON döndür:
+{"sources":[{"url":"https://...","title":"...","snippet":"...","matchedText":"...","matchGroup":"not_cited_or_quoted","similarity":0.7}]}
+
+Metin: ${sentence.slice(0, 300)}`;
+
+            const gRes = await client.models.generateContent({
+              model: gModel,
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              config: { temperature: 0, tools: [{ googleSearch: {} }] }
+            });
+
+            const chunks = (gRes.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as any[];
+            const chunkSources = chunks
+              .filter((c: any) => c.web?.uri && isValidUrl(c.web.uri))
+              .map((c: any) => ({
+                url: c.web.uri as string,
+                title: c.web.title || 'Web Kaynağı',
+                snippet: '',
+                matchedSnippet: '',
                 matchedText: sentence,
                 matchGroup,
-                region: regionFilter ? detectSourceRegion(url) : undefined,
-                trust,
-                similarity: dynamicScore
-              });
-              allMatchedPhrases.push({ text: sentence, source: url, score: dynamicScore });
+                region: regionFilter ? detectSourceRegion(c.web.uri) : undefined,
+                trust: detectSourceTrust(c.web.uri),
+                similarity: 0.7
+              } as PlagiarismSource));
+
+            let textSources: PlagiarismSource[] = [];
+            const raw = (gRes.text || '').replace(/```json|```/g, '').trim();
+            if (raw.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed.sources)) {
+                  textSources = parsed.sources
+                    .filter((s: any) => s.url && isValidUrl(s.url))
+                    .map((s: any) => ({
+                      url: s.url,
+                      title: s.title || 'Web Kaynağı',
+                      snippet: s.snippet || '',
+                      matchedSnippet: s.snippet || '',
+                      matchedText: s.matchedText || sentence,
+                      matchGroup: s.matchGroup || matchGroup,
+                      region: regionFilter ? detectSourceRegion(s.url) : undefined,
+                      trust: detectSourceTrust(s.url),
+                      similarity: typeof s.similarity === 'number' ? s.similarity : 0.7
+                    } as PlagiarismSource));
+                }
+              } catch { }
             }
-          } else {
+
+            const combined = [...chunkSources, ...textSources];
+            for (const src of combined) {
+              if (allSources.some(s => s.url === src.url)) continue;
+              if (trustFilter && src.trust === 'low') continue;
+              allSources.push(src);
+              allMatchedPhrases.push({ text: sentence, source: src.url, score: src.similarity || 0.7 });
+            }
+            groundingDone = true;
+          } catch (gErr: any) {
             queriesFailed++;
-            if (globalRes.status === 429 || globalRes.status === 403) quotaHit = true;
-            await handleSearchApiKeyError(globalRes.status);
           }
-        } catch { queriesFailed++; }
+        }
+        if (!groundingDone) quotaHit = true;
+      } catch { queriesFailed++; }
+    }
+
+  // Akademik Havuz Araması (OpenAlex, Crossref, Google Scholar CSE)
+  const enableAcademicPool = customSettings?.academicCrossCheck?.crossref !== false;
+  if (enableAcademicPool && sentences.length > 0) {
+    try {
+      const topAcademicQuery = sentences[0].slice(0, 90);
+      const academicResults = await AcademicSearchService.multiAcademicSearch(topAcademicQuery);
+
+      for (const aRes of academicResults) {
+        if (!aRes.url || allSources.some(s => s.url === aRes.url)) continue;
+        const dynamicScore = calculateDynamicSimilarity(sentences[0], aRes.snippet);
+
+        allSources.push({
+          url: aRes.url,
+          title: `[${aRes.source.toUpperCase()}] ${aRes.title}`,
+          snippet: aRes.snippet,
+          matchedSnippet: aRes.snippet,
+          matchedText: sentences[0],
+          matchGroup: 'not_cited_or_quoted',
+          region: (aRes.source === 'crossref' || aRes.source === 'openalex' || aRes.source === 'europepmc' || aRes.source === 'semanticscholar' || aRes.source === 'arxiv' || aRes.source === 'core') ? 'academic' : 'domestic',
+          trust: 'high',
+          similarity: dynamicScore
+        });
+        allMatchedPhrases.push({ text: sentences[0], source: aRes.url, score: dynamicScore });
       }
+    } catch (aErr) {
+      console.warn('[Sentinel] Akademik havuz taraması hatası:', aErr);
     }
   }
 
@@ -443,10 +458,10 @@ export const verifyPlagiarism = async (
         if (allSources.some(s => s.url === virtualUrl)) continue;
         allSources.push({
           url: virtualUrl,
-          title: 'Geçmiş Proje (Semantik Eşleşme)',
+          title: 'Geçmiş Proje (Öz-İntihal / Semantik)',
           snippet: match.text.slice(0, 200),
           matchedText: match.text.slice(0, 200),
-          matchGroup: 'not_cited_or_quoted',
+          matchGroup: 'self_plagiarism',
           region: 'domestic',
           trust: 'high',
           similarity: match.similarity,
@@ -456,22 +471,92 @@ export const verifyPlagiarism = async (
     } catch { }
   }
 
+  // Semantik Yeniden Sıralama (Re-Ranking & Semantic Verification)
+  const embeddingProvider = customSettings?.embeddingProvider || 'cloud';
+  const embeddingThreshold = customSettings?.embeddingThreshold ?? 0.70;
+
+  if (allSources.length > 0) {
+    try {
+      const sentenceVecCache = new Map<string, number[]>();
+
+      for (const src of allSources) {
+        if (!src.snippet || !src.matchedText) continue;
+
+        let sentVec = sentenceVecCache.get(src.matchedText);
+        if (!sentVec) {
+          sentVec = await generateEmbedding(src.matchedText, embeddingProvider);
+          sentenceVecCache.set(src.matchedText, sentVec);
+        }
+
+        const snippetVec = await generateEmbedding(src.snippet, embeddingProvider);
+        const semScore = vectorEngine.cosineSimilarity(sentVec, snippetVec);
+        src.semanticScore = Math.round(semScore * 100);
+
+        // Dil Uyum Filtresi: Türkçe metin için yabancı dildeki alakasız kaynakların elenmesi
+        const isTurkishSentence = /[çğıöşüÇĞİÖŞÜ]/.test(src.matchedText);
+        const isForeignSnippet = !/[çğıöşüÇĞİÖŞÜ]/.test(src.snippet) && /^[a-zA-Z0-9\s,.:;()'"-]+$/.test(src.snippet.slice(0, 50));
+        if (isTurkishSentence && isForeignSnippet && semScore < 0.50) {
+          src.similarity = 0.05;
+          continue;
+        }
+
+        if (semScore >= embeddingThreshold && (src.similarity ?? 0) < semScore) {
+          src.similarity = Number(semScore.toFixed(2));
+        }
+      }
+
+      // Çok düşük semantik benzerliğe sahip yanlış pozitifleri filtrele
+      const validSources = allSources.filter(s => (s.similarity ?? 0) > 0.15);
+      if (validSources.length > 0) {
+        allSources.length = 0;
+        allSources.push(...validSources);
+      }
+    } catch (embErr) {
+      console.warn('[Sentinel] Semantik doğrulama sırasında hata, kelime benzerliği korundu:', embErr);
+    }
+  }
+
   const similarityScore = allSources.length > 0
     ? Math.min(95, Math.round((allSources.length / Math.max(sentences.length, 1)) * 100))
     : 0;
 
-  // B22: tüm sorgular patladıysa ve hiç kaynak yoksa 'failed' — UI "özgün" iddiası kuramaz
   const scanStatus: SentinelScanStatus =
     queriesRun > 0 && queriesFailed === queriesRun && allSources.length === 0 ? 'failed' : 'ok';
 
+  const maxPlagiarismRate = customSettings?.maxPlagiarismRate || 15;
+  const perSourceLimit = customSettings?.perSourceLimit || 3;
+  const violations: string[] = [];
+
+  if (similarityScore > maxPlagiarismRate) {
+    violations.push(`Genel benzerlik (%${similarityScore}), azami %${maxPlagiarismRate} limitini aşıyor.`);
+  }
+
+  const sourceFrequencies: Record<string, number> = {};
+  allMatchedPhrases.forEach(m => {
+    sourceFrequencies[m.source] = (sourceFrequencies[m.source] || 0) + 1;
+  });
+  Object.entries(sourceFrequencies).forEach(([src, count]) => {
+    const contributionPercent = Math.round((count / Math.max(sentences.length, 1)) * 100);
+    if (contributionPercent > perSourceLimit) {
+      violations.push(`"${src.slice(0, 35)}..." kaynağından tekil benzerlik (%${contributionPercent}), azami %${perSourceLimit} limitini aşıyor.`);
+    }
+  });
+
+  const academicCompliance: AcademicCompliance = {
+    isCompliant: violations.length === 0,
+    maxPlagiarismRate,
+    perSourceLimit,
+    violations
+  };
+
   if (scanStatus === 'ok') {
-    await logSentinelEvent('success', Date.now() - startTime, `Intihal: ${allSources.length} kaynak (${queriesRun} sorgu; ${allSources.filter(s => s.region === 'domestic').length} yerli, ${allSources.filter(s => s.region === 'international').length} yabancı).`);
-    await updateSentinelStatus('online', 'Sistem Kararli');
+    await logSentinelEvent('success', Date.now() - startTime, `Intihal: ${allSources.length} kaynak (${queriesRun} sorgu; ${allSources.filter(s => s.region === 'domestic').length} yerli, ${allSources.filter(s => s.region === 'international').length} yabancı). Uyum: ${academicCompliance.isCompliant ? 'Geçti' : 'İhlal'}`);
+    await updateSentinelStatus('online', 'Sistem Kararlı');
   } else {
     await logSentinelEvent('error', Date.now() - startTime, `Tarama başarısız: ${queriesFailed}/${queriesRun} sorgu hatası${quotaHit ? ' (kota/anahtar)' : ''}.`);
     await updateSentinelStatus(quotaHit ? 'quota_full' : 'error', `Sorgu hatası ${queriesFailed}/${queriesRun}`);
   }
-  return { similarityScore, sources: allSources, matchedPhrases: allMatchedPhrases, scanStatus, queriesRun, queriesFailed };
+  return { similarityScore, sources: allSources, matchedPhrases: allMatchedPhrases, scanStatus, queriesRun, queriesFailed, academicCompliance };
 };
 
 export const verifyFactCheck = async (text: string, enabled: boolean = true, retryCount: number = 0): Promise<FactCheckReport> => {

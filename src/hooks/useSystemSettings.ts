@@ -21,8 +21,25 @@ const DEFAULT_SETTINGS: SystemSettings = {
   sentinelUseDynamicSimilarity: true,
   sentinelTrustFilter: true,
   sentinelRegionFilter: true,
+  showBlogOnLanding: true,
+  // Akademik Protokol Eşikleri & Çapraz Doğrulama
+  sentinelMaxPlagiarismRate: 15,
+  sentinelPerSourceLimit: 3,
+  sentinelAcademicCrossCheck: {
+    crossref: true,
+    semanticScholar: true,
+    pubmed: true,
+    core: true
+  },
   // B22: kapılı özellikler varsayılan kapalı (yalnız admin + yetki verilenler görür)
-  featureAccess: { promoSite: false, classroom: false, trainingData: false }
+  featureAccess: { promoSite: false, classroom: false, trainingData: false },
+  // Model & Yapay Zeka Motoru Parametreleri
+  modelTemperature: 0.7,
+  modelTopP: 0.95,
+  fallbackToCloudOnFailure: true,
+  // Embedding & Semantik Doğrulama
+  embeddingProvider: 'cloud',
+  embeddingThreshold: 0.75
 };
 
 export function useSystemSettings(isAdmin: boolean) {

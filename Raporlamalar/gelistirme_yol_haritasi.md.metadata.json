@@ -1,5 +1,0 @@
-{
-  "summary": "Sentience AI için kapsamlı geliştirme yol haritası. 5 ana alan: Kritik Teknik Borç (model adı hatası, App.tsx monolith, bundle boyutu), Landing Page Yenileme (SEO, demo iyileştirme, sosyal kanıt), UX/UI İyileştirmeleri (editör, sonuç paneli, bildirimler), Yeni Özellikler (dil desteği, şablon sistemi, API erişimi, gramer denetimi), ve Altyapı Modernizasyonu (Firebase Functions, test altyapısı, CI/CD). Öncelik matrisi ve 4 sprint planı içeriyor.",
-  "updatedAt": "2026-09-30T22:50:06.832529100Z",
-  "userFacing": true
-}

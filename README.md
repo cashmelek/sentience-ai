@@ -45,11 +45,23 @@ Platform, karmaşık analiz ve üretim süreçlerini her biri alanında uzman d�
 
 ## 🌐 Dağıtım (Deploy)
 
-Bu uygulama Firebase Hosting için optimize edilmiştir:
+Birincil hedef Firebase Hosting:
 
 ```bash
 firebase deploy
 ```
+
+Alternatif: Netlify (Vite SPA, `dist`).
+
+```bash
+npx netlify-cli login
+npx netlify-cli link
+npx netlify-cli env:import .env.local
+npm run build
+npx netlify-cli deploy --prod --dir=dist
+```
+
+GitHub Actions için repository secrets: `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` ve `.env.example` içindeki `VITE_*` anahtarları.
 
 ---
 *Sentience AI, içerik üretiminde insan yaratıcılığını yapay zeka hızıyla birleştirir.*

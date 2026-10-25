@@ -28,8 +28,8 @@ const STEPS = [
   },
   {
     icon: Search,
-    title: "Ajan Seçimi",
-    description: "İhtiyacınıza göre Denetçi (Analiz), İnsanlaştırma (Yeniden İnşa) veya Sentinel (İntihal) ajanlarını görevlendirin.",
+    title: "Modül ve İşlem Seçimi",
+    description: "Denetçi (YZ Risk Tespiti), İnsanlaştırma (Doğal Sentaks), Sentinel (Canlı İntihal & DOI Doğrulama) veya StyleMaster modunu seçin.",
     color: "text-amber-500",
     bgColor: "bg-amber-500/10"
   },
@@ -97,7 +97,7 @@ export function UserManualSection() {
           <div className="max-w-xl">
             <h4 className="text-2xl lg:text-3xl font-black mb-6 uppercase tracking-tighter">Detaylı Rapor Ekranı</h4>
             <p className="text-gray-400 text-sm lg:text-base leading-relaxed mb-8 font-medium">
-              Rapor ekranımızda metninizin her cümlesi için ayrı ayrı YZ olasılığı hesaplanır. Isı haritası (Heatmap) sayesinde metindeki "kritik" bölgeleri anında görebilir ve İnsanlaştırma ajanını bu bölgelere odaklayabilirsiniz.
+              Rapor ekranımızda metninizin her cümlesi için ayrı ayrı YZ olasılığı hesaplanır. Isı haritası (Heatmap) sayesinde metindeki "kritik" bölgeleri anında görebilir ve İnsanlaştırma motorunu bu bölgelere odaklayabilirsiniz.
             </p>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-500 tracking-widest px-4 py-2 bg-white/5 rounded-full">

@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot,
   query, where, orderBy, limit, serverTimestamp, increment, writeBatch
 } from 'firebase/firestore';
 import { getApp } from 'firebase/app';
@@ -132,6 +132,34 @@ export async function regenerateEnrollmentKey(instructorId: string, classId: str
 }
 
 // --- Kayıt (enrollment) ---
+
+export interface ClassPreview {
+  id: string;
+  name: string;
+  subject: string;
+  term: string;
+  instructorName: string;
+  instructorEmail: string;
+  archived: boolean;
+}
+
+export async function lookupClassByCode(rawCode: string): Promise<ClassPreview | null> {
+  const classCode = normalizeCodeInput(rawCode);
+  if (classCode.length < 4) return null;
+  const snap = await getDocs(query(collection(db, 'classes'), where('classCode', '==', classCode), limit(1)));
+  if (snap.empty) return null;
+  const docSnap = snap.docs[0];
+  const d = docSnap.data();
+  return {
+    id: docSnap.id,
+    name: d.name || '',
+    subject: d.subject || '',
+    term: d.term || '',
+    instructorName: d.instructorName || (d.instructorEmail ? d.instructorEmail.split('@')[0] : 'Eğitmen'),
+    instructorEmail: d.instructorEmail || '',
+    archived: Boolean(d.archived)
+  };
+}
 
 export async function joinClass(student: AppUser, rawCode: string, rawKey: string): Promise<string> {
   const classCode = normalizeCodeInput(rawCode);
@@ -282,12 +310,14 @@ export async function submitOnBehalf(
   classId: string,
   assignmentId: string,
   enrollment: Enrollment,
-  payload: { title: string; text: string; file?: { fileName: string; storagePath: string } }
+  payload: { title: string; text: string; file?: { fileName: string; storagePath: string }; noRepository?: boolean }
 ): Promise<Submission> {
   const title = payload.title.trim();
   const text = payload.text.trim();
   if (!title) throw new Error('Teslim başlığı zorunludur.');
   if (text.length < 50) throw new Error('Metin çok kısa (en az 50 karakter).');
+
+  const asgSnap = await getDoc(doc(assignmentsCol(classId), assignmentId));
 
   const receipt: DigitalReceipt = {
     sha256: await sha256Hex(text),
@@ -305,6 +335,7 @@ export async function submitOnBehalf(
     status: 'received',
     excludedSourceUrls: [],
     digitalReceipt: receipt,
+    noRepository: Boolean(payload.noRepository || (asgSnap.exists() && (asgSnap.data() as any)?.noRepository)),
     createdAt: serverTimestamp(),
     ...(payload.file ? { fileName: payload.file.fileName, storagePath: payload.file.storagePath } : {})
   };
@@ -346,7 +377,15 @@ export async function listEnrollments(classId: string): Promise<Enrollment[]> {
 export async function createAssignment(
   instructorId: string,
   classId: string,
-  data: { title: string; instructions?: string; startDate?: string; dueDate?: string; noRepository?: boolean }
+  data: {
+    title: string;
+    instructions?: string;
+    startDate?: string;
+    dueDate?: string;
+    noRepository?: boolean;
+    allowStudentViewReport?: boolean;
+    allowLateSubmissions?: boolean;
+  }
 ): Promise<Assignment> {
   const title = data.title.trim();
   if (!title) throw new Error('Ödev başlığı zorunludur.');
@@ -357,6 +396,8 @@ export async function createAssignment(
     startDate: data.startDate || '',
     dueDate: data.dueDate || '',
     noRepository: data.noRepository ?? false,
+    allowStudentViewReport: data.allowStudentViewReport !== false,
+    allowLateSubmissions: data.allowLateSubmissions !== false,
     createdBy: instructorId,
     createdAt: serverTimestamp()
   };
@@ -441,7 +482,7 @@ export async function submitText(
   student: AppUser,
   classId: string,
   assignmentId: string,
-  payload: { title: string; text: string; file?: { fileName: string; storagePath: string } }
+  payload: { title: string; text: string; file?: { fileName: string; storagePath: string }; noRepository?: boolean }
 ): Promise<Submission> {
   const title = payload.title.trim();
   const text = payload.text.trim();
@@ -453,6 +494,23 @@ export async function submitText(
   const quota = checkSubmissionQuota(student.plan, usedToday);
   if (!quota.allowed) {
     throw new Error(`Günlük teslim kotası doldu (${student.plan} planı: ${quota.limit} teslim/gün). Limit yarın sıfırlanır.`);
+  }
+
+  const asgSnap = await getDoc(doc(assignmentsCol(classId), assignmentId));
+  let isLate = false;
+  let lateDurationMinutes: number | undefined;
+  if (asgSnap.exists()) {
+    const asgData = asgSnap.data();
+    if (asgData.dueDate) {
+      const dueTime = new Date(asgData.dueDate).getTime();
+      if (!isNaN(dueTime) && dueTime < Date.now()) {
+        if (asgData.allowLateSubmissions === false) {
+          throw new Error('Bu ödev için son teslim tarihi dolmuştur ve gecikmiş teslim kabul edilmemektedir.');
+        }
+        isLate = true;
+        lateDurationMinutes = Math.round((Date.now() - dueTime) / 60000);
+      }
+    }
   }
 
   const receipt: DigitalReceipt = {
@@ -470,7 +528,10 @@ export async function submitText(
     status: 'received',
     excludedSourceUrls: [],
     digitalReceipt: receipt,
+    noRepository: Boolean(payload.noRepository || (asgSnap.exists() && (asgSnap.data() as any)?.noRepository)),
     createdAt: serverTimestamp(),
+    isLate,
+    ...(isLate && typeof lateDurationMinutes === 'number' ? { lateDurationMinutes } : {}),
     ...(payload.file ? { fileName: payload.file.fileName, storagePath: payload.file.storagePath } : {})
   };
   await setDoc(submissionRef(classId, assignmentId, student.uid), data);
@@ -505,14 +566,128 @@ export async function markSubmissionFailed(classId: string, assignmentId: string
   await updateDoc(submissionRef(classId, assignmentId, studentId), { status: 'failed' });
 }
 
+export async function gradeSubmission(
+  classId: string,
+  assignmentId: string,
+  studentId: string,
+  payload: { grade?: number | null; feedback?: string; gradedBy?: string }
+): Promise<void> {
+  const updateData: Record<string, any> = {
+    gradedAt: serverTimestamp(),
+  };
+  if (payload.grade !== undefined) {
+    updateData.grade = payload.grade;
+  }
+  if (payload.feedback !== undefined) {
+    updateData.feedback = payload.feedback.trim();
+  }
+  if (payload.gradedBy) {
+    updateData.gradedBy = payload.gradedBy;
+  }
+  await updateDoc(submissionRef(classId, assignmentId, studentId), updateData);
+}
+
 export async function listSubmissions(classId: string, assignmentId: string): Promise<Submission[]> {
   const snap = await getDocs(query(submissionsCol(classId, assignmentId), orderBy('createdAt', 'desc')));
   return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Submission[];
 }
 
+export function subscribeSubmissions(
+  classId: string,
+  assignmentId: string,
+  callback: (submissions: Submission[]) => void
+): () => void {
+  const q = query(submissionsCol(classId, assignmentId), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snap) => {
+    const list = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Submission[];
+    callback(list);
+  }, (err) => {
+    console.error('Submissions live sync error:', err);
+  });
+}
+
 export async function getMySubmission(classId: string, assignmentId: string, studentId: string): Promise<Submission | null> {
   const snap = await getDoc(submissionRef(classId, assignmentId, studentId));
   return snap.exists() ? ({ id: snap.id, ...(snap.data() as any) } as Submission) : null;
+}
+
+export async function forwardSubmissionToInstitute(
+  classId: string,
+  assignmentId: string,
+  studentId: string,
+  notes?: string
+): Promise<void> {
+  const snap = await getDoc(submissionRef(classId, assignmentId, studentId));
+  if (!snap.exists()) throw new Error('Teslim bulunamadı.');
+  await updateDoc(submissionRef(classId, assignmentId, studentId), {
+    forwardedToInstitute: true,
+    forwardedToInstituteAt: new Date().toISOString(),
+    instituteDecision: 'pending',
+    ...(notes ? { instituteNotes: notes.trim() } : {})
+  });
+}
+
+export interface InstituteQueueItem {
+  classId: string;
+  className: string;
+  cls: ClassRoom;
+  assignmentId: string;
+  assignmentTitle: string;
+  assignment: Assignment;
+  submission: Submission;
+}
+
+export async function setInstituteDecision(
+  classId: string,
+  assignmentId: string,
+  studentId: string,
+  decision: 'approved' | 'revision_required' | 'rejected',
+  notes: string,
+  reviewerName: string
+): Promise<void> {
+  const snap = await getDoc(submissionRef(classId, assignmentId, studentId));
+  if (!snap.exists()) throw new Error('Teslim bulunamadı.');
+  await updateDoc(submissionRef(classId, assignmentId, studentId), {
+    instituteDecision: decision,
+    instituteNotes: notes.trim(),
+    instituteDecidedAt: new Date().toISOString(),
+    instituteDecidedBy: reviewerName
+  });
+}
+
+export async function listInstituteQueue(instructorUid: string, isAdmin = false): Promise<InstituteQueueItem[]> {
+  const classesSnap = isAdmin
+    ? await getDocs(query(collection(db, 'classes'), orderBy('createdAt', 'desc'), limit(50)))
+    : await getDocs(query(collection(db, 'classes'), where('instructorId', '==', instructorUid), limit(30)));
+
+  const queue: InstituteQueueItem[] = [];
+
+  for (const cDoc of classesSnap.docs) {
+    const cls = { id: cDoc.id, ...(cDoc.data() as any) } as ClassRoom;
+    const asgSnap = await getDocs(query(assignmentsCol(cDoc.id), limit(20)));
+    for (const aDoc of asgSnap.docs) {
+      const asg = { id: aDoc.id, ...(aDoc.data() as any) } as Assignment;
+      const subSnap = await getDocs(query(submissionsCol(cDoc.id, aDoc.id), where('forwardedToInstitute', '==', true)));
+      for (const sDoc of subSnap.docs) {
+        const sub = { id: sDoc.id, ...(sDoc.data() as any) } as Submission;
+        queue.push({
+          classId: cls.id,
+          className: cls.name,
+          cls,
+          assignmentId: asg.id,
+          assignmentTitle: asg.title,
+          assignment: asg,
+          submission: sub
+        });
+      }
+    }
+  }
+
+  return queue.sort((a, b) => {
+    const dateA = a.submission.forwardedToInstituteAt || a.submission.createdAt || '';
+    const dateB = b.submission.forwardedToInstituteAt || b.submission.createdAt || '';
+    return dateB.localeCompare(dateA);
+  });
 }
 
 // Kaynak dışlama Turnitin modelinde eğitmen yetkisindedir

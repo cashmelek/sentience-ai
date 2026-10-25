@@ -26,17 +26,26 @@ import {
   TrendingUp,
   Users,
   Check,
-  FileText
+  FileText,
+  BookOpen,
+  Calendar,
+  Clock,
+  ArrowUpRight
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { detectAI } from '../services/geminiService';
 import toast from 'react-hot-toast';
 import { InfoTooltip } from './InfoTooltip';
 import { UserManualSection } from './UserManualSection';
+import { Footer } from './Footer';
+import { landingCmsService, DEFAULT_LANDING_CONFIG, LandingCmsConfig } from '../services/landingCmsService';
+import { BLOG_POSTS } from '../data/blogPosts';
 
 interface LandingPageProps {
   onGetStarted: (text?: string) => void;
   onLogin: () => void;
+  onNavigate?: (path: string) => void;
+  showBlog?: boolean;
 }
 
 const FEATURES = [
@@ -102,13 +111,34 @@ const PLANS = [
   }
 ];
 
-export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
+export function LandingPage({ onGetStarted, onLogin, onNavigate, showBlog = true }: LandingPageProps) {
   const [demoText, setInputText] = useState('');
   const [demoSensitivity, setDemoSensitivity] = useState(50);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [demoResult, setDemoResult] = useState<{ score: number, sentenceScores: any[], reasoning: string } | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [compareMode, setCompareMode] = useState<'split' | 'before' | 'after'>('split');
+  const [cmsConfig, setCmsConfig] = useState<LandingCmsConfig>(DEFAULT_LANDING_CONFIG);
+
+  React.useEffect(() => {
+    let mounted = true;
+    landingCmsService.fetchConfig().then(cfg => {
+      if (mounted && cfg) setCmsConfig(cfg);
+    });
+
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<LandingCmsConfig>;
+      if (mounted && customEvent.detail) {
+        setCmsConfig(customEvent.detail);
+      }
+    };
+
+    window.addEventListener('sentience_cms_updated', handleUpdate);
+    return () => {
+      mounted = false;
+      window.removeEventListener('sentience_cms_updated', handleUpdate);
+    };
+  }, []);
 
   // Mobil Menü Scroll Kilidi
   React.useEffect(() => {
@@ -146,6 +176,17 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-mesh text-white font-sans overflow-x-hidden selection:bg-emerald-500/30">
       {/* Navbar */}
+      {cmsConfig.announcement?.enabled && (
+        <aside aria-label="Sistem Duyurusu" className="fixed top-0 w-full z-[110] bg-emerald-500 text-black px-4 py-2 text-center text-xs font-black uppercase tracking-wider flex items-center justify-center gap-3 shadow-md">
+          <span>{cmsConfig.announcement.text}</span>
+          <button
+            onClick={() => onNavigate?.('/guide')}
+            className="px-2.5 py-0.5 rounded-full bg-black text-white hover:bg-black/80 text-[10px] font-bold"
+          >
+            {cmsConfig.announcement.linkText || 'İncele'}
+          </button>
+        </aside>
+      )}
       <nav className="fixed top-0 w-full z-[100] border-b border-white/5 bg-black/40 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -158,7 +199,32 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             <a href="#features" className="hover:text-white transition-colors">Özellikler</a>
             <a href="#how-it-works" className="hover:text-white transition-colors">Nasıl Çalışır?</a>
             <a href="#demo" className="hover:text-white transition-colors">Demo</a>
-            <a href="#guide" className="hover:text-white transition-colors">Rehber</a>
+            {showBlog && (
+              <a
+              href="/blog"
+              onClick={(e) => {
+                if (onNavigate) {
+                  e.preventDefault();
+                  onNavigate('/blog');
+                }
+              }}
+              className="hover:text-white transition-colors text-emerald-400/90"
+            >
+              Akademik Blog
+            </a>
+            )}
+            <a
+              href="/guide"
+              onClick={(e) => {
+                if (onNavigate) {
+                  e.preventDefault();
+                  onNavigate('/guide');
+                }
+              }}
+              className="hover:text-white transition-colors"
+            >
+              Rehber
+            </a>
             <a href="#pricing" className="hover:text-white transition-colors">Fiyatlandırma</a>
           </div>
 
@@ -190,6 +256,21 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
               <a href="#features" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Özellikler</a>
               <a href="#how-it-works" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Nasıl Çalışır?</a>
               <a href="#demo" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Demo</a>
+              {showBlog && (
+                <a
+                href="/blog"
+                onClick={(e) => {
+                  setIsMenuOpen(false);
+                  if (onNavigate) {
+                    e.preventDefault();
+                    onNavigate('/blog');
+                  }
+                }}
+                className="text-emerald-400 hover:text-emerald-300"
+              >
+                Akademik Blog
+              </a>
+              )}
               <a href="#guide" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Rehber</a>
               <a href="#pricing" onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-emerald-500">Fiyatlandırma</a>
             </div>
@@ -277,22 +358,12 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-6 rounded-[24px] bg-white/[0.02] border border-white/5 backdrop-blur-xl text-center hover:border-emerald-500/20 transition-all">
-            <div className="text-2xl lg:text-3xl font-black text-white tracking-tight mb-1">10.000+</div>
-            <div className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400">İşlenmiş Makale</div>
-          </div>
-          <div className="p-6 rounded-[24px] bg-white/[0.02] border border-white/5 backdrop-blur-xl text-center hover:border-blue-500/20 transition-all">
-            <div className="text-2xl lg:text-3xl font-black text-white tracking-tight mb-1">%99.4</div>
-            <div className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-400">YZ Tespit Aşımı</div>
-          </div>
-          <div className="p-6 rounded-[24px] bg-white/[0.02] border border-white/5 backdrop-blur-xl text-center hover:border-amber-500/20 transition-all">
-            <div className="text-2xl lg:text-3xl font-black text-white tracking-tight mb-1">&lt; 2.1 sn</div>
-            <div className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400">Analiz &amp; Sentaks Hızı</div>
-          </div>
-          <div className="p-6 rounded-[24px] bg-white/[0.02] border border-white/5 backdrop-blur-xl text-center hover:border-purple-500/20 transition-all">
-            <div className="text-2xl lg:text-3xl font-black text-white tracking-tight mb-1">15+</div>
-            <div className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-400">Üniversitede Kullanım</div>
-          </div>
+          {(cmsConfig.stats || []).map((s, idx) => (
+            <div key={s.id || idx} className="p-6 rounded-[24px] bg-white/[0.02] border border-white/5 backdrop-blur-xl text-center hover:border-emerald-500/20 transition-all">
+              <div className="text-2xl lg:text-3xl font-black text-white tracking-tight mb-1">{s.value}</div>
+              <div className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400">{s.label}</div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -465,7 +536,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                       <h4 className="text-lg lg:text-xl font-bold mb-3">Denetçi Raporu</h4>
                       <p className="text-xs lg:text-sm text-gray-400 leading-relaxed font-medium mb-4">
                         {demoResult.reasoning || (demoResult.score > 0.5
-                          ? "Yüksek YZ izine rastlandı. Hayalet Yazar ajanını kullanarak bu metni insanlaştırmanız önerilir."
+                          ? "Yüksek YZ izine rastlandı. İnsanlaştırma modülünü kullanarak bu metni doğallaştırmanız önerilir."
                           : "Düşük YZ riski. Metin doğal bir yapı sergiliyor.")}
                       </p>
 
@@ -677,6 +748,81 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
         </div>
       </section>
 
+      {showBlog && (
+        <>
+  {/* Blog & Academic Insights Section */}
+      <section id="blog" className="py-24 lg:py-36 px-6 relative border-t border-white/5 bg-black/40">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16 lg:mb-20">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.25em] mb-4">
+              <BookOpen className="w-3.5 h-3.5" /> Bilgi &amp; Araştırma Merkezi
+            </div>
+            <h2 className="text-3xl lg:text-5xl font-black tracking-tight mb-4 uppercase">Akademik Rehber ve Blog</h2>
+            <p className="text-gray-500 font-bold uppercase tracking-[0.3em] text-[9px] lg:text-[10px]">
+              YÖK, DergiPark, Turnitin ve Yapay Zeka Etiği Üzerine Güncel İncelemeler
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 lg:gap-6">
+            {BLOG_POSTS.map((post) => (
+              <motion.article
+                key={post.id}
+                whileHover={{ y: -8 }}
+                onClick={() => onNavigate?.(`/blog/${post.slug}`)}
+                className="group cursor-pointer rounded-[28px] bg-white/[0.02] border border-white/5 hover:border-emerald-500/30 overflow-hidden flex flex-col transition-all shadow-xl"
+              >
+                <div className="h-44 w-full overflow-hidden relative">
+                  <img
+                    src={post.image}
+                    alt={post.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[9px] font-black uppercase tracking-wider text-emerald-400">
+                    {post.category}
+                  </div>
+                </div>
+
+                <div className="p-6 flex-1 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-3 text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-3">
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {post.date}</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {post.readTime}</span>
+                    </div>
+
+                    <h3 className="text-base font-bold text-white leading-snug mb-3 group-hover:text-emerald-400 transition-colors line-clamp-2">
+                      {post.title}
+                    </h3>
+
+                    <p className="text-xs text-gray-400 leading-relaxed font-medium line-clamp-3 mb-4">
+                      {post.summary}
+                    </p>
+                  </div>
+
+                  <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-bold text-emerald-400">
+                    <span>Yazıyı İncele</span>
+                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
+                </div>
+              </motion.article>
+            ))}
+          </div>
+
+          <div className="mt-12 text-center">
+            <button
+              onClick={() => (onNavigate ? onNavigate('/blog') : null)}
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:bg-white/[0.08] text-xs font-black uppercase tracking-wider text-emerald-400 transition-all shadow-lg shadow-black/40"
+            >
+              Tüm Akademik Blog &amp; Rehber Yazılarını İncele
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+        </>
+      )}
+
       {/* User Manual Section */}
       <UserManualSection />
 
@@ -731,28 +877,14 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 lg:py-20 border-t border-white/5 bg-black/20">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-10">
-          <div className="flex flex-col items-center md:items-start gap-4">
-            <div className="flex items-center gap-2">
-              <Fingerprint className="w-6 h-6 text-emerald-500" />
-              <span className="text-xl font-black tracking-tighter"><span lang="en">SENTIENCE</span></span>
-            </div>
-            <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest text-center md:text-left">© 2026 Tüm Hakları Saklıdır.</p>
-          </div>
-          <div className="flex items-center gap-8">
-            <a href="https://sentience.ai" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-white transition-colors">
-              <Globe className="w-5 h-5" />
-            </a>
-            <a href="https://github.com/sentience-ai" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-white transition-colors">
-              <Github className="w-5 h-5" />
-            </a>
-            <a href="https://twitter.com/sentience_ai" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-white transition-colors">
-              <Twitter className="w-5 h-5" />
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer
+        onNavigateGuide={() => onNavigate?.('/guide')}
+        onNavigateBlog={() => onNavigate?.('/blog')}
+        onNavigatePricing={() => {
+          const el = document.getElementById('pricing');
+          el?.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
     </div>
   );
 }

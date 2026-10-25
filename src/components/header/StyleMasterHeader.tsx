@@ -36,6 +36,7 @@ interface StyleMasterHeaderProps {
   inputText: string;
   isAdmin: boolean;
   isOverLimit: boolean;
+  userPlan?: string;
 }
 
 export function StyleMasterHeader({
@@ -50,8 +51,10 @@ export function StyleMasterHeader({
   isProcessing,
   inputText,
   isAdmin,
-  isOverLimit
+  isOverLimit,
+  userPlan
 }: StyleMasterHeaderProps) {
+  const isPremiumOrPro = userPlan === 'premium' || userPlan === 'pro' || isAdmin;
   return (
     <header className="h-auto min-h-[4.5rem] lg:h-20 border-b border-brand-border px-3 lg:px-8 py-3 flex flex-col lg:flex-row items-start lg:items-center justify-between bg-brand-card/50 backdrop-blur-xl relative z-40 gap-3 lg:gap-4">
       <div className="flex items-center gap-3 lg:gap-10 w-full lg:w-auto">
@@ -91,7 +94,17 @@ export function StyleMasterHeader({
         </div>
       </div>
       <div className="flex items-center gap-2.5 w-full lg:w-auto justify-end">
-        <button onClick={onOpenPlans} className="flex items-center gap-1.5 px-3.5 py-2 bg-white/5 text-gray-300 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all">Yükselt</button>
+        {isPremiumOrPro ? (
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-bold uppercase tracking-widest">
+            <Sparkles className="w-3 h-3 text-emerald-400" />
+            {isAdmin ? 'ADMIN' : (userPlan?.toUpperCase() || 'PRO')}
+          </span>
+        ) : (
+          <button onClick={onOpenPlans} className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-500/20 to-sky-500/20 hover:from-emerald-500/30 hover:to-sky-500/30 text-emerald-300 border border-emerald-500/30 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_12px_rgba(16,185,129,0.15)]">
+            <Zap className="w-3 h-3 text-emerald-400" />
+            YÜKSELT
+          </button>
+        )}
         <button onClick={onHumanize} disabled={isProcessing || !inputText.trim() || (!isAdmin && isOverLimit)} className="flex-1 lg:flex-none px-5 lg:px-6 py-2.5 bg-emerald-500 text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50 transition-all flex items-center justify-center gap-2">{isProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} İNSANLAŞTIR</button>
       </div>
     </header>

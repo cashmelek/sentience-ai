@@ -56,7 +56,7 @@ export const HeatmapText: React.FC<HeatmapTextProps> = ({ text, sentenceScores }
       }
 
       const isPlagiarism = item.type === 'plagiarism';
-      const score = item.score;
+      const score = item.score > 1 ? item.score / 100 : item.score;
       let color = 'transparent';
       let borderColor = 'transparent';
       const opacity = isPlagiarism ? 0.25 : 0.4;
@@ -106,8 +106,8 @@ export const HeatmapText: React.FC<HeatmapTextProps> = ({ text, sentenceScores }
             <span className="font-black uppercase tracking-widest text-[9px] text-gray-400">
               {activeTooltip.item.type === 'plagiarism' ? 'İntihal Tespiti' : activeTooltip.item.type === 'ai' ? 'Yapay Zeka' : 'İnsan Yazımı'}
             </span>
-            <span className={cn("font-black", activeTooltip.item.type === 'plagiarism' ? "text-orange-500" : (activeTooltip.item.type === 'ai' || activeTooltip.item.score > 0.7) ? "text-red-500" : "text-emerald-500")}>
-              %{Math.round(activeTooltip.item.score * 100)}
+            <span className={cn("font-black", activeTooltip.item.type === 'plagiarism' ? "text-orange-500" : (activeTooltip.item.type === 'ai' || (activeTooltip.item.score > 1 ? activeTooltip.item.score / 100 : activeTooltip.item.score) > 0.7) ? "text-red-500" : "text-emerald-500")}>
+              %{Math.round((activeTooltip.item.score > 1 ? activeTooltip.item.score / 100 : activeTooltip.item.score) * 100)}
             </span>
           </div>
           <p className="text-gray-300 font-medium leading-relaxed italic text-[11px] mb-1">

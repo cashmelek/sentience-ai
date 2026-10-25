@@ -1,4 +1,6 @@
-import { ArrowLeft, ClipboardList, Download, FileClock, RefreshCw, UserPlus } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Download, FileClock, RefreshCw, UserPlus, FileText, FileUp } from 'lucide-react';
+import { toast } from 'sonner';
+import { getSubmissionFileUrl } from '../../services/classroomService';
 import type { ClassRoom, Assignment, Submission } from '../../types/classroom';
 import { fmtDate, fmtDateTime, scoreColor, pct } from './format';
 
@@ -38,6 +40,16 @@ export function AssignmentDetailView({
   onOpenBehalf,
 }: AssignmentDetailViewProps) {
   const scored = submissions.filter((s) => s.status === 'scored');
+
+  const handleDownloadOriginal = async (s: Submission) => {
+    if (!s.storagePath) return;
+    try {
+      const url = await getSubmissionFileUrl(s.storagePath);
+      window.open(url, '_blank');
+    } catch (err: any) {
+      toast.error(err?.message || 'Orijinal dosya indirilemedi');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -90,14 +102,100 @@ export function AssignmentDetailView({
           <p className="text-sm text-gray-500 font-bold">Henüz teslim yok.</p>
         </div>
       ) : (
-        <div className="bg-white/[0.03] border border-white/5 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+        <div className="space-y-3">
+          {/* Mobile Card List (Visible on < 768px) */}
+          <div className="md:hidden space-y-3">
+            {submissions.map((s) => {
+              const chip = statusChip[s.status] || statusChip.received;
+              return (
+                <div key={s.id} className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-white text-sm truncate">{s.studentName}</p>
+                      <p className="text-[11px] text-gray-500 truncate">{s.studentEmail}</p>
+                    </div>
+                    <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border shrink-0 ${chip.cls}`}>
+                      {chip.label}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-300 font-medium truncate">{s.title}</p>
+                    {s.fileName && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-blue-400 font-mono">
+                        <FileUp className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{s.fileName}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Metrics Row */}
+                  <div className="grid grid-cols-3 gap-2 py-2 border-y border-white/5 text-center">
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Benzerlik</span>
+                      <span className={`text-xs font-black ${scoreColor(s.similarityScore)}`}>
+                        {pct(s.similarityScore)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-gray-500 block">YZ Skoru</span>
+                      <span className={`text-xs font-black ${scoreColor(s.aiScore)}`}>
+                        {pct(s.aiScore)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Not</span>
+                      <span className="text-xs font-mono font-bold text-emerald-400">
+                        {typeof s.grade === 'number' ? s.grade : '—'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions & Timestamp */}
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <span className="text-[10px] text-gray-500">
+                      {fmtDateTime(s.createdAt)}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {s.storagePath && (
+                        <button
+                          onClick={() => handleDownloadOriginal(s)}
+                          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-blue-400 min-h-[38px] min-w-[38px] flex items-center justify-center transition-all cursor-pointer"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onRerun(s)}
+                        disabled={busyId === s.id}
+                        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-amber-400 min-h-[38px] min-w-[38px] flex items-center justify-center transition-all disabled:opacity-40 cursor-pointer"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${busyId === s.id ? 'animate-spin' : ''}`} />
+                      </button>
+                      <button
+                        onClick={() => onOpenReport(s)}
+                        className="px-3 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5 min-h-[38px] transition-all cursor-pointer"
+                      >
+                        <ClipboardList className="w-4 h-4" />
+                        <span>Rapor</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table (Hidden on < 768px) */}
+          <div className="hidden md:block bg-white/[0.03] border border-white/5 rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[9px] font-black uppercase tracking-widest text-gray-500 border-b border-white/5">
                   <th className="px-4 py-3">Öğrenci</th>
                   <th className="px-4 py-3">Başlık</th>
                   <th className="px-4 py-3">Durum</th>
+                  <th className="px-4 py-3 text-center">Not</th>
                   <th className="px-4 py-3">Benzerlik</th>
                   <th className="px-4 py-3">YZ Skoru</th>
                   <th className="px-4 py-3">Teslim Tarihi</th>
@@ -113,15 +211,48 @@ export function AssignmentDetailView({
                         <p className="font-bold text-white">{s.studentName}</p>
                         <p className="text-[10px] text-gray-500">{s.studentEmail}</p>
                       </td>
-                      <td className="px-4 py-3 text-gray-300 max-w-[180px] truncate">{s.title}</td>
+                      <td className="px-4 py-3 text-gray-300 max-w-[200px]">
+                        <p className="truncate font-medium">{s.title}</p>
+                        {s.fileName && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-blue-400 font-mono mt-0.5">
+                            <FileUp className="w-3 h-3 shrink-0" />
+                            <span className="truncate max-w-[150px]">{s.fileName}</span>
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${chip.cls}`}>{chip.label}</span>
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        {typeof s.grade === 'number' ? (
+                          <span className="inline-block font-mono font-black text-xs px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                            {s.grade}
+                          </span>
+                        ) : (
+                          <span className="text-gray-600 font-mono text-xs">—</span>
+                        )}
+                      </td>
                       <td className={`px-4 py-3 font-black ${scoreColor(s.similarityScore)}`}>{pct(s.similarityScore)}</td>
                       <td className={`px-4 py-3 font-black ${scoreColor(s.aiScore)}`}>{pct(s.aiScore)}</td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">{fmtDateTime(s.createdAt)}</td>
+                      <td className="px-4 py-3 text-xs">
+                        <span className="text-gray-400 block">{fmtDateTime(s.createdAt)}</span>
+                        {s.isLate && (
+                          <span className="inline-block mt-0.5 text-[8px] font-black uppercase tracking-wider text-rose-400 bg-rose-500/15 border border-rose-500/30 px-1.5 py-0.5 rounded">
+                            Gecikmiş {s.lateDurationMinutes ? `(${Math.round(s.lateDurationMinutes / 60)} sa)` : ''}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {s.storagePath && (
+                            <button
+                              onClick={() => handleDownloadOriginal(s)}
+                              title={`Orijinal Dosyayı İndir (${s.fileName || 'Dosya'})`}
+                              className="p-2 text-gray-500 hover:text-blue-400 transition-all"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => onOpenReport(s)}
                             title="Raporu aç"
@@ -145,6 +276,7 @@ export function AssignmentDetailView({
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       )}
     </div>

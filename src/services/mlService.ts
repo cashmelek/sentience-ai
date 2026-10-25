@@ -4,6 +4,7 @@
  */
 
 import { extractTextFeatures } from '../ml/textFeatures';
+import { runWorkerDeepMLAnalysis } from '../ml/workerClient';
 
 export interface MLAnalysisResult {
   readabilityScore: number;
@@ -15,6 +16,9 @@ export interface MLAnalysisResult {
     avgWordLength: number;
     atesman: number;
     cetinkayaUzun: number;
+    bezirciYilmaz?: number;
+    lix?: number;
+    rix?: number;
   };
   recommendations: {
     text: string;
@@ -96,6 +100,8 @@ const countSyllables = (word: string): number => {
 };
 
 export const performDeepMLAnalysis = async (text: string): Promise<MLAnalysisResult> => {
+  const workerResult = await runWorkerDeepMLAnalysis(text);
+  if (workerResult) return workerResult;
   const words = text.trim().split(/\s+/).filter(w => w.length > 0);
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
 
@@ -108,6 +114,9 @@ export const performDeepMLAnalysis = async (text: string): Promise<MLAnalysisRes
   const avgSyllablesPerWord = wordCount ? syllableCount / wordCount : 0;
   const atesman = Math.round(features.atesman);
   const cetinkayaUzun = Math.round(features.cetinkayaUzun);
+  const bezirciYilmaz = features.bezirciYilmaz;
+  const lix = features.lix;
+  const rix = features.rix;
 
   const recommendations = [];
   
@@ -140,6 +149,12 @@ export const performDeepMLAnalysis = async (text: string): Promise<MLAnalysisRes
   
   // Karmaşık kelimeleri tespit et
   const complexWords = words.filter(w => countSyllables(w) > 3);
+  if (bezirciYilmaz > 14) {
+    recommendations.push({
+      text: "Metinde 5-6+ heceli eklemeli sözcük yoğunluğu yüksek (Bezirci-Yılmaz Seviyesi: " + bezirciYilmaz + "); akıcılık için sadeleştirilebilir.",
+      type: 'complex_words' as const
+    });
+  }
   if (complexWords.length > 5) {
     recommendations.push({
       text: "Kelime karmaşıklığı yüksek, daha yaygın kelimeler seçin.",
@@ -156,7 +171,10 @@ export const performDeepMLAnalysis = async (text: string): Promise<MLAnalysisRes
       syllableCount,
       avgWordLength,
       atesman,
-      cetinkayaUzun
+      cetinkayaUzun,
+      bezirciYilmaz,
+      lix,
+      rix
     },
     recommendations
   };

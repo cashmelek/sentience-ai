@@ -41,8 +41,11 @@ export const chunkText = (text: string, chunkSize: number = 800): string[] => {
   return chunks;
 };
 
-export const generateEmbedding = async (text: string): Promise<number[]> => {
-  return vectorEngine.generateEmbedding(text);
+export const generateEmbedding = async (
+  text: string,
+  provider: 'cloud' | 'local' | 'browser' = 'cloud'
+): Promise<number[]> => {
+  return vectorEngine.generateEmbedding(text, provider);
 };
 
 export const saveToVectorStore = async (

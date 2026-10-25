@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { apiKeyManager } from "./apiKeyManager";
 import { detectIntegrityFlags, IntegrityReport } from "../ml/textFeatures";
 import { isLocalModelEnabled, callLocalModelChat } from "./localModelService";
+import { auth } from "../lib/firebase";
 
 // --- API ANAHTARI YÖNETİMİ ---
 export const getCurrentApiKey = (): string => {
@@ -27,7 +28,7 @@ const DEFAULT_MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.0-flash";
  * Model isminin geçerliliğini kontrol eder ve gerekirse güvenli varsayılana döner.
  */
 export const validateModelName = (name: string): string => {
-  if (!name) return "gemini-2.0-flash";
+  if (!name) return "gemini-2.5-flash-lite";
 
   let normalized = name.toLowerCase().trim();
 
@@ -35,22 +36,22 @@ export const validateModelName = (name: string): string => {
     return name.trim();
   }
 
-  // KESÄ°N YÃ–NLENDÄ°RME: KapatÄ±lan/Eski modelleri anÄ±nda gÃ¼ncel modele Ã§ek
-  if (normalized.includes("1.0") || normalized.includes("1.5") || normalized.includes("pro-vision")) {
-    return "gemini-2.0-flash";
+  if (
+    normalized.includes("2.0-flash") ||
+    normalized.includes("1.0") ||
+    normalized.includes("1.5") ||
+    normalized.includes("pro-vision")
+  ) {
+    return "gemini-2.5-flash-lite";
   }
 
   normalized = normalized
-    .replace(/\s+/g, '-')     // BoÅŸluklarÄ± tire yap
-    .replace(/\(.*\)/g, '')    // Parantez iÃ§lerini sil
-    .replace(/-+$/g, '');      // Sondaki tireleri temizle
+    .replace(/\s+/g, '-')
+    .replace(/\(.*\)/g, '')
+    .replace(/-+$/g, '');
 
   if (normalized.startsWith("gemini-")) {
     return normalized;
-  }
-
-  if (normalized === "3.5-flash" || normalized === "3.1-pro" || normalized === "3.1-flash-lite") {
-    return `gemini-${normalized}`;
   }
 
   return `gemini-${normalized}`;
@@ -119,17 +120,35 @@ export const translateError = (error: any, isUnlimited: boolean = false): string
   }
 
   // Firebase Auth Error Translations
+  if (message.includes("auth/unauthorized-domain")) {
+    return "Bu alan adı (domain) Firebase yetkili alan adları listesinde kayıtlı değil. Lütfen Firebase Console üzerinden alan adını ekleyin.";
+  }
+  if (message.includes("auth/popup-blocked")) {
+    return "Giriş penceresi (popup) tarayıcınız tarafından engellendi. Lütfen açılır pencerelere izin verin.";
+  }
+  if (message.includes("auth/popup-closed-by-user") || message.includes("auth/cancelled-popup-request")) {
+    return "Giriş işlemi pencere kapatıldığı için iptal edildi.";
+  }
   if (message.includes("auth/invalid-credential") || message.includes("auth/wrong-password") || message.includes("auth/user-not-found")) {
-    return "E-posta adresi veya ÅŸifre hatalÄ±.";
+    return "E-posta adresi veya şifre hatalı. Kayıtlı değilseniz 'Kayıt Ol' sekmesinden hesap oluşturun.";
   }
   if (message.includes("auth/email-already-in-use")) {
-    return "Bu e-posta adresi zaten kullanÄ±mda.";
+    return "Bu e-posta adresi zaten kullanımda. Lütfen 'Giriş Yap' sekmesinden giriş yapın.";
   }
-  if (message.includes("auth/popup-closed-by-user")) {
-    return "GiriÅŸ iÅŸlemi iptal edildi.";
+  if (message.includes("auth/weak-password")) {
+    return "Şifreniz çok zayıf. Şifreniz en az 6 karakter olmalıdır.";
+  }
+  if (message.includes("auth/invalid-email")) {
+    return "Geçersiz bir e-posta adresi girdiniz. Lütfen e-postanızı kontrol edin.";
+  }
+  if (message.includes("auth/operation-not-allowed")) {
+    return "Bu giriş yöntemi Firebase panelinde etkinleştirilmemiş.";
+  }
+  if (message.includes("auth/too-many-requests")) {
+    return "Çok fazla başarısız deneme yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.";
   }
   if (message.includes("auth/network-request-failed")) {
-    return "AÄŸ baÄŸlantÄ±sÄ± hatasÄ±. LÃ¼tfen internet baÄŸlantÄ±nÄ±zÄ± kontrol edin.";
+    return "Ağ bağlantısı hatası. Lütfen internet bağlantınızı kontrol edin.";
   }
   if (message.includes("API key not valid")) {
     return "API anahtarÄ±nÄ±z geÃ§ersiz. LÃ¼tfen Admin panelindeki anahtarlarÄ± kontrol edin.";
@@ -266,9 +285,8 @@ export const analyzeAndHumanize = async (
   modelName?: string,
   retryCount: number = 0
 ): Promise<AnalysisResult> => {
-  // 1. Ã–nce Vercel Serverless GÃ¼venlik KatmanÄ± denenir
+  // 1. Önce Vercel Serverless Güvenlik Katmanı denenir
   try {
-    const { auth } = await import("../lib/firebase");
     const token = await auth.currentUser?.getIdToken();
     if (token) {
       const response = await fetch("/api/analyze", {
@@ -299,9 +317,11 @@ export const analyzeAndHumanize = async (
 
   const modelsToTry = [
     validModel,
-    "gemini-2.0-flash",           // Ana model (En gÃ¼ncel)
-    "gemini-3.1-pro",             // GeliÅŸmiÅŸ muhakeme
-    "gemini-3.1-flash-lite",      // HÄ±zlÄ± ve hafif
+    "gemini-3.8-flash",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-3.1-pro",
+    "gemini-3.1-flash-lite",
   ].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i) as string[];
 
   let lastError: any = null;
@@ -411,7 +431,25 @@ export const analyzeAndHumanize = async (
       if (isLocalModelEnabled() || validModel.startsWith('local:') || validModel.startsWith('ollama:') || validModel.startsWith('custom:')) {
         const localCleanName = validModel.replace(/^(local:|ollama:|custom:)/, '');
         console.log(`Lokal model (${localCleanName}) ile istek gönderiliyor...`);
-        resultText = await callLocalModelChat(prompt, `Kaynak Metin: ${text}`, { modelName: localCleanName || undefined });
+        try {
+          resultText = await callLocalModelChat(prompt, `Kaynak Metin: ${text}`, { modelName: localCleanName || undefined });
+        } catch (localErr: any) {
+          const fallbackEnabled = typeof localStorage !== 'undefined' ? localStorage.getItem('sentience_fallback_to_cloud') !== 'false' : true;
+          if (!fallbackEnabled) throw localErr;
+          console.warn("[LocalModel] Yerel model yanıt vermedi, Gemini Bulut fallback devreye giriyor:", localErr.message);
+          const client = getGeminiClient();
+          const fallbackRes = await client.models.generateContent({
+            model: "gemini-2.0-flash",
+            contents: [{ role: 'user', parts: [{ text: `Kaynak Metin: ${text}\n\n${prompt}` }] }],
+            config: {
+              temperature: temp,
+              maxOutputTokens: 8192,
+              responseMimeType: "application/json"
+            }
+          });
+          resultText = fallbackRes.text || '';
+          await apiKeyManager.incrementUsage('gemini');
+        }
       } else {
         console.log(`Model ${validModel} ile istek gönderiliyor...`);
         let result;
@@ -647,9 +685,8 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
     }
   }
 
-  // 1. Ã–nce Vercel Serverless GÃ¼venlik KatmanÄ± denenir
+  // 1. Önce Vercel Serverless Güvenlik Katmanı denenir
   try {
-    const { auth } = await import("../lib/firebase");
     const token = await auth.currentUser?.getIdToken();
     if (token) {
       const response = await fetch("/api/detect", {
@@ -689,6 +726,8 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
   const validRequestedModel = validateModelName(modelName);
   const modelsToTry = [
     validRequestedModel,
+    "gemini-3.8-flash",
+    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-3.1-pro",
     "gemini-3.1-flash-lite",
@@ -760,7 +799,7 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
         Metin: ${text}` }] }],
         config: { 
           responseMimeType: "application/json", 
-          temperature: 0.1 
+          temperature: 0 
         }
       });
 

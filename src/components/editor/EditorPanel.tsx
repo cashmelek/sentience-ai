@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import {
   Undo2,
   Redo2,
@@ -8,7 +9,11 @@ import {
   ShieldCheck,
   RefreshCw,
   Search,
-  ExternalLink
+  ExternalLink,
+  Trash2,
+  Upload,
+  Clock,
+  Zap
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { findGrammarMatch } from '../../lib/grammarMatch';
@@ -57,6 +62,8 @@ interface EditorPanelProps {
   remainingChars: number;
   currentLimit: number;
   currentUsage: number;
+  onClearText?: () => void;
+  onUploadFile?: (text: string) => void;
 }
 
 export function EditorPanel(props: EditorPanelProps) {
@@ -93,8 +100,88 @@ export function EditorPanel(props: EditorPanelProps) {
     sentinelSourcesRef,
     remainingChars,
     currentLimit,
-    currentUsage
+    currentUsage,
+    onClearText,
+    onUploadFile
   } = props;
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isFileLoading, setIsFileLoading] = useState(false);
+  const [autoDetect, setAutoDetect] = useState(() => {
+    try {
+      return localStorage.getItem('sentience_auto_detect') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const processUploadedFile = async (file: File) => {
+    setIsFileLoading(true);
+    try {
+      const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+      let extractedText = '';
+
+      if (ext === '.pdf' || ext === '.docx') {
+        const { parseDocumentFile } = await import('../../services/fileParseService');
+        const parsed = await parseDocumentFile(file);
+        extractedText = parsed.text;
+      } else {
+        extractedText = await file.text();
+      }
+
+      if (extractedText.trim()) {
+        if (onUploadFile) {
+          onUploadFile(extractedText);
+        } else {
+          onTextChange({ target: { value: extractedText } } as any);
+        }
+        toast.success(`${file.name} başarıyla aktarıldı (${extractedText.length} karakter).`);
+        if (autoDetect && !isAnalyzing && (!isOverLimit || isAdmin)) {
+          setTimeout(() => {
+            onAnalyze();
+          }, 350);
+        }
+      } else {
+        toast.error('Dosyada okunabilir metin bulunamadı.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Dosya okunamadı.');
+    } finally {
+      setIsFileLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processUploadedFile(file);
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await processUploadedFile(file);
+    }
+  };
 
   // Highlighted Text Logic (Grammar + Heatmap + Plagiarism + Readability)
   const inputOverlay = useMemo(() => {
@@ -244,13 +331,11 @@ export function EditorPanel(props: EditorPanelProps) {
                 id={isHovered || isPlagiarismActiveFromCard ? "hovered-insight-span" : undefined}
                 key={`heat-${idx}`}
                 className={cn(
-                  "transition-all duration-300 rounded-sm inline",
-                  isHovered ? "font-black text-emerald-400" : "cursor-pointer group relative",
-                  item.type === 'plagiarism' ? "border-b-2 border-orange-500 font-semibold" : "",
-                  isPlagiarismActiveFromCard ? "animate-pulse" : ""
+                  "rounded-sm inline transition-colors duration-150 text-transparent",
+                  item.type === 'plagiarism' ? "border-b-2 border-orange-500" : ""
                 )}
                 style={{
-                  backgroundColor: isPlagiarismActiveFromCard ? 'rgba(245, 158, 11, 0.35)' : isHovered ? 'rgba(16, 185, 129, 0.2)' : color,
+                  backgroundColor: isPlagiarismActiveFromCard ? 'rgba(245, 158, 11, 0.45)' : isHovered ? 'rgba(16, 185, 129, 0.25)' : color,
                   outline: isPlagiarismActiveFromCard ? '2px solid rgba(245,158,11,0.6)' : undefined,
                   borderRadius: isPlagiarismActiveFromCard ? '4px' : undefined,
                 }}
@@ -307,8 +392,8 @@ export function EditorPanel(props: EditorPanelProps) {
             <span
               id="hovered-insight-span"
               key="hovered"
-              className="transition-all duration-300 rounded-sm inline font-black text-emerald-400"
-              style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)' }}
+              className="transition-colors duration-150 rounded-sm inline text-transparent"
+              style={{ backgroundColor: 'rgba(16, 185, 129, 0.25)' }}
             >
               {inputText.slice(index, index + searchStr.length)}
             </span>
@@ -330,15 +415,98 @@ export function EditorPanel(props: EditorPanelProps) {
   }, [inputText, grammarSuggestions, showInputHeatmap, auditorResult, hoveredInsight, hoveredSourceUrl, analysis, sentinelSourcesRef, hoveredGrammar, hoveredReadability, onHoverSourceUrl]);
 
   return (
-    <div className={cn("glass-panel rounded-[24px] flex flex-col", className)}>
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={cn("glass-panel rounded-[24px] flex flex-col relative transition-all", isDragging && "ring-2 ring-emerald-500/50 bg-emerald-500/[0.02]", className)}
+    >
+      {/* Sürükle-Bırak Karşılama Katmanı */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 bg-brand-bg/90 backdrop-blur-md border-2 border-dashed border-emerald-500 rounded-[24px] flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-150">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-2 animate-bounce">
+            <Upload className="w-7 h-7" />
+          </div>
+          <p className="text-sm font-bold text-white tracking-tight">Belgeyi Buraya Bırakın</p>
+          <p className="text-[11px] text-gray-400 mt-1">.pdf, .docx, .txt, .md dosyaları desteklenir</p>
+        </div>
+      )}
+
+      {/* Dosya Ayrıştırma Yükleniyor Katmanı */}
+      {isFileLoading && (
+        <div className="absolute inset-0 z-50 bg-brand-bg/85 backdrop-blur-sm rounded-[24px] flex flex-col items-center justify-center pointer-events-none">
+          <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin mb-3" />
+          <p className="text-xs font-bold text-white">Belge Metni Ayrıştırılıyor...</p>
+        </div>
+      )}
+
       <div className="px-4 py-3 border-b border-brand-border bg-black/20 flex flex-col gap-3">
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4"><span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Giriş metni</span>{realtimeScore !== null && <div className="flex items-center gap-1.5"><div className="w-10 lg:w-16 h-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-red-500" style={{ width: `${realtimeScore * 100}%` }} /></div><span className="text-[8px] text-gray-500">%{Math.round(realtimeScore * 100)} YZ</span></div>}</div>
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Giriş metni</span>
+            {realtimeScore !== null && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-10 lg:w-16 h-1 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-red-500" style={{ width: `${realtimeScore * 100}%` }} />
+                </div>
+                <span className="text-[8px] text-gray-500">%{Math.round(realtimeScore * 100)} YZ</span>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".txt,.md,.pdf,.docx,.json,.csv"
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              title="Belge Yükle (.pdf, .docx, .txt, .md)"
+              className="p-1.5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg border border-white/5 transition-colors"
+            >
+              <Upload className="w-3 h-3" />
+            </button>
+            {inputText.trim() && (
+              <button
+                onClick={() => {
+                  if (onClearText) {
+                    onClearText();
+                  } else {
+                    onTextChange({ target: { value: '' } } as any);
+                  }
+                }}
+                title="Metni Temizle"
+                className="p-1.5 text-gray-400 hover:text-red-400 bg-white/5 hover:bg-red-500/10 rounded-lg border border-white/5 transition-colors"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
             <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
               <button onClick={onUndo} disabled={!canUndo} title="Geri Al" className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400 transition-colors"><Undo2 className="w-3 h-3" /></button>
               <button onClick={onRedo} disabled={!canRedo} title="İleri Al" className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400 transition-colors"><Redo2 className="w-3 h-3" /></button>
             </div>
+            <button
+              onClick={() => {
+                const next = !autoDetect;
+                setAutoDetect(next);
+                try {
+                  localStorage.setItem('sentience_auto_detect', String(next));
+                } catch {}
+                toast.success(next ? "Otomatik analiz açık (yapıştırmada devreye girer)" : "Otomatik analiz kapatıldı");
+              }}
+              title="Metin yapıştırıldığında veya dosya yüklendiğinde otomatik YZ tespiti başlat"
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold transition-all border",
+                autoDetect
+                  ? "bg-purple-500/15 border-purple-500/30 text-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.15)]"
+                  : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+              )}
+            >
+              <Zap className={cn("w-2.5 h-2.5", autoDetect && "fill-purple-400")} />
+              <span className="hidden sm:inline">Oto Tespit</span>
+            </button>
             <button onClick={onSaveDraft} disabled={isDrafting || !inputText.trim()} className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[9px] font-bold text-gray-400 hover:bg-white/10 transition-all disabled:opacity-50"><Save className="w-2.5 h-2.5" /> <span className="hidden sm:inline">Taslak</span></button>
             <button onClick={onToggleHeatmap} className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold transition-all", showInputHeatmap ? "bg-emerald-500 text-black" : "bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10")}><Highlighter className="w-2.5 h-2.5" /> Isı haritası</button>
             <button onClick={onAnalyze} disabled={isAnalyzing || !inputText.trim() || (!isAdmin && isOverLimit)} className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[9px] font-bold text-emerald-500 hover:bg-emerald-500/20 transition-all shadow-[0_0_15px_rgba(16,185,129,0.1)]">{isAnalyzing ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <ShieldCheck className="w-2.5 h-2.5" />} Denetçi Analizi</button>
@@ -351,6 +519,15 @@ export function EditorPanel(props: EditorPanelProps) {
           value={inputText}
           onScroll={onScroll}
           onChange={onTextChange}
+          onPaste={(e) => {
+            if (!autoDetect || isAnalyzing || (isOverLimit && !isAdmin)) return;
+            const pastedText = e.clipboardData?.getData('text') || '';
+            if (pastedText.trim().length >= 30) {
+              setTimeout(() => {
+                onAnalyze();
+              }, 300);
+            }
+          }}
           onKeyDown={(e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
               e.preventDefault();
@@ -381,13 +558,28 @@ export function EditorPanel(props: EditorPanelProps) {
           <>
             {isShort && (
               <div className="px-4 py-1.5 bg-amber-500/[0.08] border-t border-amber-500/20 flex items-center gap-2 shrink-0">
-                <span className="text-[9px] text-amber-400 font-bold">&#9888; {wc} kelime - Dogru analiz icin en az 80 kelime onerilir.</span>
+                <span className="text-[9px] text-amber-400 font-bold">&#9888; {wc} kelime - Doğru analiz için en az 80 kelime önerilir.</span>
+              </div>
+            )}
+            {(isOverLimit || (!isAdmin && remainingChars < inputText.length)) && (
+              <div className="px-4 py-1.5 bg-rose-500/[0.12] border-t border-rose-500/30 flex items-center justify-between shrink-0 animate-shake">
+                <span className="text-[9px] text-rose-400 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping inline-block" />
+                  Günlük kota sınırı aşıldı ({currentUsage.toLocaleString()} / {currentLimit.toLocaleString()} karakter).
+                </span>
               </div>
             )}
             <div className="px-4 py-2 border-t border-white/5 bg-black/20 flex items-center gap-4 text-[9px] text-gray-600 font-mono shrink-0 rounded-b-[24px]">
               <span><span className={isShort ? 'text-amber-400 font-bold' : ''}>{wc}</span> <span className="text-gray-700">kelime</span></span>
               <span className="text-white/10">|</span>
-              <span>{inputText.length} <span className="text-gray-700">karakter</span></span>
+              <span className={cn((isOverLimit || (!isAdmin && remainingChars < inputText.length)) && "text-rose-400 font-bold")}>
+                {inputText.length} <span className="text-gray-700">karakter</span>
+              </span>
+              <span className="text-white/10">|</span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-2.5 h-2.5 text-gray-500" />
+                <span>{Math.max(1, Math.ceil(wc / 200))} dk okuma</span>
+              </span>
               <span className="text-white/10">|</span>
               <span className="flex items-center gap-1">
                 <span className={cn('w-1.5 h-1.5 rounded-full inline-block', burstiness > 0.5 ? 'bg-emerald-400' : burstiness > 0.28 ? 'bg-amber-400' : 'bg-red-400')} />
@@ -397,14 +589,16 @@ export function EditorPanel(props: EditorPanelProps) {
               {isAdmin ? (
                 <span className="text-emerald-600">&#x221e; Admin</span>
               ) : (
-                <span className={remainingChars < inputText.length ? 'text-red-500' : remainingChars < currentLimit * 0.2 ? 'text-amber-500' : 'text-emerald-600'}>
+                <span className={cn(
+                  remainingChars < inputText.length ? 'text-red-500 font-bold animate-shake' : remainingChars < currentLimit * 0.2 ? 'text-amber-500' : 'text-emerald-600'
+                )}>
                   {remainingChars === Infinity ? '&#x221e;' : remainingChars.toLocaleString()} <span className="text-gray-700">kalan</span>
                 </span>
               )}
               {!isAdmin && (
-                <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden max-w-24">
+                <div className={cn("flex-1 h-1 bg-white/5 rounded-full overflow-hidden max-w-24", (isOverLimit || remainingChars < inputText.length) && "ring-1 ring-rose-500 animate-shake")}>
                   <div
-                    className={cn("h-full rounded-full transition-all", currentUsage / currentLimit > 0.8 ? "bg-red-500" : currentUsage / currentLimit > 0.5 ? "bg-amber-500" : "bg-emerald-500")}
+                    className={cn("h-full rounded-full transition-all", (isOverLimit || currentUsage / currentLimit > 0.8) ? "bg-red-500" : currentUsage / currentLimit > 0.5 ? "bg-amber-500" : "bg-emerald-500")}
                     style={{ width: `${Math.min(100, (currentUsage / currentLimit) * 100)}%` }}
                   />
                 </div>

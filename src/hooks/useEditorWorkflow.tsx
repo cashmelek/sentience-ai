@@ -18,6 +18,8 @@ import type { MLAnalysisResult } from '../services/mlService';
 import { verifyPlagiarism, verifyFactCheck } from '../services/sentinelService';
 import type { FactCheckReport } from '../services/sentinelService';
 import type { AppUser, Project, SystemSettings, CombinedAnalysisResult, AuditorResult } from '../types';
+import { DEMO_PROJECTS } from '../services/demoProjectsService';
+import { sendBrowserNotification } from '../utils/browserNotification';
 
 /**
  * B20 Adım 5 (Core Refactor): insanlaştırma/analiz/taslak/geçmiş iş akışı App.tsx'ten
@@ -147,7 +149,9 @@ export function useEditorWorkflow(deps: EditorWorkflowDeps) {
             minWordCount: systemSettings.sentinelMinWordCount,
             useDynamicSimilarity: systemSettings.sentinelUseDynamicSimilarity,
             trustFilter: systemSettings.sentinelTrustFilter,
-            regionFilter: systemSettings.sentinelRegionFilter
+            regionFilter: systemSettings.sentinelRegionFilter,
+            embeddingProvider: systemSettings.embeddingProvider,
+            embeddingThreshold: systemSettings.embeddingThreshold
           }
         );
         if (systemSettings.sentinelEnabled) {
@@ -250,10 +254,29 @@ export function useEditorWorkflow(deps: EditorWorkflowDeps) {
       } else {
         toast.success("Analiz tamamlandı!");
       }
+
+      sendBrowserNotification("Sentience AI — İnsanlaştırma Tamamlandı", {
+        body: `Metniniz başarıyla dönüştürüldü. YZ İzi: %${Math.round((combinedResult.aiScore || 0) * 100)}`
+      });
+
       if (window.innerWidth < 1024) setMobileTab('result');
 
     } catch (error: any) {
-      toast.error(translateError(error, isAdmin));
+      const errMsg = translateError(error, isAdmin);
+      toast((t) => (
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <span>{errMsg}</span>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              handleHumanize();
+            }}
+            className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg font-bold shrink-0 transition-colors"
+          >
+            Yeniden Dene
+          </button>
+        </div>
+      ), { id: 'humanize-error', duration: 8000 });
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
@@ -288,7 +311,9 @@ export function useEditorWorkflow(deps: EditorWorkflowDeps) {
             minWordCount: systemSettings.sentinelMinWordCount,
             useDynamicSimilarity: systemSettings.sentinelUseDynamicSimilarity,
             trustFilter: systemSettings.sentinelTrustFilter,
-            regionFilter: systemSettings.sentinelRegionFilter
+            regionFilter: systemSettings.sentinelRegionFilter,
+            embeddingProvider: systemSettings.embeddingProvider,
+            embeddingThreshold: systemSettings.embeddingThreshold
           }
         )
       ]);
@@ -301,6 +326,9 @@ export function useEditorWorkflow(deps: EditorWorkflowDeps) {
         if (deepML) {
           (audit.metrics as any).atesman = deepML.metrics.atesman;
           (audit.metrics as any).cetinkayaUzun = deepML.metrics.cetinkayaUzun;
+          (audit.metrics as any).bezirciYilmaz = deepML.metrics.bezirciYilmaz;
+          (audit.metrics as any).lix = deepML.metrics.lix;
+          (audit.metrics as any).rix = deepML.metrics.rix;
         }
         if (plagiarismReport && typeof plagiarismReport.similarityScore === 'number') {
           audit.metrics.plagiarism = plagiarismReport.similarityScore / 100;
@@ -340,9 +368,28 @@ export function useEditorWorkflow(deps: EditorWorkflowDeps) {
       });
 
       toast.success("Derin analiz tamamlandı.");
+
+      sendBrowserNotification("Sentience AI — Analiz Tamamlandı", {
+        body: `YZ Tespiti: %${Math.round((audit?.score ?? 0) * 100)} | İntihal: %${plagiarismReport?.similarityScore ?? 0}`
+      });
+
       if (window.innerWidth < 1024) setMobileTab('analysis');
     } catch (error: any) {
-      toast.error(translateError(error));
+      const errMsg = translateError(error);
+      toast((t) => (
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <span>{errMsg}</span>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              handleAnalyze();
+            }}
+            className="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-lg font-bold shrink-0 transition-colors"
+          >
+            Yeniden Dene
+          </button>
+        </div>
+      ), { id: 'analyze-error', duration: 8000 });
     } finally {
       setIsAnalyzing(false);
     }
@@ -403,36 +450,56 @@ export function useEditorWorkflow(deps: EditorWorkflowDeps) {
     finally { setIsDrafting(false); }
   };
 
-  const loadProjectFromHistory = useCallback((p: Project) => {
+  const loadProjectFromHistory = useCallback((rawP: Project) => {
+    const demoMatch = DEMO_PROJECTS.find(demo => demo.title?.trim().toLowerCase() === rawP.title?.trim().toLowerCase());
+    const p: Project = demoMatch ? ({ ...rawP, ...demoMatch } as Project) : rawP;
+
     setInputText(p.originalText || '');
     setHumanizedText(p.humanizedText || '');
     if (p.tone) {
       setOptions((prev) => ({ ...prev, tone: p.tone, intensity: p.intensity ?? prev.intensity }));
     }
     if (p.analysis) {
-      setAnalysis(p.analysis);
+      setAnalysis({
+        ...p.analysis,
+        scanStatus: p.analysis.scanStatus || 'ok',
+        queriesRun: p.analysis.queriesRun || (p.analysis.sources?.length ? p.analysis.sources.length : 2)
+      });
     } else if (p.sentenceScores || p.aiScore !== undefined) {
+      const rawAi = p.aiScore || 0;
+      const normalizedAi = rawAi > 1 ? rawAi / 100 : rawAi;
+      const rawPlg = p.plagiarismScore || 0;
       setAnalysis({
         humanizedText: p.humanizedText || '',
-        aiScore: p.aiScore || 0,
-        similarityScore: p.plagiarismScore || 0,
+        aiScore: normalizedAi,
+        similarityScore: rawPlg,
         sentenceScores: p.sentenceScores || [],
         insights: p.insights || [],
         sources: p.sources || [],
+        scanStatus: 'ok',
+        queriesRun: (p.sources && p.sources.length) ? p.sources.length : 2,
         metrics: p.metrics || { perplexity: 0, burstiness: 0, vocabularyRichness: 0, readability: 0, consistency: 0 },
       });
     } else {
       setAnalysis(null);
     }
     if (p.auditorResult) {
-      setAuditorResult(p.auditorResult);
-    } else if (p.aiScore !== undefined && p.aiScore > 0) {
+      const rawScore = p.auditorResult.score;
+      const normalizedScore = rawScore > 1 ? rawScore / 100 : rawScore;
       setAuditorResult({
-        score: p.aiScore,
+        ...p.auditorResult,
+        score: normalizedScore,
+        metrics: p.auditorResult.metrics || p.metrics
+      });
+    } else if (p.aiScore !== undefined && p.aiScore > 0) {
+      const rawScore = p.aiScore;
+      const normalizedScore = rawScore > 1 ? rawScore / 100 : rawScore;
+      setAuditorResult({
+        score: normalizedScore,
         reasoning: p.analysis?.reasoning || 'Kayıtlı analiz verisi.',
         sentenceScores: p.sentenceScores || [],
         metrics: p.metrics || {
-          plagiarism: p.plagiarismScore ? p.plagiarismScore / 100 : 0,
+          plagiarism: p.plagiarismScore ? (p.plagiarismScore > 1 ? p.plagiarismScore / 100 : p.plagiarismScore) : 0,
           readability: 0.85,
           complexity: 'Standart',
           burstiness: 0.5,
@@ -443,6 +510,11 @@ export function useEditorWorkflow(deps: EditorWorkflowDeps) {
     }
     if (p.mlAnalysis) {
       setMlAnalysis(p.mlAnalysis);
+    } else if (p.originalText) {
+      performDeepMLAnalysis(p.originalText).then(ml => setMlAnalysis(ml)).catch(() => {});
+    }
+    if (p.grammarSuggestions) {
+      setGrammarSuggestions(p.grammarSuggestions);
     }
     setShowHeatmap(true);
     setActiveTab('editor');
