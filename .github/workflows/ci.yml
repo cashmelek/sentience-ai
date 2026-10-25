@@ -117,7 +117,7 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SENTIENCE_AI }}
           expires: 7d
-          projectId: sentience-ai
+          projectId: sentience-ai-free-2026
 
   deploy-live:
     name: Deploy Live to Firebase Hosting
@@ -142,4 +142,4 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SENTIENCE_AI }}
           channelId: live
-          projectId: sentience-ai
+          projectId: sentience-ai-free-2026
