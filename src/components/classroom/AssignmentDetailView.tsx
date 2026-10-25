@@ -1,4 +1,5 @@
-import { ArrowLeft, ClipboardList, Download, FileClock, RefreshCw, UserPlus, FileText, FileUp } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ArrowLeft, ClipboardList, Download, FileClock, RefreshCw, UserPlus, FileText, FileUp, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { getSubmissionFileUrl } from '../../services/classroomService';
 import type { ClassRoom, Assignment, Submission } from '../../types/classroom';
@@ -39,6 +40,33 @@ export function AssignmentDetailView({
   canSubmitOnBehalf,
   onOpenBehalf,
 }: AssignmentDetailViewProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'high_risk' | 'ungraded' | 'late'>('all');
+
+  const filteredSubmissions = useMemo(() => {
+    return submissions.filter((sub) => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        (sub.studentName || '').toLowerCase().includes(searchLower) ||
+        (sub.studentEmail || '').toLowerCase().includes(searchLower) ||
+        (sub.title || '').toLowerCase().includes(searchLower);
+
+      if (!matchesSearch) return false;
+
+      if (filterType === 'high_risk') {
+        return (sub.similarityScore || 0) >= 15 || (sub.aiScore || 0) >= 50;
+      }
+      if (filterType === 'ungraded') {
+        return typeof sub.grade !== 'number';
+      }
+      if (filterType === 'late') {
+        return sub.isLate === true;
+      }
+
+      return true;
+    });
+  }, [submissions, searchTerm, filterType]);
+
   const scored = submissions.filter((s) => s.status === 'scored');
 
   const handleDownloadOriginal = async (s: Submission) => {
@@ -96,16 +124,80 @@ export function AssignmentDetailView({
         </div>
       )}
 
+      {/* Search and Filters */}
+      {submissions.length > 0 && (
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Öğrenci adı, e-posta veya ödev başlığı ara..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-[#1A1A1A] border border-[#333] rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#4A90E2] transition-colors"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors min-h-[42px] ${
+                filterType === 'all'
+                  ? 'bg-white/10 text-white'
+                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              Tümü
+            </button>
+            <button
+              onClick={() => setFilterType('high_risk')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors min-h-[42px] ${
+                filterType === 'high_risk'
+                  ? 'bg-white/10 text-white'
+                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              Yüksek Risk (Benzerlik ≥ %15)
+            </button>
+            <button
+              onClick={() => setFilterType('ungraded')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors min-h-[42px] ${
+                filterType === 'ungraded'
+                  ? 'bg-white/10 text-white'
+                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              Notlandırılmamış
+            </button>
+            <button
+              onClick={() => setFilterType('late')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors min-h-[42px] ${
+                filterType === 'late'
+                  ? 'bg-[#FF3B30]/10 text-[#FF3B30] border border-[#FF3B30]/20'
+                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              Gecikmiş Teslimler
+            </button>
+          </div>
+        </div>
+      )}
+
       {submissions.length === 0 ? (
         <div className="py-16 border border-dashed border-white/10 rounded-3xl text-center">
           <FileClock className="w-10 h-10 text-gray-700 mx-auto mb-3" />
           <p className="text-sm text-gray-500 font-bold">Henüz teslim yok.</p>
         </div>
+      ) : filteredSubmissions.length === 0 ? (
+        <div className="py-16 border border-dashed border-white/10 rounded-3xl text-center">
+          <Search className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+          <p className="text-sm text-gray-500 font-bold">Arama kriterine uygun teslim bulunamadı.</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {/* Mobile Card List (Visible on < 768px) */}
           <div className="md:hidden space-y-3">
-            {submissions.map((s) => {
+            {filteredSubmissions.map((s) => {
               const chip = statusChip[s.status] || statusChip.received;
               return (
                 <div key={s.id} className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-3">
@@ -203,7 +295,7 @@ export function AssignmentDetailView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {submissions.map((s) => {
+                {filteredSubmissions.map((s) => {
                   const chip = statusChip[s.status] || statusChip.received;
                   return (
                     <tr key={s.id} className="hover:bg-white/[0.02] transition-colors">
