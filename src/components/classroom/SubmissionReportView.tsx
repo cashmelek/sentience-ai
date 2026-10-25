@@ -30,7 +30,7 @@ import { getSubmissionFileUrl, forwardSubmissionToInstitute } from '../../servic
 import { toast } from 'sonner';
 import type { ClassRoom, Assignment, Submission } from '../../types/classroom';
 import { fmtDateTime, scoreColor, scoreBarClass, pct, normalizeScore } from './format';
-import { exportSubmissionReportPDF, exportInstituteApprovalPDF, matchGroupLabel, trustLabel } from './submissionExport';
+import { exportSubmissionReportPDF, exportSubmissionSummaryPDF, exportInstituteApprovalPDF, matchGroupLabel, trustLabel } from './submissionExport';
 import { detectIntegrityFlags } from '../../ml/textFeatures';
 
 export const MOSAIC_PALETTE = [
@@ -349,6 +349,14 @@ export function SubmissionReportView({
               className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-400 hover:bg-emerald-500/20 transition-all shadow-sm"
             >
               <FileDown className="w-3.5 h-3.5" /> İşlenmiş Rapor
+            </button>
+
+            <button
+              onClick={() => exportSubmissionSummaryPDF(cls, assignment, submission)}
+              title="Tam metin haricindeki analiz özet raporu"
+              className="flex items-center gap-1.5 px-3 py-3 md:py-2 min-h-[42px] md:min-h-0 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-cyan-400 hover:bg-cyan-500/20 transition-all shadow-sm"
+            >
+              <FileText className="w-3.5 h-3.5" /> Özet Rapor
             </button>
 
             {/* Rapor Tuşu 3: Orijinal Doküman */}

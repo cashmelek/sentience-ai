@@ -236,6 +236,206 @@ export function exportSubmissionReportPDF(cls: ClassRoom, assignment: Assignment
   }, 400);
 }
 
+export function exportSubmissionSummaryPDF(cls: ClassRoom, assignment: Assignment, submission: Submission): void {
+  const printWin = window.open('', '_blank');
+  if (!printWin) return;
+
+  const simPct = Math.round((submission.similarityScore ?? 0) * 100);
+  const aiPct = Math.round((submission.aiScore ?? 0) * 100);
+  const excluded = new Set(submission.excludedSourceUrls || []);
+  const sources = submission.sources || [];
+  const onBehalf = Boolean(submission.submittedBy && submission.submittedBy !== submission.studentId);
+  const receipt = submission.digitalReceipt;
+
+  const sourcesHtml = sources.length > 0
+    ? `<div class="section">
+        <h2>Eşleşen Kaynaklar (${sources.length})</h2>
+        <ul>
+          ${sources.map((s) => {
+            const isExcluded = excluded.has(s.url);
+            const isInternal = s.url.startsWith('internal://');
+            const linkHtml = isInternal
+              ? `<span style="color: #6366f1; font-weight: 600;">[Sınıf Deposu Kaydı]</span>`
+              : `<a href="${escapeHtml(s.url)}" target="_blank" rel="noreferrer">${escapeHtml(s.url)}</a>`;
+            return `<li>
+              <strong>${escapeHtml(s.title || (isInternal ? 'Sınıf İçi Teslim Deposu' : 'İnternet Kaynağı'))}</strong>
+              ${s.similarity ? `(%${Math.round(s.similarity * 100)} benzerlik)` : ''}
+              ${s.matchGroup ? `— ${escapeHtml(matchGroupLabel[s.matchGroup] || s.matchGroup)}` : ''}
+              ${s.trust ? `(güven: ${escapeHtml(trustLabel[s.trust] || s.trust)})` : ''}
+              ${isExcluded ? '<em>— rapordan dışlandı</em>' : ''}
+              <br/>${linkHtml}
+            </li>`;
+          }).join('')}
+        </ul>
+      </div>`
+    : '';
+
+  const receiptHtml = receipt
+    ? `<div class="section receipt">
+        <h2>Dijital Makbuz</h2>
+        <p>Bu makbuz, teslim edildiği andaki metinden üretilen SHA-256 özetini içerir.</p>
+        <table>
+          <tr><td>SHA-256 Özeti</td><td class="hash">${escapeHtml(receipt.sha256)}</td></tr>
+          <tr><td>Teslim Zamanı</td><td>${escapeHtml(fmtDateTime(receipt.submittedAt))}</td></tr>
+          <tr><td>Metin Uzunluğu</td><td>${escapeHtml(receipt.textLength)} karakter</td></tr>
+        </table>
+      </div>`
+    : '';
+
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+      <meta charset="UTF-8">
+      <title>Sentience AI — Teslim Raporu</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 40px; color: #111827; line-height: 1.6; }
+        .header { border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .title { font-size: 24px; font-weight: 900; color: #2563eb; letter-spacing: -0.5px; margin: 0; }
+        .meta { font-size: 11px; color: #6b7280; font-weight: 600; margin-top: 4px; }
+        .metrics { display: flex; gap: 16px; margin: 24px 0; }
+        .metric-box { flex: 1; padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; }
+        .metric-label { font-size: 10px; font-weight: 800; color: #6b7280; text-transform: uppercase; }
+        .metric-val { font-size: 22px; font-weight: 900; margin-top: 2px; }
+        .section { margin: 24px 0; }
+        .section h2 { font-size: 14px; font-weight: 800; text-transform: uppercase; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin-bottom: 12px; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        td { border: 1px solid #e5e7eb; padding: 8px 10px; vertical-align: top; }
+        td:first-child { font-weight: 700; color: #374151; white-space: nowrap; width: 160px; }
+        .hash { font-family: 'Courier New', monospace; word-break: break-all; }
+        .content { white-space: pre-wrap; font-size: 13px; color: #1f2937; line-height: 1.8; }
+        ul { padding-left: 20px; font-size: 12px; color: #4b5563; }
+        li { margin-bottom: 6px; }
+        .note { font-size: 10px; color: #9ca3af; margin-top: 28px; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+        @media print {
+          body { margin: 20px; }
+          @page { margin: 1.5cm; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <h1 class="title">SENTIENCE AI</h1>
+          <div class="meta">Sınıf Teslim Raporu — Benzerlik ve YZ Analizi</div>
+        </div>
+        <div style="display: flex; gap: 14px; align-items: center;">
+          <div class="meta" style="text-align: right;">
+            <div>${escapeHtml(new Date().toLocaleString('tr-TR'))}</div>
+            <div>Durum: ${escapeHtml(statusLabel[submission.status] || submission.status)}</div>
+            <div style="font-size: 9px; font-family: monospace; color: #6b7280; margin-top: 2px;">DOKÜMAN ID: ${escapeHtml(submission.id.substring(0, 14))}</div>
+          </div>
+          <div style="border: 1px solid #e5e7eb; padding: 3px; background: #ffffff; border-radius: 6px;" title="Doğrulama Karekodu">
+            ${generateQRCodeSvg(`https://sentience-ai.vercel.app/verify?id=${submission.id}&sha=${receipt?.sha256 || ''}`, 62)}
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Teslim Bilgileri</h2>
+        <table>
+          <tr><td>Sınıf</td><td>${escapeHtml(cls.name)}${cls.subject ? ` — ${escapeHtml(cls.subject)}` : ''}</td></tr>
+          <tr><td>Ödev</td><td>${escapeHtml(assignment.title)}</td></tr>
+          <tr><td>Öğrenci</td><td>${escapeHtml(submission.studentName)} (${escapeHtml(submission.studentEmail)})</td></tr>
+          <tr><td>Teslim Başlığı</td><td>${escapeHtml(submission.title)}</td></tr>
+          <tr><td>Teslim Tarihi</td><td>${escapeHtml(fmtDateTime(submission.createdAt))}</td></tr>
+          <tr><td>Teslim Eden</td><td>${onBehalf ? 'Eğitmen (Öğrenci adına)' : 'Öğrenci'}</td></tr>
+          ${submission.fileName ? `<tr><td>Dosya</td><td>${escapeHtml(submission.fileName)}</td></tr>` : ''}
+        </table>
+      </div>
+
+      <div class="metrics">
+        <div class="metric-box">
+          <div class="metric-label">Benzerlik Skoru</div>
+          <div class="metric-val" style="color: ${simPct > 20 ? '#ef4444' : '#10b981'};">%${simPct}</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">YZ Olasılığı</div>
+          <div class="metric-val" style="color: ${aiPct > 70 ? '#ef4444' : '#10b981'};">%${aiPct}</div>
+        </div>
+        ${submission.metrics?.perplexity !== undefined ? `
+        <div class="metric-box">
+          <div class="metric-label">Perplexity</div>
+          <div class="metric-val" style="color: #3b82f6;">${Math.round(submission.metrics.perplexity)}</div>
+        </div>` : ''}
+        ${submission.metrics?.burstiness !== undefined ? `
+        <div class="metric-box">
+          <div class="metric-label">Burstiness</div>
+          <div class="metric-val" style="color: #8b5cf6;">%${Math.round(submission.metrics.burstiness * 100)}</div>
+        </div>` : ''}
+        ${submission.metrics?.readability !== undefined || submission.metrics?.readabilityScore !== undefined ? `
+        <div class="metric-box">
+          <div class="metric-label">Okunabilirlik</div>
+          <div class="metric-val" style="color: #10b981;">%${Math.round(submission.metrics.readability ?? (submission.metrics.readabilityScore * 100))}</div>
+        </div>` : ''}
+        ${submission.metrics?.bezirciYilmaz !== undefined ? `
+        <div class="metric-box">
+          <div class="metric-label">Bezirci-Yılmaz</div>
+          <div class="metric-val" style="color: #f59e0b;">${submission.metrics.bezirciYilmaz} YOD</div>
+        </div>` : ''}
+        ${submission.metrics?.lix !== undefined ? `
+        <div class="metric-box">
+          <div class="metric-label">LIX Endeksi</div>
+          <div class="metric-val" style="color: #8b5cf6;">${Math.round(submission.metrics.lix)}</div>
+        </div>` : ''}
+      </div>
+
+      ${typeof submission.grade === 'number' || submission.feedback ? `
+      <div class="section" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 14px; margin-bottom: 20px;">
+        <h2 style="margin-top: 0; color: #059669; font-size: 14px; text-transform: uppercase;">Eğitmen Değerlendirmesi</h2>
+        ${typeof submission.grade === 'number' ? `<p style="font-size: 16px; font-weight: bold; margin: 4px 0;"><strong>Akademik Not:</strong> ${submission.grade} / 100</p>` : ''}
+        ${submission.feedback ? `<p style="margin: 6px 0 0; color: #374151; font-style: italic;">"${escapeHtml(submission.feedback)}"</p>` : ''}
+      </div>
+      ` : ''}
+
+      ${receiptHtml}
+
+      ${sourcesHtml}
+
+            ${submission.sentenceScores && submission.sentenceScores.length > 0 ? `
+      <div class="section">
+        <h2>Cümle Bazlı Risk Dağılımı (${submission.sentenceScores.length} Cümle)</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <thead>
+            <tr style="background: #f3f4f6; text-align: left;">
+              <th style="padding: 6px 8px; width: 65px; border: 1px solid #e5e7eb;">Risk</th>
+              <th style="padding: 6px 8px; border: 1px solid #e5e7eb;">Cümle</th>
+              <th style="padding: 6px 8px; width: 140px; border: 1px solid #e5e7eb;">Gerekçe</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${submission.sentenceScores.map((st) => {
+              const score = st.score ?? 0;
+              const isAi = score >= 0.7;
+              const isMixed = score >= 0.4 && score < 0.7;
+              const color = isAi ? '#dc2626' : isMixed ? '#d97706' : '#16a34a';
+              const bg = isAi ? 'rgba(239, 68, 68, 0.05)' : isMixed ? 'rgba(245, 158, 11, 0.05)' : 'transparent';
+              return `<tr style="background: ${bg};">
+                <td style="padding: 6px 8px; border: 1px solid #e5e7eb; font-weight: bold; color: ${color};">%${Math.round(score * 100)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #e5e7eb;">${escapeHtml(st.sentence)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #e5e7eb; color: #6b7280; font-style: italic;">${escapeHtml(st.reason || '-')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      ` : ''}
+
+
+
+      <p class="note">Bu rapor Sentience AI tarafından üretilmiştir. Dijital makbuzdaki SHA-256 özeti, teslim
+      anındaki metnin bütünlüğünü doğrulamak için kullanılabilir. Dışlanan kaynaklar benzerlik hesabına dahil
+      edilmemiştir.</p>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
+  setTimeout(() => {
+    printWin.focus();
+    printWin.print();
+  }, 400);
+}
+
 export interface InstituteFilterOptions {
   excludeQuotes?: boolean;
   excludeBibliography?: boolean;
