@@ -359,11 +359,15 @@ export async function listMyClasses(uid: string): Promise<ClassroomTabData> {
   const mirrorSnap = await getDocs(
     query(collection(db, 'users', uid, 'classEnrollments'), orderBy('joinedAt', 'desc'))
   );
-  const enrolled: ClassRoom[] = [];
-  for (const d of mirrorSnap.docs) {
+  const enrolledPromises = mirrorSnap.docs.map(async (d) => {
     const c = await getDoc(classRef(d.data().classId as string));
-    if (c.exists()) enrolled.push({ id: c.id, ...(c.data() as any) } as ClassRoom);
-  }
+    if (c.exists()) return { id: c.id, ...(c.data() as any) } as ClassRoom;
+    return null;
+  });
+
+  const enrolledResults = await Promise.all(enrolledPromises);
+  const enrolled: ClassRoom[] = enrolledResults.filter((c): c is ClassRoom => c !== null);
+
   return { teaching, enrolled };
 }
 
