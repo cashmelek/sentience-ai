@@ -9,6 +9,13 @@ if (typeof (window as any).process === 'undefined') {
   (window as any).process = { env: {} };
 }
 
+// Handle Vite dynamic import errors (stale chunk loading due to cache)
+if (typeof window !== 'undefined') {
+  window.addEventListener('vite:preloadError', () => {
+    window.location.reload();
+  });
+}
+
 console.log("%c SENTIENCE AI ", "background: #10b981; color: #000; font-weight: bold; padding: 2px 4px; border-radius: 4px;", "v1.0.5 - Gemini 3.5 Ready");
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
