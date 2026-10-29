@@ -225,6 +225,11 @@ Gelecekteki canlı sunumlar, testler ve pilot üniversite gösterimleri için ta
 - **Doğrulama & Canlı Dağıtım:** 41/41 test geçti, üretim derlemesi 19.16s içinde tamamlandı ve `https://sentience-ai-free-2026.web.app` adresine canlı dağıtım (hosting + firestore rules + indexes) başarıyla gerçekleştirildi.
 - **Firestore İzin Onarımı ("Missing or insufficient permissions"):** Demo sınıfı ve teslimleri yüklenirken `demo-class-yz501` alt koleksiyonları için Firestore kurallarına `isDemoClass(classId)` istisnası bağlandı ve `classroomDemoService.ts` içinde `instructorId = appUser.uid` yapılarak tüm rollerde sıfır hata ile yükleme yapılması sağlandı. Kurallar canlıya deploy edildi.
 
+### 1.29 GitHub Kaynak Kod Eşitlemesi ve Sürüm Dağıtımı (29 Ekim 2026)
+- **Commit:** `a0a5bdb` ("feat(classroom): add Turnitin-grade QuickMarks, rubric matrix, peer matrix, demo seeder, and strongly-typed guide schema")
+- **Depo & Dal:** `https://github.com/cashmelek/sentience-ai.git` (`origin/main`)
+- **İçerik:** Turnitin QuickMarks, Rubrik Matrisi, Eş-Düzey (Peer) Kopya Matrisi, Toplu Doküman Yükleme (Batch Submit), Karekodlu SHA-256 Dijital Makbuz, Tip Güvenli Kılavuz Şeması ve Canlı Demo Tohumlayıcı bileşenlerinin tamamı başarıyla GitHub ana dalına aktarıldı.
+
 ---
 
 ## 2. ÖNCEKİ OTURUMLARDA TAMAMLANAN GELİŞTİRMELER (EKİM 2026 ORTASI)
