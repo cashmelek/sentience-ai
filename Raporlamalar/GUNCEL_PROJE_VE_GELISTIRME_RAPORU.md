@@ -389,6 +389,29 @@ Geçmiş raporlar ve yol haritaları incelendiğinde henüz uygulanmamış veya 
 - [x] **Sınıf & Raporlama Kart Düzeni (P4):** Veri tablolarının mobilde taşmasını önleyen responsive kart düzenine (`Card UI`) geçirilmesi.
 - [x] **iOS/Android Sistem Uyumu & CSS Polish (P5):** Dynamic Viewport Height (`100dvh`), `env(safe-area-inset-bottom)` ve butonlarda minimum 44x44px touch target standartları.
 
+### 4.6 Öncelik 6: Akademik Çatallanma, Bütünlük İzolasyonu ve Çift Hesap Önleme Mimarisi (Academic Partitioning & Anti-Bypass Framework)
+
+Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındaki çıkar çatışmasını (öğrencinin kişisel Gmail hesabıyla metni insanlaştırıp kurumsal .edu.tr hesabıyla teslim etmesi açığını) kesin olarak önleyecek 4 aşamalı kurumsal çalışma planı:
+
+- [ ] **Faz 1 (P1 - Kritik & Acil): Sınıf ve Akademik Teslim İzolasyonu (Strict Academic Partitioning)**
+  - **Kapsam:** "Sınıflarım" modülüne bağlı veya kurumsal ödev teslimi yapan öğrencilerin çalışma alanında "İnsanlaştır" ve "StyleMaster" motorlarının kilitlenmesi ("Akademik Dürüstlük Koruması: Bu alanda sentetik metin insanlaştırma araçları kapalıdır").
+  - **Pedagojik Mod:** İnsanlaştırma yerine yalnızca akademik dilbilgisi, ifade açıklığı ve atıf formatı öneren "Socratic Academic Coach" kılavuzluğunun sunulması.
+  - **Resmi Sertifikasyon:** Üretilen SHA-256 karekodlu dijital makbuza *"Sentience Akademik Bütünlük Modunda (İnsanlaştırma Kilitli) Taranmıştır"* ibaresinin eklenmesi.
+
+- [ ] **Faz 2 (P2 - Yüksek): Platform İçi Sentetik Üretim Parmak İzi Havuzu (Internal Generator Vault)**
+  - **Kapsam:** Platform üzerinde ister kişisel (Gmail), ister anonim bir hesapla "İnsanlaştır" veya "StyleMaster" çalıştırılsın; üretilen tüm çıktıların gizlilik-dostu (Privacy-Preserving / Zero-Knowledge) 4-gram MinHash/Shingle parmak izinin `internalGeneratedVault` koleksiyonuna kaydedilmesi.
+  - **Çapraz Teslim Denetimi:** Kurumsal (.edu.tr) hesapla sınıfa teslim edilen her ödevin, harici makalelerin yanı sıra bu iç sentetik havuzla taranması.
+  - **Öğretmen Alarm Rozeti:** Eşleşme tespit edildiğinde raporda *"Sentetik Üretim İzi: Bu metin platformun İnsanlaştırma Motoru tarafından üretilmiş bir çıktıyla %90+ parmak izi eşleşmesi göstermektedir"* uyarısının verilmesi.
+
+- [ ] **Faz 3 (P3 - Yüksek): Yapıştırma ve Yazım Hızı Telemetrisi (Authorship Provenance & Paste Telemetry)**
+  - **Kapsam:** Editör bileşenine klavye vuruş ritmi (keystroke dynamics) ve blok yapıştırma (paste event) telemetrisinin eklenmesi.
+  - **Süreç Puanı (Process Score):** 3.000 kelimelik bir metin birkaç saniyede dışarıdan yapıştırılmışsa ve revizyon geçmişi sıfırsa "Doğrulanmamış Dış Yapıştırma (Unverified Paste)" bayrağının üretilmesi.
+  - **Revizyon Isı Haritası:** Öğretmenin teslim detayında öğrencinin taslak geçmişini, duraklama noktalarını ve kelime ekleme/silme aşamalarını inceleyebilmesi.
+
+- [ ] **Faz 4 (P4 - Orta): İstatistiksel Ritim Filigranı & Yapay Zeka Beyan Matrisi (Watermarking & AI Disclosure)**
+  - **İstatistiksel Filigran:** İnsanlaştırma motorunun cümle dizilimlerinde bıraktığı özel n-gram ritim sapmasını Denetçi motorunun algılamasını sağlayan matematiksel imza mekanizması.
+  - **AI Kullanım Beyanı (Disclosure Statement):** Elsevier, Nature ve YÖK standartlarında teslim formuna "Yapay Zeka Katkı Matrisi" entegrasyonu (Literatür tarama, dil düzeltisi, veri analizi vb. alanlarda şeffaf beyan).
+
 ### 1.13 Landing Page & Footer CMS Kalıcı Senkronizasyon Onarımı (25 Ekim 2026)
 - **Kök Neden Tespiti:** Firestore güvenlik kurallarında `settings/{settingId}` dökümanı `allow read: if request.auth != null;` şeklinde kapalıydı. Sayfa yenilendiğinde (F5) veya henüz giriş yapmamış ziyaretçilerde `PERMISSION_DENIED` hatası alınıyor ve `DEFAULT_LANDING_CONFIG`'e düşülüyordu. Ayrıca admin yazma kuralında platform yönetici e-postaları (`isPlatformAdminEmail()`) eksikti.
 - **Firestore Güvenlik Kuralı Ayırımı:** `firestore.rules` güncellenerek `match /settings/landingPage` için kamuya açık okuma (`allow read: if true;`) ve hem admin rolü hem de platform adminleri için yazma izni (`allow write: if isAdmin() || isPlatformAdminEmail();`) tanımlandı.
