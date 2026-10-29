@@ -569,6 +569,16 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   - `src/test/institutionLicenseService.test.ts` eklendi; vitest suite 70/70 test başarıyla geçti.
   - `npm run build` tamamlandı ve Firebase Hosting'e canlı dağıtım yapıldı.
 
+### 1.39 Kullanıcı Rehberi (User Guide) Akademik & Bütünlük Bölümleri Genişletmesi (30 Ekim 2026)
+- **6 Yeni Akademik Rehber Başlığı Eklendi (`UserGuideView.tsx`):**
+  1. *Öğrenci Çalışma Masası ve Turnitin Draft Coach Kullanım Kılavuzu:* İzole çalışma masası, taslak ön kontrolü ve derin analiz kullanımı.
+  2. *Sokratik Koç: Metni İnsanlaştırmadan Kendi Kelimelerinizle Geliştirme:* Yapay zekaya yazdırmadan metodolojik derinlik sağlayan pedagojik koç yönlendirmeleri.
+  3. *SHA-256 Dijital Makbuz ve YÖK Uyumlu Teslim Kanıtı Doğrulama:* Değişmez kriptografik hash, zaman damgası ve QR kod doğrulama adımları.
+  4. *DOCX Adli Bilişim (WPM Hız Anomalisi & Düzenleme Süresi) İnceleme:* Word meta veri katmanından hız anomalisi ve pano yapıştırma analizi.
+  5. *Yapay Zeka Katkı Beyan Matrisi (Disclosure Statement) Doldurma Adımları:* Elsevier/Nature/YÖK 5 kategorili etik beyan ve taahhütname rehberi.
+  6. *Word Eklentisi (Word Add-in) Masaüstü Kurulumu ve Kullanımı:* Word içine kurulum adımları ve sessiz adli telemetri mühürleme açıklaması.
+- **Canlı Dağıtım:** 70/70 birim testi başarıyla geçti, `npm run build` tamamlandı ve Firebase Hosting'e deploy edildi.
+
 ### 5. AKTİF YAPILACAKLAR LİSTESİ VE ÖNCELİKLENDİRİLMİŞ ÇALIŞMA PLANI
 
 Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve idari yönetim gereksinimleri gözetilerek **Kritik (P1) -> Yüksek (P2) -> Orta (P3)** şeklinde önceliklendirilmiştir:
@@ -582,8 +592,8 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
   - `INST-...` kodlarının admin panelinden oluşturulması, geçerlilik tarihi ve öğrenci/öğretmen kota sınırlarının atanması.
 
 ### 2. SIRA (ÖNCELİK 2 - P2 | Dokümantasyon & Kullanıcı Eğitimi): Kullanıcı Rehberi (User Guide) Güncellemesi
-- [ ] **Rehber Modülü Genişletmesi (`UserGuideView.tsx`):**
-  - Son eklenen modüller için 6 yeni rehber başlığının interaktif içerik ve görsellerle eklenmesi:
+- [x] **Rehber Modülü Genişletmesi (`UserGuideView.tsx`):**
+  - Son eklenen modüller için 6 yeni rehber başlığının interaktif içerik ve adımlarla eklenmesi:
     1. *Öğrenci Çalışma Masası ve Turnitin Draft Coach Kullanım Kılavuzu*
     2. *Sokratik Koç: Metni İnsanlaştırmadan Kendi Kelimelerinizle Geliştirme*
     3. *SHA-256 Dijital Makbuz ve YÖK Uyumlu Teslim Kanıtı Doğrulama*

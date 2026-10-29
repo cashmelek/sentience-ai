@@ -504,6 +504,112 @@ export const GUIDE_SECTIONS: GuideSectionItem[] = [
     ]
   },
   {
+    id: 'ogrenci-masasi-ve-draft-coach',
+    category: 'modules',
+    roles: ['student'],
+    title: 'Öğrenci Çalışma Masası ve Turnitin Draft Coach Kullanım Kılavuzu',
+    badge: 'Öğrenci Masası',
+    description: 'Öğrenciler için özel izole edilmiş çalışma masası; insanlaştırma butonlarından arındırılmış, ödev teslimi öncesi taslak kontrolü sağlayan özgünlük ortamı.',
+    steps: [
+      'Sınıflarım sekmesinden ilgili sınıfı ve ödevi seçerek "Öğrenci Çalışma Masası"nı açın.',
+      'Metninizi doğrudan yazın veya Word (.docx) dosyanızı yükleyin; formül, tablo ve görsel rozetlerinin otomatik ayrıştırıldığını gözlemleyin.',
+      'Ön Teslim Taslak Kontrolü (Draft Coach): Eğitmen izin vermişse (azami 2 hak) resmi teslimden önce benzerlik ve YZ analizi yapın.',
+      'Sağ paneldeki Derin Analiz kartından Denetçi ve Sentinel sonuçlarını inceleyerek tespit edilen kısımları kendi kelimelerinizle düzenleyin.',
+      'Son teslim tarihi öncesinde SHA-256 dijital makbuzlu resmi tesliminizi tamamlayın.'
+    ],
+    tips: [
+      'Öğrenci arayüzünde sentetik insanlaştırma kilitlidir; amaç yapay zekaya yazdırmak değil, kendi akademik ifadenizi geliştirmektir.'
+    ]
+  },
+  {
+    id: 'sokratik-koc-rehberi',
+    category: 'modules',
+    roles: ['student', 'instructor'],
+    title: 'Sokratik Koç: Metni İnsanlaştırmadan Kendi Kelimelerinizle Geliştirme',
+    badge: 'Sokratik Koç',
+    description: 'Yapay zekanın metni sizin yerinize yeniden yazması yerine, yönlendirici sorularla tezinizin veya ödevinizin düşünsel derinliğini artıran pedagojik koç.',
+    steps: [
+      'Öğrenci Masasında metninizi girdikten sonra "Sokratik Koç İncelemesi" butonuna tıklayın.',
+      'Sokratik Koç metninizdeki savları, metodolojik boşlukları ve atıf zayıflıklarını tarar.',
+      'Size hazır metin vermek yerine "Bu paragrafta hangi karşı savı çürütüyorsunuz?", "Örnekleminizin sınırlılığı nedir?" gibi pedagojik sorular yöneltir.',
+      'Sorulan sorular ışığında paragraflarınızı kendi kelimeleriniz ve özgün argümanlarınızla yeniden yapılandırın.',
+      'Böylece metniniz hem yapay zeka kalıplarından arınır hem de akademik savunmada jüriye karşı tam hakimiyet sağlar.'
+    ],
+    tips: [
+      'Sokratik koç geri bildirimleri, YÖK etik yönergelerine %100 uygundur ve intihal ya da haksız yazar katkısı riski oluşturmaz.'
+    ]
+  },
+  {
+    id: 'sha256-dijital-teslim-makbuzu',
+    category: 'verification-security',
+    roles: ['student', 'instructor', 'institute'],
+    title: 'SHA-256 Dijital Makbuz ve YÖK Uyumlu Teslim Kanıtı Doğrulama',
+    badge: 'Kriptografik Güvenlik',
+    description: 'Ödev veya tez teslim edildiği anda üretilen değişmez kriptografik özet (hash), zaman damgası ve teslim kanıtı doğrulama prosedürü.',
+    steps: [
+      'Ödevinizi teslim ettiğiniz anda sistem metnin ve dosyanın SHA-256 kriptografik özetini (hash) hesaplar.',
+      'Öğrenciye ve eğitmene benzersiz bir Dijital Teslim Makbuzu (Receipt Code: örn. RCP-XXXXXXXX) ve zaman damgası verilir.',
+      'Bu makbuz teslim edilen metnin teslim tarihinden sonra tek bir virgülünün dahi değiştirilmediğini matematiksel olarak kanıtlar.',
+      'Teslim Raporu üzerinde yer alan QR kod taratıldığında bu SHA-256 özeti ve teslim saati herkese açık doğrulanabilir.',
+      'Olası intihal veya teslim tarihi ihtilaflarında bu makbuz resmi delil niteliğindedir.'
+    ],
+    tips: [
+      'Dijital makbuzunuzu PDF teslim raporuyla birlikte saklayabilir veya enstitüye teslim tutanağı ekinde sunabilirsiniz.'
+    ]
+  },
+  {
+    id: 'docx-adli-bilisim-wpm-analizi',
+    category: 'analysis-reporting',
+    roles: ['instructor', 'institute'],
+    title: 'DOCX Adli Bilişim (WPM Hız Anomalisi & Düzenleme Süresi) İnceleme',
+    badge: 'Adli Bilişim',
+    description: 'Word (.docx) dosyalarının meta veri katmanından toplam düzenleme süresi, revizyon sayısı ve yazma hızının (WPM) analiz edilmesi.',
+    steps: [
+      'Öğrencinin teslim ettiği .docx dosyasının adli meta verileri (app.xml ve core.xml) otomatik çözümlenir.',
+      'Toplam Düzenleme Süresi (Total Editing Time) ve Revizyon Numarası okunur.',
+      'WPM (Kelime / Dakika) Hız Hesabı: Toplam kelime sayısı düzenleme süresine bölünerek yazma temposu belirlenir.',
+      'Anomali Tespiti: 3.000 kelimelik bir ödev 2 dakikada kaydedilmişse (>1.000 WPM), sistem "Harici Pano Yapıştırma Şüphesi" alarmı verir.',
+      'Ayrıca web tarayıcısından kopyalanan metinlerin Word içine bıraktığı CSS/font kalıntıları (Inter, system-ui) adli raporda listelenir.'
+    ],
+    warning: 'Yüksek WPM skoru tek başına intihal kanıtı sayılmaz; öğrencinin çalışmasını başka bir editörde hazırlayıp Word e aktarma ihtimali değerlendirilmelidir.'
+  },
+  {
+    id: 'ai-katki-beyan-matrisi',
+    category: 'document-standards',
+    roles: ['student', 'instructor', 'author', 'institute'],
+    title: 'Yapay Zeka Katkı Beyan Matrisi (Disclosure Statement) Doldurma Adımları',
+    badge: 'Etik Beyan Formu',
+    description: 'Elsevier, Nature, COPE ve YÖK standartlarında 5 kategorili Üretken Yapay Zeka Kullanım Beyan Matrisi ve resmi taahhüt süreci.',
+    steps: [
+      'Ödev teslim ekranında yer alan "Yapay Zeka Kullanım Beyan Formu"nu açın.',
+      '5 Temel Kategori: Fikir geliştirme & Beyin Fırtınası, Dilbilgisi & Çeviri, Veri Analizi, Kod Yazımı ve Literatür Tarama.',
+      'Kullandığınız kategorileri işaretleyin; kullanılan araçları (ChatGPT, Gemini, Claude, Sentience vb.) belirtin.',
+      'Metin Üretimi Yasağı: Tezin veya makalenin asıl metninin yapay zekaya yazdırılmadığını, yalnızca destek amaçlı yararlanıldığını beyan edin.',
+      'İstatistiksel Ritim Filigranı ve denetçi sonuçlarıyla beyanınızın çelişmediğini teyit ederek taahhüt kutusunu onaylayın.'
+    ],
+    tips: [
+      'Dürüst ve eksiksiz doldurulan YZ beyan formları, ileride doğabilecek intihal ve etik ihlal iddialarına karşı en güçlü yasal korumanızdır.'
+    ]
+  },
+  {
+    id: 'word-eklentisi-masaustu-kurulumu',
+    category: 'enterprise-integration',
+    roles: ['student', 'instructor', 'author'],
+    title: 'Word Eklentisi (Word Add-in) Masaüstü Kurulumu ve Kullanımı',
+    badge: 'Word Eklentisi',
+    description: 'Microsoft Word masaüstü uygulaması içine Sentience AI eklentisinin yüklenmesi ve adli telemetri mühürleme adımları.',
+    steps: [
+      'Platform üzerinden "Sentience Word Eklentisi" kurulum paketini veya PowerShell betiğini indirin.',
+      'Word uygulamasını kapatıp kurulum betiğini çalıştırın; eklenti Office Güvenilen Eklentiler Kataloğuna tescil edilir.',
+      'Microsoft Word ü açın; "Ekle (Insert)" menüsünden "Eklentilerim" sekmesine tıklayarak Sentience AI yı etkinleştirin.',
+      'Sessiz Adli Mühürleme: Eklenti Word içinde çalışırken yazma oturumu sürelerini ve klavye telemetrisini arka planda şifreli olarak belgeye kaydeder.',
+      'Belgenizi kaydedip Sentience web platformuna yüklediğinizde, bu telemetri mührü otomatik çözülerek ödevinizin %100 özgün yazıldığını doğrular.'
+    ],
+    tips: [
+      'Word eklentisi butonsuz doğal modda çalışarak dikkatinizi dağıtmaz; yalnızca çalışmanızın arkasındaki emeği kanıtlar.'
+    ]
+  },
+  {
     id: 'dokumanlar-ve-indirilebilirler',
     category: 'templates-downloads',
     roles: ['student', 'instructor', 'author', 'institute'],
