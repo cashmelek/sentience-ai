@@ -253,3 +253,19 @@ export interface ClassroomTabData {
   teaching: ClassRoom[];
   enrolled: ClassRoom[];
 }
+
+export interface InstitutionLicense {
+  id: string;
+  code: string;
+  institutionName: string;
+  department?: string;
+  contactEmail?: string;
+  maxInstructors: number;
+  maxStudents: number;
+  usedInstructors?: number;
+  usedStudents?: number;
+  expiresAt: string;
+  isActive: boolean;
+  createdAt: any;
+  notes?: string;
+}

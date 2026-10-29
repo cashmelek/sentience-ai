@@ -556,29 +556,54 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   - Normal kullanıcı oturum açtığında tarayıcı hafızasındaki (`localStorage`) eski kilit bayrakları otomatik temizlendi.
 - **Canlı Dağıtım:** 68 birim testi başarıyla geçirildi; `npm run build` tamamlandı ve `firebase deploy --only hosting` ile canlı ortama aktarıldı.
 
-### 4.9 Öncelik 9: Windows Masaüstü Word Setup Paketi (.exe Installer / InnoSetup)
-- [ ] **Mevcut Durum Analizi:** Halihazırda Office Web Add-in manifestosu (`manifest.xml`) ve PowerShell sideloading betiği (`Install-WordAddin.ps1`) bulunmaktadır.
-- [ ] **Masaüstü Kurulum Sihirbazı (.exe):**
-  - InnoSetup veya NSIS tabanlı tek tıkla kurulum sihirbazı (`SentienceWordSetup.exe`).
-  - Kurulum sırasında kullanıcının Word/Office sürümünü tespit edip `%APPDATA%\Microsoft\Office\AddIns` veya yerel güvenilen katalog kayıt defteri (Registry: `HKCU\Software\Microsoft\Office\16.0\WEF\TrustedCatalogs`) anahtarlarını otomatik yapılandırma.
-  - Eklentiyi Word'ün Ekle -> Eklentilerim bölümüne otomatik yerleştirme ve kaldırma (uninstaller) desteği.
+### 1.38 Admin Paneli Rol Yönetimi ve Kurumsal Lisans Anahtarları Entegrasyonu (30 Ekim 2026)
+- **Kullanıcı Rolleri Yönetimi (`AdminPanel.tsx`):**
+  - Kullanıcı tablosuna 4 temel rol (`Öğrenci`, `Eğitmen / Akademisyen`, `Standart Üye`, `Yönetici`) için filtrelenebilir hızlı sekme barı ve durum rozetleri eklendi.
+  - Adminler için kullanıcı rolünü anında değiştirebilen dinamik açılır menü (`handleSetUserRole`) entegre edildi; rol değişiminde `role` ve `academicProfile` senkronize güncellenmektedir.
+  - Kullanıcı kartında bağlı olduğu üniversite/enstitü adı ve onay durumu görünür kılındı.
+- **Kurumsal Lisans Anahtarları Sekmesi (`AdminPanel.tsx` & `institutionLicenseService.ts`):**
+  - Admin paneline yeni `🏛️ Kurumsal Lisanslar` ana sekmesi eklendi.
+  - Kurumsal lisans anahtarlarının (`INST-...`) Firestore üzerinde oluşturulması, eğitmen/öğrenci kotaları, son geçerlilik tarihi, aktif/pasif kontrolü ve silme yetenekleri inşa edildi.
+  - `LoginView.tsx` kayıt akışı `validateInstitutionCode` ile kurumsal veritabanına bağlandı.
+- **Birim Testleri & Canlı Dağıtım:**
+  - `src/test/institutionLicenseService.test.ts` eklendi; vitest suite 70/70 test başarıyla geçti.
+  - `npm run build` tamamlandı ve Firebase Hosting'e canlı dağıtım yapıldı.
 
-### 4.10 Öncelik 10: Admin Paneli Entegrasyon Planı (Kullanıcı Rolleri & Kurumsal Kodlar)
-- [ ] **Kullanıcı Yönetimi Sekmesi Genişletmesi (`AdminPanel.tsx`):**
-  - Kullanıcı tablosunda yeni rollerin (`Öğrenci`, `Akademisyen / Eğitmen`, `Standart Kullanıcı`, `Admin`) filtrelenebilir rozetlerle gösterimi.
-  - Admin tarafından tek tıkla rol değiştirme (örn. yanlışlıkla öğrenci olarak kaydolan akademisyeni onaylama).
-  - Kullanıcının bağlı olduğu Üniversite / Kurum ve onay durumu.
-- [ ] **Kurumsal Lisans Anahtarları Yönetimi:**
-  - `INST-...` kodlarının admin panelinden dinamik oluşturulması, geçerlilik süresi ve kota sınırlarının belirlenmesi.
+### 5. AKTİF YAPILACAKLAR LİSTESİ VE ÖNCELİKLENDİRİLMİŞ ÇALIŞMA PLANI
 
-### 4.11 Öncelik 11: Kullanıcı Rehberi (User Guide) Yeni Konular Listesi
-- [ ] Rehber modülüne (`UserGuideView.tsx`) eklenecek yeni akademik başlıklar:
-  1. *Öğrenci Çalışma Masası ve Turnitin Draft Coach Kullanım Rehberi*
-  2. *Sokratik Koç: Ödevinizi İnsanlaştırmadan Kendi Kelimelerinizle Geliştirme*
-  3. *SHA-256 Dijital Makbuz ve YÖK Uyumlu Teslim Kanıtı Doğrulama*
-  4. *DOCX Adli Bilişim (WPM Hız Anomalisi & Düzenleme Süresi) Nasıl İncelenir?*
-  5. *Yapay Zeka Katkı Beyan Matrisi (Disclosure Statement) Doldurma Adımları*
-  6. *Word Eklentisi (Word Add-in) Masaüstü Kurulumu ve Kullanımı*
+Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve idari yönetim gereksinimleri gözetilerek **Kritik (P1) -> Yüksek (P2) -> Orta (P3)** şeklinde önceliklendirilmiştir:
+
+### 1. SIRA (ÖNCELİK 1 - P1 | İdari & Operasyonel Yetki Yönetimi): Admin Paneli Rol & Kurumsal Entegrasyon
+- [x] **Kullanıcı Rolleri Yönetimi (`AdminPanel.tsx`):**
+  - Kullanıcı tablosunda yeni rollerin (`Öğrenci`, `Akademisyen / Eğitmen`, `Standart Kullanıcı`, `Admin`) filtrelenebilir rozetlerle listelenmesi.
+  - Admin tarafından tek tıkla rol değiştirme (yanlışlıkla öğrenci seçen akademisyen veya kurumsal hesap yetkilendirmesi).
+  - Kullanıcı kartında bağlı olduğu üniversite / kurum ve doğrulama durumunun gösterimi.
+- [x] **Kurumsal Lisans Anahtarları Yönetimi (`AdminPanel.tsx` & Firestore):**
+  - `INST-...` kodlarının admin panelinden oluşturulması, geçerlilik tarihi ve öğrenci/öğretmen kota sınırlarının atanması.
+
+### 2. SIRA (ÖNCELİK 2 - P2 | Dokümantasyon & Kullanıcı Eğitimi): Kullanıcı Rehberi (User Guide) Güncellemesi
+- [ ] **Rehber Modülü Genişletmesi (`UserGuideView.tsx`):**
+  - Son eklenen modüller için 6 yeni rehber başlığının interaktif içerik ve görsellerle eklenmesi:
+    1. *Öğrenci Çalışma Masası ve Turnitin Draft Coach Kullanım Kılavuzu*
+    2. *Sokratik Koç: Metni İnsanlaştırmadan Kendi Kelimelerinizle Geliştirme*
+    3. *SHA-256 Dijital Makbuz ve YÖK Uyumlu Teslim Kanıtı Doğrulama*
+    4. *DOCX Adli Bilişim (WPM Hız Anomalisi & Düzenleme Süresi) İnceleme*
+    5. *Yapay Zeka Katkı Beyan Matrisi (Disclosure Statement) Doldurma Adımları*
+    6. *Word Eklentisi Masaüstü Kurulumu ve Kullanımı*
+
+### 3. SIRA (ÖNCELİK 3 - P2 | Adli Bilişim & Kaçak İnsanlaştırma Engeli): Pano Köken Damgası (Rich-Text Origin Token)
+- [ ] **Pano Katmanı Entegrasyonu (`editorWorkflow` / `ResultPanel.tsx`):**
+  - Sentience AI üzerinde normal veya akademik kullanıcı "Kopyala" yaptığında panoya (Clipboard API) görünmez HTML meta özniteliği (`data-sentience-origin-hash`) eklenmesi.
+  - Word'e veya Google Docs'a yapıştırılıp tekrar `.docx` yüklendiğinde `docxForensicService.ts` tarafından bu damganın çözülerek "Platform İçi Sentetik Üretim" olarak işaretlenmesi.
+
+### 4. SIRA (ÖNCELİK 4 - P3 | Dağıtım & Paketleme): Windows Masaüstü Word Setup Paketi (.exe)
+- [ ] **Word Masaüstü Kurulum Paketi:**
+  - InnoSetup betiği (`installer/SentienceWordSetup.iss`) ile tek tıkla `.exe` installer hazırlanması.
+  - Windows kayıt defterinde (`HKCU\Software\Microsoft\Office\16.0\WEF\TrustedCatalogs`) Word için güvenilen eklenti kataloğu otomatik kaydı ve masaüstü kısayolu oluşturulması.
+
+### 5. SIRA (ÖNCELİK 5 - Backlog | Bulut & Altyapı): İleri Düzey Genişletmeler
+- [ ] **Cloud Vector Search (Vertex AI):** Milyonluk kurumsal makale havuzu için istemci içi Transformers.js yerine Vertex AI Vector Search bulut entegrasyonu.
+- [ ] **GitHub Actions Otomasyonu:** PR'larda otomatik Lighthouse performans ve erişilebilirlik testleri.
 
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*

@@ -33,6 +33,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { translateError } from '../services/geminiService';
 import { cn } from '../lib/utils';
+import { validateInstitutionCode } from '../services/institutionLicenseService';
 import toast, { Toaster } from 'react-hot-toast';
 import { TURKISH_UNIVERSITIES, type TurkishUniversity } from '../data/turkishUniversities';
 
@@ -118,9 +119,9 @@ export function LoginView({ isAdmin, onBack }: LoginViewProps) {
     }
     if (!isLoginView && accountRole === 'academic') {
       const trimmedCode = instructorCode.trim().toUpperCase();
-      const validInstructorCodes = ['INST-EDU-2026', 'DEMO-2026', 'AKADEMIK2026', 'SENT26'];
-      if (!trimmedCode || !validInstructorCodes.includes(trimmedCode)) {
-        const msg = "Akademisyen hesabı açmak için geçerli bir Kurumsal Yetkilendirme / Lisans Anahtarı (Örn: INST-EDU-2026) girmelisiniz.";
+      const codeCheck = await validateInstitutionCode(trimmedCode);
+      if (!codeCheck.valid) {
+        const msg = codeCheck.error || "Akademisyen hesabı açmak için geçerli bir Kurumsal Lisans Anahtarı (Örn: INST-EDU-2026) girmelisiniz.";
         setErrorMessage(msg);
         toast.error(msg);
         return;

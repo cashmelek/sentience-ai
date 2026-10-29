@@ -24,8 +24,15 @@ import {
   Users, ShieldCheck, ShieldAlert, CheckCircle2, Filter, Zap, Activity, MoreVertical, Check, Search, Link2, Clock,
   Server, Database, Settings, Globe, Cpu, AlertTriangle, Save,
   Trash2, RefreshCw, MessageSquare, History, ChevronDown, ChevronRight, User as UserIcon,
-  Key, RotateCw, Heart, Plus, X, GraduationCap, Cloud, Wifi, WifiOff, Loader2, Sliders, Layers, Code2, BookOpen, LayoutDashboard, Edit3, Eye, EyeOff, ExternalLink
+  Key, RotateCw, Heart, Plus, X, GraduationCap, Cloud, Wifi, WifiOff, Loader2, Sliders, Layers, Code2, BookOpen, LayoutDashboard, Edit3, Eye, EyeOff, ExternalLink, Building2, School
 } from 'lucide-react';
+import { InstitutionLicense } from '../types/classroom';
+import {
+  listInstitutionLicenses,
+  createInstitutionLicense,
+  updateInstitutionLicense,
+  deleteInstitutionLicense
+} from '../services/institutionLicenseService';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { InfoTooltip } from './InfoTooltip';
@@ -44,7 +51,7 @@ import {
 
 const ADMIN_EMAILS = ['ismail.kaleci@gmail.com', 'tonguc.urunler@gmail.com', 'yasindemir111@gmail.com'];
 
-type AdminTab = 'users' | 'models' | 'api-keys' | 'dev-api' | 'sentinel' | 'blog' | 'landing-cms';
+type AdminTab = 'users' | 'academic-licenses' | 'models' | 'api-keys' | 'dev-api' | 'sentinel' | 'blog' | 'landing-cms';
 
 export function AdminPanel() {
   const [authLoading, setAuthLoading] = useState(true);
@@ -135,6 +142,35 @@ export function AdminPanel() {
   const [cmsConfig, setCmsConfig] = useState<LandingCmsConfig>(DEFAULT_LANDING_CONFIG);
   const [cmsSaving, setCmsSaving] = useState(false);
 
+  // Kurumsal Lisanslar & Roller State
+  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'student' | 'instructor' | 'user' | 'admin'>('all');
+  const [licenses, setLicenses] = useState<InstitutionLicense[]>([]);
+  const [licensesLoading, setLicensesLoading] = useState(false);
+  const [showCreateLicenseModal, setShowCreateLicenseModal] = useState(false);
+  const [licenseForm, setLicenseForm] = useState({
+    code: '',
+    institutionName: '',
+    department: '',
+    contactEmail: '',
+    maxInstructors: 50,
+    maxStudents: 1000,
+    expiresAt: '2027-12-31',
+    isActive: true,
+    notes: ''
+  });
+
+  const fetchLicenses = useCallback(async () => {
+    setLicensesLoading(true);
+    try {
+      const data = await listInstitutionLicenses();
+      setLicenses(data);
+    } catch {
+      toast.error('Kurumsal lisanslar yüklenemedi.');
+    } finally {
+      setLicensesLoading(false);
+    }
+  }, []);
+
   const fetchBlogPosts = useCallback(async () => {
     setBlogLoading(true);
     try {
@@ -165,8 +201,10 @@ export function AdminPanel() {
       fetchBlogPosts();
     } else if (activeTab === 'landing-cms') {
       fetchCmsConfig();
+    } else if (activeTab === 'academic-licenses') {
+      fetchLicenses();
     }
-  }, [activeTab, fetchBlogPosts, fetchCmsConfig]);
+  }, [activeTab, fetchBlogPosts, fetchCmsConfig, fetchLicenses]);
 
   const handleTogglePostPublish = async (post: BlogPost) => {
     try {
@@ -517,6 +555,76 @@ export function AdminPanel() {
     } catch { toast.error('Hata.'); }
   };
 
+  const handleSetUserRole = async (u: AppUser, newRole: 'user' | 'admin' | 'student' | 'instructor') => {
+    if (ADMIN_EMAILS.includes(u.email) && newRole !== 'admin') {
+      return toast.error('Ana yönetici rolü değiştirilemez!');
+    }
+    const academicProfile = newRole === 'student' ? 'student' : (newRole === 'instructor' ? 'academic' : 'professional');
+    try {
+      await updateDoc(doc(db, 'users', u.uid), {
+        role: newRole,
+        academicProfile
+      });
+      const roleLabels: Record<string, string> = {
+        admin: 'Yönetici',
+        instructor: 'Akademisyen / Eğitmen',
+        student: 'Öğrenci',
+        user: 'Standart Üye'
+      };
+      toast.success(`${u.email} rolü "${roleLabels[newRole]}" olarak güncellendi.`);
+      logAction('User Role Changed', `${u.email} -> ${newRole}`);
+      fetchAllData();
+    } catch {
+      toast.error('Rol güncellenemedi.');
+    }
+  };
+
+  const handleCreateLicense = async () => {
+    if (!licenseForm.code.trim() || !licenseForm.institutionName.trim()) {
+      return toast.error('Yetki kodu ve kurum adı zorunludur.');
+    }
+    try {
+      await createInstitutionLicense(licenseForm);
+      toast.success(`"${licenseForm.code.toUpperCase()}" kurumsal lisansı oluşturuldu.`);
+      setShowCreateLicenseModal(false);
+      setLicenseForm({
+        code: '',
+        institutionName: '',
+        department: '',
+        contactEmail: '',
+        maxInstructors: 50,
+        maxStudents: 1000,
+        expiresAt: '2027-12-31',
+        isActive: true,
+        notes: ''
+      });
+      fetchLicenses();
+    } catch {
+      toast.error('Lisans oluşturulamadı.');
+    }
+  };
+
+  const handleToggleLicense = async (lic: InstitutionLicense) => {
+    try {
+      await updateInstitutionLicense(lic.id, { isActive: !lic.isActive });
+      toast.success(`Lisans durumu ${!lic.isActive ? 'Aktif' : 'Pasif'} yapıldı.`);
+      fetchLicenses();
+    } catch {
+      toast.error('Durum değiştirilemedi.');
+    }
+  };
+
+  const handleDeleteLicense = async (lic: InstitutionLicense) => {
+    if (!window.confirm(`"${lic.code}" kodlu kurumsal lisansı silmek istediğinize emin misiniz?`)) return;
+    try {
+      await deleteInstitutionLicense(lic.id);
+      toast.success('Lisans silindi.');
+      fetchLicenses();
+    } catch {
+      toast.error('Lisans silinemedi.');
+    }
+  };
+
   const handleToggleRole = async (u: AppUser) => {
     if (ADMIN_EMAILS.includes(u.email)) {
       return toast.error('Ana yönetici rolü değiştirilemez!');
@@ -587,7 +695,20 @@ export function AdminPanel() {
     setExpandedLogs(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const filteredUsers = users.filter(u => u.email?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredUsers = users.filter(u => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = !term ||
+      u.email?.toLowerCase().includes(term) ||
+      (u.institutionName && u.institutionName.toLowerCase().includes(term));
+    if (!matchesSearch) return false;
+
+    if (userRoleFilter === 'all') return true;
+    if (userRoleFilter === 'admin') return u.role === 'admin';
+    if (userRoleFilter === 'student') return u.role === 'student' || u.academicProfile === 'student';
+    if (userRoleFilter === 'instructor') return u.role === 'instructor' || u.academicProfile === 'academic';
+    if (userRoleFilter === 'user') return (u.role === 'user' || !u.role) && u.academicProfile !== 'student' && u.academicProfile !== 'academic';
+    return true;
+  });
   const filteredTones = tones.filter(t => t.name?.toLowerCase().includes(searchTerm.toLowerCase()));
   const groupedLogs = sentinelLogs.reduce((acc: any[], log) => {
     const lastGroup = acc[acc.length - 1];
@@ -796,6 +917,21 @@ export function AdminPanel() {
         </button>
 
         <button
+          onClick={() => setActiveTab('academic-licenses')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all",
+            activeTab === 'academic-licenses'
+              ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20 font-black"
+              : "bg-brand-card/60 border border-brand-border text-gray-400 hover:text-white hover:bg-brand-card"
+          )}
+        >
+          <Building2 className="w-4 h-4 text-emerald-400" /> Kurumsal Lisanslar
+          <span className={cn("px-1.5 py-0.5 rounded-md text-[10px] font-mono", activeTab === 'academic-licenses' ? "bg-black/20 text-black font-bold" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20")}>
+            {licenses.length}
+          </span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('models')}
           className={cn(
             "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all",
@@ -903,14 +1039,38 @@ export function AdminPanel() {
                 </button>
               </div>
 
-              {/* Kullanıcı Plan Dağılım Sayaçları */}
+              {/* Kullanıcı Plan Dağılım Sayaçları ve Rol Filtreleri */}
               {userSubView === 'users' && (
-                <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-brand-border text-[10px] font-mono">
-                  <span className="text-gray-400">Ücretsiz: <strong className="text-white font-bold">{users.filter(u => u.plan === 'free').length}</strong></span>
-                  <span className="text-gray-600">|</span>
-                  <span className="text-blue-400">Pro: <strong className="text-white font-bold">{users.filter(u => u.plan === 'pro').length}</strong></span>
-                  <span className="text-gray-600">|</span>
-                  <span className="text-purple-400">Premium: <strong className="text-white font-bold">{users.filter(u => u.plan === 'premium').length}</strong></span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1 bg-brand-bg border border-brand-border rounded-xl p-1">
+                    {(['all', 'student', 'instructor', 'user', 'admin'] as const).map(roleKey => (
+                      <button
+                        key={roleKey}
+                        onClick={() => setUserRoleFilter(roleKey)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all",
+                          userRoleFilter === roleKey
+                            ? "bg-emerald-500 text-black font-black shadow-sm"
+                            : "text-gray-400 hover:text-white"
+                        )}
+                      >
+                        {roleKey === 'all' ? `Tümü (${users.length})`
+                          : roleKey === 'student' ? `Öğrenci (${users.filter(u => u.role === 'student' || u.academicProfile === 'student').length})`
+                          : roleKey === 'instructor' ? `Eğitmen (${users.filter(u => u.role === 'instructor' || u.academicProfile === 'academic').length})`
+                          : roleKey === 'admin' ? `Admin (${users.filter(u => u.role === 'admin').length})`
+                          : `Standart (${users.filter(u => (u.role === 'user' || !u.role) && u.academicProfile !== 'student' && u.academicProfile !== 'academic').length})`
+                        }
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-brand-border text-[10px] font-mono">
+                    <span className="text-gray-400">Ücretsiz: <strong className="text-white font-bold">{users.filter(u => u.plan === 'free').length}</strong></span>
+                    <span className="text-gray-600">|</span>
+                    <span className="text-blue-400">Pro: <strong className="text-white font-bold">{users.filter(u => u.plan === 'pro').length}</strong></span>
+                    <span className="text-gray-600">|</span>
+                    <span className="text-purple-400">Premium: <strong className="text-white font-bold">{users.filter(u => u.plan === 'premium').length}</strong></span>
+                  </div>
                 </div>
               )}
             </div>
@@ -976,25 +1136,44 @@ export function AdminPanel() {
                     return (
                       <tr key={u.uid} className="hover:bg-white/[0.02] transition-colors">
                         <td className="px-4 sm:px-6 py-3.5">
-                          <div className="text-xs sm:text-sm text-gray-300 font-bold truncate max-w-[200px] sm:max-w-none">{u.email}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs sm:text-sm text-gray-300 font-bold truncate max-w-[200px] sm:max-w-none">{u.email}</span>
+                            {ADMIN_EMAILS.includes(u.email) && (
+                              <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[8px] font-black rounded uppercase">Süper Admin</span>
+                            )}
+                          </div>
                           <div className="text-[9px] text-gray-600 font-mono">{u.uid}</div>
+                          {u.institutionName && (
+                            <div className="text-[10px] text-emerald-400/90 flex items-center gap-1 mt-0.5 font-medium">
+                              <School className="w-3 h-3 shrink-0" />
+                              <span className="truncate max-w-[220px]">{u.institutionName}</span>
+                            </div>
+                          )}
                         </td>
 
-                        {/* Rol Hücresi (Admin / Üye) */}
+                        {/* Rol Hücresi (Admin / Eğitmen / Öğrenci / Üye) */}
                         <td className="px-4 sm:px-6 py-3.5">
-                          <button
-                            onClick={() => handleToggleRole(u)}
-                            title={ADMIN_EMAILS.includes(u.email) ? 'Süper Admin (Sabit)' : 'Rolü Değiştir (Yönetici / Üye)'}
+                          <select
+                            value={u.role || (u.academicProfile === 'student' ? 'student' : u.academicProfile === 'academic' ? 'instructor' : 'user')}
+                            disabled={ADMIN_EMAILS.includes(u.email)}
+                            onChange={(e) => handleSetUserRole(u, e.target.value as any)}
+                            title={ADMIN_EMAILS.includes(u.email) ? 'Süper Admin (Sabit)' : 'Kullanıcı rolünü değiştir'}
                             className={cn(
-                              "px-2.5 py-1 rounded-full text-[10px] font-black uppercase border transition-all flex items-center gap-1",
+                              "text-[10px] font-black uppercase rounded-lg px-2.5 py-1.5 border outline-none cursor-pointer transition-all",
                               u.role === 'admin'
-                                ? "bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25"
-                                : "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20"
+                                ? "bg-red-500/15 text-red-400 border-red-500/30"
+                                : (u.role === 'instructor' || u.academicProfile === 'academic')
+                                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                : (u.role === 'student' || u.academicProfile === 'student')
+                                ? "bg-sky-500/15 text-sky-300 border-sky-500/30"
+                                : "bg-white/5 text-gray-300 border-white/10"
                             )}
                           >
-                            <ShieldCheck className="w-3 h-3" />
-                            {u.role === 'admin' ? 'Yönetici' : 'Üye'}
-                          </button>
+                            <option value="user" className="bg-[#0f141a] text-gray-300">Standart Üye</option>
+                            <option value="student" className="bg-[#0f141a] text-sky-400">🎓 Öğrenci</option>
+                            <option value="instructor" className="bg-[#0f141a] text-emerald-400">🏛️ Eğitmen / Akademisyen</option>
+                            <option value="admin" className="bg-[#0f141a] text-red-400">🛡️ Yönetici (Admin)</option>
+                          </select>
                         </td>
 
                         <td className="px-4 sm:px-6 py-3.5">
@@ -1118,7 +1297,303 @@ export function AdminPanel() {
           </div>
         </div>
       )}
-      {/* SEKME 2: MODEL & YAPAY ZEKA MOTORU (Header'dan Taşınan Model Seçiciyi İçerir) */}
+
+      {/* SEKME: KURUMSAL LİSANSLAR & ENSTİTÜ YÖNETİMİ */}
+      {activeTab === 'academic-licenses' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-brand-card/40 border border-brand-border p-4 rounded-2xl flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                <Building2 className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">Kurumsal Lisans Anahtarları & Enstitü Ağları</h3>
+                <p className="text-xs text-gray-400">Üniversiteler, enstitüler ve akademik birimler için yetkilendirme kodları yönetimi</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchLicenses}
+                disabled={licensesLoading}
+                className="p-2 bg-white/5 border border-white/10 text-gray-300 hover:text-white rounded-xl transition-all"
+                title="Yenile"
+              >
+                <RefreshCw className={cn("w-4 h-4", licensesLoading && "animate-spin")} />
+              </button>
+              <button
+                onClick={() => setShowCreateLicenseModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-black rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-all"
+              >
+                <Plus className="w-4 h-4" /> Yeni Kurumsal Lisans Tanımla
+              </button>
+            </div>
+          </div>
+
+          {/* Lisans Özet Sayaçları */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-brand-card border border-brand-border p-4 rounded-xl flex items-center gap-3">
+              <div className="p-2 bg-emerald-500/10 rounded-lg"><Building2 className="w-5 h-5 text-emerald-400" /></div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-gray-400">Toplam Kurum</div>
+                <div className="text-xl font-black text-white">{licenses.length}</div>
+              </div>
+            </div>
+            <div className="bg-brand-card border border-brand-border p-4 rounded-xl flex items-center gap-3">
+              <div className="p-2 bg-blue-500/10 rounded-lg"><Key className="w-5 h-5 text-blue-400" /></div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-gray-400">Aktif Kodlar</div>
+                <div className="text-xl font-black text-white">{licenses.filter(l => l.isActive).length}</div>
+              </div>
+            </div>
+            <div className="bg-brand-card border border-brand-border p-4 rounded-xl flex items-center gap-3">
+              <div className="p-2 bg-purple-500/10 rounded-lg"><GraduationCap className="w-5 h-5 text-purple-400" /></div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-gray-400">Eğitmen Kapasitesi</div>
+                <div className="text-xl font-black text-white">{licenses.reduce((acc, l) => acc + (l.maxInstructors || 0), 0)}</div>
+              </div>
+            </div>
+            <div className="bg-brand-card border border-brand-border p-4 rounded-xl flex items-center gap-3">
+              <div className="p-2 bg-amber-500/10 rounded-lg"><Users className="w-5 h-5 text-amber-400" /></div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-gray-400">Öğrenci Kontenjanı</div>
+                <div className="text-xl font-black text-white">{licenses.reduce((acc, l) => acc + (l.maxStudents || 0), 0)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Lisans Tablosu */}
+          <div className="bg-brand-card border border-brand-border rounded-2xl shadow-xl overflow-hidden">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[750px]">
+                <thead>
+                  <tr className="border-b border-brand-border bg-white/[0.02]">
+                    <th className="px-6 py-3.5 text-[10px] font-black uppercase text-gray-500">Yetki Kodu</th>
+                    <th className="px-6 py-3.5 text-[10px] font-black uppercase text-gray-500">Kurum / Üniversite</th>
+                    <th className="px-6 py-3.5 text-[10px] font-black uppercase text-gray-500">Bölüm / İletişim</th>
+                    <th className="px-6 py-3.5 text-[10px] font-black uppercase text-gray-500">Eğitmen / Öğrenci Kotası</th>
+                    <th className="px-6 py-3.5 text-[10px] font-black uppercase text-gray-500">Bitiş Tarihi</th>
+                    <th className="px-6 py-3.5 text-[10px] font-black uppercase text-gray-500">Durum</th>
+                    <th className="px-6 py-3.5 text-[10px] font-black uppercase text-gray-500 text-right">İşlemler</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-border">
+                  {licenses.map(lic => (
+                    <tr key={lic.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(lic.code);
+                            toast.success(`"${lic.code}" panoya kopyalandı.`);
+                          }}
+                          className="px-2.5 py-1 bg-white/5 hover:bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all"
+                          title="Kodu kopyala"
+                        >
+                          <Key className="w-3 h-3" />
+                          {lic.code}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                          <School className="w-3.5 h-3.5 text-gray-400" />
+                          {lic.institutionName}
+                        </div>
+                        {lic.notes && <div className="text-[10px] text-gray-500 mt-0.5">{lic.notes}</div>}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-xs text-gray-300">{lic.department || 'Genel Akademik'}</div>
+                        {lic.contactEmail && <div className="text-[10px] text-gray-500 font-mono">{lic.contactEmail}</div>}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-xs font-mono text-gray-300">
+                          Eğitmen: <strong className="text-emerald-400">{lic.usedInstructors || 0}</strong>/{lic.maxInstructors}
+                        </div>
+                        <div className="text-[10px] font-mono text-gray-500 mt-0.5">
+                          Öğrenci: {lic.usedStudents || 0}/{lic.maxStudents}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-xs font-mono text-gray-400">
+                        {lic.expiresAt || 'Süresiz'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleToggleLicense(lic)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-full text-[10px] font-black uppercase border transition-all flex items-center gap-1",
+                            lic.isActive
+                              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                              : "bg-red-500/15 text-red-400 border-red-500/30"
+                          )}
+                        >
+                          {lic.isActive ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                          {lic.isActive ? 'Aktif' : 'Pasif'}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => handleDeleteLicense(lic)}
+                          className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          title="Lisansı Sil"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {licenses.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-xs text-gray-500">
+                        Kayıtlı kurumsal lisans anahtarı bulunamadı. Yeni bir lisans tanımlayabilirsiniz.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Lisans Oluşturma Modalı */}
+          <AnimatePresence>
+            {showCreateLicenseModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-[#0f141a] border border-white/10 rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4"
+                >
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-emerald-400" />
+                      <h3 className="text-sm font-black text-white uppercase tracking-wider">Yeni Kurumsal Lisans Tanımla</h3>
+                    </div>
+                    <button onClick={() => setShowCreateLicenseModal(false)} className="text-gray-400 hover:text-white">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Kurumsal Yetki Kodu (Örn: INST-ITU-2026)</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={licenseForm.code}
+                          onChange={(e) => setLicenseForm({ ...licenseForm, code: e.target.value.toUpperCase() })}
+                          placeholder="INST-XXXX-2026"
+                          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white uppercase outline-none focus:border-emerald-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+                            setLicenseForm({ ...licenseForm, code: `INST-${rand}-2026` });
+                          }}
+                          className="px-3 py-2 bg-white/10 hover:bg-white/15 text-gray-200 text-xs font-bold rounded-xl"
+                        >
+                          Otomatik Kod
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Üniversite / Kurum Adı</label>
+                      <input
+                        type="text"
+                        value={licenseForm.institutionName}
+                        onChange={(e) => setLicenseForm({ ...licenseForm, institutionName: e.target.value })}
+                        placeholder="Örn: İstanbul Teknik Üniversitesi"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Fakülte / Bölüm</label>
+                        <input
+                          type="text"
+                          value={licenseForm.department}
+                          onChange={(e) => setLicenseForm({ ...licenseForm, department: e.target.value })}
+                          placeholder="Örn: Fen Bilimleri Enstitüsü"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Yetkili E-posta</label>
+                        <input
+                          type="email"
+                          value={licenseForm.contactEmail}
+                          onChange={(e) => setLicenseForm({ ...licenseForm, contactEmail: e.target.value })}
+                          placeholder="dekanlik@itu.edu.tr"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Eğitmen Kotası</label>
+                        <input
+                          type="number"
+                          value={licenseForm.maxInstructors}
+                          onChange={(e) => setLicenseForm({ ...licenseForm, maxInstructors: parseInt(e.target.value) || 0 })}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Öğrenci Kotası</label>
+                        <input
+                          type="number"
+                          value={licenseForm.maxStudents}
+                          onChange={(e) => setLicenseForm({ ...licenseForm, maxStudents: parseInt(e.target.value) || 0 })}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Son Geçerlilik</label>
+                        <input
+                          type="date"
+                          value={licenseForm.expiresAt}
+                          onChange={(e) => setLicenseForm({ ...licenseForm, expiresAt: e.target.value })}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Not / Protokol Açıklaması</label>
+                      <input
+                        type="text"
+                        value={licenseForm.notes}
+                        onChange={(e) => setLicenseForm({ ...licenseForm, notes: e.target.value })}
+                        placeholder="Örn: 2026-2027 YÖK Protokol Anlaşması"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateLicenseModal(false)}
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold rounded-xl transition-colors"
+                    >
+                      İptal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateLicense}
+                      className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/20 transition-all"
+                    >
+                      Lisansı Kaydet
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
       {activeTab === 'models' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Sol Kolon: Aktif Motor Kaynağı (Bulut Gemini / Yerel Ollama) + Hiperparametreler */}
