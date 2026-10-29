@@ -50,6 +50,7 @@ import type { ResultViewMode } from './components/result/ResultPanel';
 import { useAuthListener } from './hooks/useAuthListener';
 import { useSystemSettings } from './hooks/useSystemSettings';
 import { useHeatmapOverlay } from './hooks/useHeatmapOverlay';
+import { copyTextWithOriginToken } from './services/clipboardOriginService';
 import { StyleMasterHeader } from './components/header/StyleMasterHeader';
 
 export default function App() {
@@ -289,8 +290,8 @@ export default function App() {
     toast.success(`Kaynakça (${style.toUpperCase()}) panoya kopyalandı!`);
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string) => {
+    await copyTextWithOriginToken(text, { accountEmail: user?.email || 'guest-user', source: 'humanizer-result' });
     setCopied(true);
     toast.success("Panoya kopyalandı");
     setTimeout(() => setCopied(false), 2000);

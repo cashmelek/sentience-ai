@@ -121,4 +121,28 @@ describe('Docx Forensic Telemetry Suite', () => {
     expect(result.imagesList?.[0]?.format).toBe('png');
     expect(result.footnotesCount).toBe(1);
   });
+
+  it('detects clipboard origin token embedded in documentXml from rich copy paste', async () => {
+    const zip = new JSZip();
+    zip.file('docProps/app.xml', `<Properties><TotalTime>30</TotalTime><Words>200</Words></Properties>`);
+    zip.file('docProps/core.xml', `<cp:coreProperties><cp:revision>5</cp:revision></cp:coreProperties>`);
+    zip.file('word/document.xml', `
+      <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+        <w:body>
+          <w:p>
+            <w:r><w:t>Bu metin Sentience platformundan kopyalanmıştır.</w:t></w:r>
+            <w:r><w:vanish/><w:t>sentience-origin="ali@ogr.istanbul.edu.tr"</w:t></w:r>
+          </w:p>
+        </w:body>
+      </w:document>
+    `);
+
+    const arrayBuffer = await zip.generateAsync({ type: 'arraybuffer' });
+    const result = await extractDocxForensics(arrayBuffer, 200);
+
+    expect(result.hasClipboardToken).toBe(true);
+    expect(result.clipboardOriginAccount).toBe('ali@ogr.istanbul.edu.tr');
+    expect(result.isSuspiciousBulkPaste).toBe(true);
+    expect(result.forensicReason).toContain('platform içi pano köken damgası saptanmıştır');
+  });
 });

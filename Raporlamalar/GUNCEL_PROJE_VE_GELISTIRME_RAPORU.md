@@ -579,6 +579,15 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   6. *Word Eklentisi (Word Add-in) Masaüstü Kurulumu ve Kullanımı:* Word içine kurulum adımları ve sessiz adli telemetri mühürleme açıklaması.
 - **Canlı Dağıtım:** 70/70 birim testi başarıyla geçti, `npm run build` tamamlandı ve Firebase Hosting'e deploy edildi.
 
+### 1.40 Pano Köken Damgası (Rich-Text Origin Token) ve DOCX Adli Bilişim Entegrasyonu (30 Ekim 2026)
+- **Pano Köken Damgalama Servisi (`clipboardOriginService.ts`):**
+  - Kullanıcı platform üzerinden sonuç panelinden metin kopyaladığında (`navigator.clipboard.write`), düz metin (`text/plain`) bozulmadan saklanırken HTML zengin metin (`text/html`) katmanına görünmez imza (`data-sentience-origin`, `data-sentience-sig`, `mso-hide:all`) yerleştirilir.
+- **DOCX Adli Bilişim Yakalama Kalkanı (`docxForensicService.ts`):**
+  - Kopyalanan metin harici Word programına yapıştırılıp tekrar `.docx` olarak yüklendiğinde, `word/document.xml` taranarak köken damgası ve kaynak hesap ayrıştırılır; `hasClipboardToken: true` ve `isSuspiciousBulkPaste: true` olarak adli raporda işaretlenir.
+- **Birim Testleri & Canlı Dağıtım:**
+  - `src/test/clipboardOriginService.test.ts` eklendi; vitest suite 12 test dosyasında 73/73 test başarıyla geçti.
+  - `npm run build` tamamlandı ve Firebase Hosting'e deploy edildi.
+
 ### 5. AKTİF YAPILACAKLAR LİSTESİ VE ÖNCELİKLENDİRİLMİŞ ÇALIŞMA PLANI
 
 Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve idari yönetim gereksinimleri gözetilerek **Kritik (P1) -> Yüksek (P2) -> Orta (P3)** şeklinde önceliklendirilmiştir:
@@ -602,7 +611,7 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
     6. *Word Eklentisi Masaüstü Kurulumu ve Kullanımı*
 
 ### 3. SIRA (ÖNCELİK 3 - P2 | Adli Bilişim & Kaçak İnsanlaştırma Engeli): Pano Köken Damgası (Rich-Text Origin Token)
-- [ ] **Pano Katmanı Entegrasyonu (`editorWorkflow` / `ResultPanel.tsx`):**
+- [x] **Pano Katmanı Entegrasyonu (`editorWorkflow` / `ResultPanel.tsx` / `App.tsx`):**
   - Sentience AI üzerinde normal veya akademik kullanıcı "Kopyala" yaptığında panoya (Clipboard API) görünmez HTML meta özniteliği (`data-sentience-origin-hash`) eklenmesi.
   - Word'e veya Google Docs'a yapıştırılıp tekrar `.docx` yüklendiğinde `docxForensicService.ts` tarafından bu damganın çözülerek "Platform İçi Sentetik Üretim" olarak işaretlenmesi.
 

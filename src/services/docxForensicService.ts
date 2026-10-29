@@ -113,15 +113,18 @@ export const extractDocxForensics = async (
       documentXml && (
         documentXml.includes('sentience-origin') ||
         documentXml.includes('sentience-token') ||
-        documentXml.includes('sentience_sig')
+        documentXml.includes('sentience_sig') ||
+        documentXml.includes('data-sentience')
       )
     );
 
     let clipboardOriginAccount: string | undefined;
     if (hasClipboardToken) {
-      const match = documentXml.match(/sentience-origin="([^"]+)"/);
+      const match = documentXml.match(/sentience-origin="([^"]+)"/) ||
+        documentXml.match(/data-sentience-origin="([^"]+)"/) ||
+        documentXml.match(/sentience-origin=([^"\s>]+)/);
       if (match && match[1]) {
-        clipboardOriginAccount = match[1];
+        clipboardOriginAccount = match[1].replace(/["']/g, '');
       }
     }
 
