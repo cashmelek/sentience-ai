@@ -91,12 +91,7 @@ export const calculateQualityScore = (
  * Yerel modelleri kullanarak derin metin analizi yapar.
  */
 const countSyllables = (word: string): number => {
-  const vowels = "aeıioöuüAEIİOÖUÜ";
-  let count = 0;
-  for (let char of word) {
-    if (vowels.includes(char)) count++;
-  }
-  return Math.max(1, count);
+  return Math.max(1, word.match(/[aeıioöuüAEIİOÖUÜ]/g)?.length || 0);
 };
 
 export const performDeepMLAnalysis = async (text: string): Promise<MLAnalysisResult> => {
