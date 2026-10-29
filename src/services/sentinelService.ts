@@ -477,18 +477,21 @@ Metin: ${sentence.slice(0, 300)}`;
 
   if (allSources.length > 0) {
     try {
-      const sentenceVecCache = new Map<string, number[]>();
+      const sentenceVecPromiseCache = new Map<string, Promise<number[]>>();
 
-      for (const src of allSources) {
-        if (!src.snippet || !src.matchedText) continue;
+      await Promise.all(allSources.map(async (src) => {
+        if (!src.snippet || !src.matchedText) return;
 
-        let sentVec = sentenceVecCache.get(src.matchedText);
-        if (!sentVec) {
-          sentVec = await generateEmbedding(src.matchedText, embeddingProvider);
-          sentenceVecCache.set(src.matchedText, sentVec);
+        let sentVecPromise = sentenceVecPromiseCache.get(src.matchedText);
+        if (!sentVecPromise) {
+          sentVecPromise = generateEmbedding(src.matchedText, embeddingProvider);
+          sentenceVecPromiseCache.set(src.matchedText, sentVecPromise);
         }
 
-        const snippetVec = await generateEmbedding(src.snippet, embeddingProvider);
+        const snippetVecPromise = generateEmbedding(src.snippet, embeddingProvider);
+
+        const [sentVec, snippetVec] = await Promise.all([sentVecPromise, snippetVecPromise]);
+
         const semScore = vectorEngine.cosineSimilarity(sentVec, snippetVec);
         src.semanticScore = Math.round(semScore * 100);
 
@@ -497,13 +500,13 @@ Metin: ${sentence.slice(0, 300)}`;
         const isForeignSnippet = !/[çğıöşüÇĞİÖŞÜ]/.test(src.snippet) && /^[a-zA-Z0-9\s,.:;()'"-]+$/.test(src.snippet.slice(0, 50));
         if (isTurkishSentence && isForeignSnippet && semScore < 0.50) {
           src.similarity = 0.05;
-          continue;
+          return;
         }
 
         if (semScore >= embeddingThreshold && (src.similarity ?? 0) < semScore) {
           src.similarity = Number(semScore.toFixed(2));
         }
-      }
+      }));
 
       // Çok düşük semantik benzerliğe sahip yanlış pozitifleri filtrele
       const validSources = allSources.filter(s => (s.similarity ?? 0) > 0.15);
