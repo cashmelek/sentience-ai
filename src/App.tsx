@@ -173,8 +173,11 @@ export default function App() {
       if (stored === null) {
         setIsAcademicIntegrityLocked(true);
       }
+    } else if (appUser && appUser.role === 'user' && appUser.academicProfile !== 'student' && (!user?.email || !user.email.includes('.edu'))) {
+      setIsAcademicIntegrityLocked(false);
+      localStorage.removeItem('sentience_academic_integrity_lock');
     }
-  }, [isStudentUser, user?.email, activeTab]);
+  }, [isStudentUser, user?.email, activeTab, appUser]);
 
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);

@@ -43,7 +43,7 @@ service cloud.firestore {
       // B22: kendi belgesini oluşturan kullanıcı için role/plan/featureGrants YASAK (yetki kaçışı kapısı)
       allow create: if request.auth != null && request.auth.uid == userId &&
         (isPlatformAdminEmail() || (
-          request.resource.data.get('role', 'user') == 'user' &&
+          request.resource.data.get('role', 'user') in ['user', 'student'] &&
           request.resource.data.get('plan', 'free') == 'free' &&
           !('featureGrants' in request.resource.data)
         ));
@@ -51,7 +51,7 @@ service cloud.firestore {
       // admin veya sabit platform admin e-postası üzerinden değişebilir (özel-atama senkronu dahil)
       allow update: if isAdmin() || (request.auth.uid == userId &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['featureGrants']) &&
-        (isPlatformAdminEmail() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'plan'])));
+        (isPlatformAdminEmail() || request.resource.data.get('role', 'user') in ['user', 'student'] || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'plan'])));
       allow delete: if isAdmin();
     }
 
