@@ -484,5 +484,21 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   - Öğrenci ödevini Word'de yazıp normal şekilde kaydeder (`Ctrl+S`); web sitemize gelip `.docx` dosyasını sürükleyip bıraktığında, web ayrıştırıcısı dosya içindeki mühürlü adli telemetriyi otomatik çözer.
   - Böylece platform trafiği, zengin QuickMarks/Heatmap deneyimi, resmi YÖK Beyan Matrisi ve SHA-256 dijital makbuz süreci %100 web üzerinde korunur.
 
+### 1.35 Faz 3.5 & Akademik Zengin İçerik: Word Eklenti Paketi ve Formül/Görsel Ayrıştırıcısı Dağıtımı (29 Ekim 2026)
+- **Word Eklenti Paketi (Office Web Add-in):**
+  - Standart `manifest.xml` (`public/word-addin/manifest.xml`) ve Office JS API hook'u (`public/word-addin/telemetry-hook.html`, `telemetry-hook.js`) oluşturuldu.
+  - Word içinde öğrenci kimliğini (`sentience_student_uid`, `sentience_student_name`, `sentience_session_id`) ve oturum zaman damgasını `docProps/custom.xml` alanına kriptografik olarak mühürleyen mekanizma devreye alındı.
+  - Windows kullanıcıları için tek tıkla Office WEF dizinine sideload eden PowerShell kurulum betiği (`Install-WordAddin.ps1`) sağlandı.
+  - Öğrenci teslim ekranına ([`StudentSubmitView.tsx`](file:///c:/Users/OEM/.gemini/antigravity/playground/sentience-ai/src/components/classroom/StudentSubmitView.tsx)) manifest ve kurulum scripti indirme butonları yerleştirildi.
+- **Akademik Zengin İçerik Ayrıştırma (Formül, Tablo, Görsel, Dipnot):**
+  - `docxForensicService.ts` genişletilerek `word/document.xml` içerisindeki `<m:oMath>` / `<m:oMathPara>` matematiksel formülleri (OMML), `<w:tbl>` tabloları, `word/footnotes.xml` dipnotları ve `word/media/*` altındaki gömülü infografik/görseller otomatik envantere döküldü.
+  - Tip Şeması (`src/types/classroom.ts`): `mathFormulasCount`, `extractedFormulas`, `tablesCount`, `imagesCount`, `imagesList`, `footnotesCount` alanları eklendi.
+  - Öğrenci ve Öğretmen Arayüzleri: `StudentSubmitView.tsx` üzerinde dosya seçildiğinde anlık formül/tablo/görsel rozetleri; `SubmissionReportView.tsx` üzerinde ise "Akademik Zengin İçerik Analizi" kartı ile öğretmen raporuna yansıtıldı.
+- **Test ve Dağıtım Doğrulaması:**
+  - `src/test/docxForensicService.test.ts` içine zengin içerik test senaryosu eklendi. 9 test dosyasında 65/65 test %100 başarıyla geçti.
+  - `npm run lint` (`tsc --noEmit`) 0 hata.
+  - `npm run build` 18.48s içinde hatasız tamamlandı.
+  - Firebase Hosting (`sentience-ai-free-2026.web.app`) üzerine canlı dağıtım gerçekleştirildi.
+
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*

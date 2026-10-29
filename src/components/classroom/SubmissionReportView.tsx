@@ -870,6 +870,41 @@ export function SubmissionReportView({
                 )}>
                   <strong>Adli Bilişim Bulgusu:</strong> {df.forensicReason}
                 </p>
+
+                {((df.mathFormulasCount || 0) > 0 || (df.tablesCount || 0) > 0 || (df.imagesCount || 0) > 0) && (
+                  <div className="p-3 bg-white/[0.02] border border-white/5 rounded-xl space-y-2">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                      Akademik Zengin İçerik Analizi (Formül, Tablo, Medya)
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {(df.mathFormulasCount || 0) > 0 && (
+                        <span className="px-2.5 py-1 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] font-mono">
+                          ∑ {df.mathFormulasCount} Matematiksel Formül (OMML)
+                        </span>
+                      )}
+                      {(df.tablesCount || 0) > 0 && (
+                        <span className="px-2.5 py-1 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-[10px] font-mono">
+                          ▦ {df.tablesCount} Yapılandırılmış Tablo
+                        </span>
+                      )}
+                      {(df.imagesCount || 0) > 0 && (
+                        <span className="px-2.5 py-1 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-[10px] font-mono">
+                          🖼️ {df.imagesCount} İnfografik / Görsel
+                        </span>
+                      )}
+                      {(df.footnotesCount || 0) > 0 && (
+                        <span className="px-2.5 py-1 rounded bg-white/5 text-gray-300 border border-white/10 text-[10px] font-mono">
+                          📝 {df.footnotesCount} Atıf / Dipnot
+                        </span>
+                      )}
+                    </div>
+                    {df.extractedFormulas && df.extractedFormulas.length > 0 && (
+                      <div className="text-[10px] font-mono text-purple-300/80 bg-purple-500/[0.05] p-2 rounded border border-purple-500/10 truncate">
+                        Örnek Formüller: {df.extractedFormulas.slice(0, 3).join(' | ')}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })()}

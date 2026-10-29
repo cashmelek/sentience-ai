@@ -45,6 +45,44 @@ export const extractDocxForensics = async (
       documentXml = await docFile.async('string');
     }
 
+    let footnotesCount = 0;
+    const footnotesFile = zip.file('word/footnotes.xml');
+    if (footnotesFile) {
+      const footnotesXml = await footnotesFile.async('string');
+      const noteMatches = footnotesXml.match(/<w:footnote\b(?![^>]*w:type=)[^>]*>/gi);
+      footnotesCount = noteMatches ? noteMatches.length : 0;
+    }
+
+    const tableMatches = documentXml.match(/<w:tbl[\s>]/gi);
+    const tablesCount = tableMatches ? tableMatches.length : 0;
+
+    const mathMatches = documentXml.match(/<m:oMath[^>]*>([\s\S]*?)<\/m:oMath>/gi) || [];
+    const mathFormulasCount = mathMatches.length;
+    const extractedFormulas: string[] = [];
+    for (const mathBlock of mathMatches.slice(0, 10)) {
+      const texts: string[] = [];
+      const textMatches = mathBlock.matchAll(/<m:t[^>]*>([^<]*)<\/m:t>/gi);
+      for (const tm of textMatches) {
+        if (tm[1]) texts.push(tm[1]);
+      }
+      if (texts.length > 0) {
+        extractedFormulas.push(texts.join(' '));
+      }
+    }
+
+    const mediaFiles = zip.file(/^word\/media\/.+/);
+    const imagesCount = mediaFiles.length;
+    const imagesList: { name: string; sizeBytes: number; format: string }[] = [];
+    for (const m of mediaFiles.slice(0, 20)) {
+      const ext = m.name.split('.').pop() || 'bin';
+      const u8 = await m.async('uint8array');
+      imagesList.push({
+        name: m.name.replace(/^word\/media\//, ''),
+        sizeBytes: u8.byteLength,
+        format: ext.toLowerCase()
+      });
+    }
+
     const rawTotalTime = getTagValue(appXml, 'TotalTime');
     const totalEditingTimeMinutes = rawTotalTime ? parseInt(rawTotalTime, 10) : 0;
 
@@ -120,7 +158,13 @@ export const extractDocxForensics = async (
       addinStudentUid: addinStudentUid || undefined,
       isAddinVerified: isAddinVerified || undefined,
       hasClipboardToken,
-      clipboardOriginAccount
+      clipboardOriginAccount,
+      mathFormulasCount,
+      extractedFormulas,
+      tablesCount,
+      imagesCount,
+      imagesList,
+      footnotesCount
     };
   } catch (err: any) {
     return {

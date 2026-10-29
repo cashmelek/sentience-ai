@@ -276,7 +276,8 @@ export function StudentSubmitView({
           </button>
         </div>
         {mode === 'file' && (
-          <div className="flex items-center gap-3 p-4 bg-white/5 border border-dashed border-white/15 rounded-xl">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 p-4 bg-white/5 border border-dashed border-white/15 rounded-xl">
             <FileUp className="w-5 h-5 text-blue-400 shrink-0" />
             {file ? (
               <>
@@ -301,6 +302,30 @@ export function StudentSubmitView({
                       ) : (
                         <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 font-bold">
                           ✓ Organik Word Süresi
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {docxForensics && ((docxForensics.mathFormulasCount || 0) > 0 || (docxForensics.tablesCount || 0) > 0 || (docxForensics.imagesCount || 0) > 0) && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
+                      {(docxForensics.mathFormulasCount || 0) > 0 && (
+                        <span className="px-2 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25 font-mono">
+                          ∑ {docxForensics.mathFormulasCount} Formül
+                        </span>
+                      )}
+                      {(docxForensics.tablesCount || 0) > 0 && (
+                        <span className="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/25 font-mono">
+                          ▦ {docxForensics.tablesCount} Tablo
+                        </span>
+                      )}
+                      {(docxForensics.imagesCount || 0) > 0 && (
+                        <span className="px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 font-mono">
+                          🖼️ {docxForensics.imagesCount} Görsel
+                        </span>
+                      )}
+                      {(docxForensics.footnotesCount || 0) > 0 && (
+                        <span className="px-2 py-0.5 rounded bg-white/10 text-gray-300 border border-white/10 font-mono">
+                          📝 {docxForensics.footnotesCount} Dipnot
                         </span>
                       )}
                     </div>
@@ -331,7 +356,31 @@ export function StudentSubmitView({
               </label>
             )}
           </div>
-        )}
+          <div className="flex items-center justify-between px-3 py-2 bg-blue-500/[0.04] border border-blue-500/10 rounded-xl text-[11px] text-gray-400">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
+              Word Telemetri Eklentisi ile öğrenci kimliğinizi (.docx) belgenize mühürleyin.
+            </span>
+            <div className="flex items-center gap-2">
+              <a
+                href="/word-addin/manifest.xml"
+                download="sentience-manifest.xml"
+                className="text-blue-400 hover:text-blue-300 font-bold transition-colors"
+              >
+                Manifest
+              </a>
+              <span className="text-gray-600">•</span>
+              <a
+                href="/word-addin/Install-WordAddin.ps1"
+                download="Install-WordAddin.ps1"
+                className="text-blue-400 hover:text-blue-300 font-bold transition-colors"
+              >
+                Kurulum (.ps1)
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">

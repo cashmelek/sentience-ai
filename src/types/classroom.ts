@@ -106,6 +106,12 @@ export interface DocxForensicReport {
   isAddinVerified?: boolean;
   hasClipboardToken?: boolean;
   clipboardOriginAccount?: string;
+  mathFormulasCount?: number;
+  extractedFormulas?: string[];
+  tablesCount?: number;
+  imagesCount?: number;
+  imagesList?: { name: string; sizeBytes: number; format: string }[];
+  footnotesCount?: number;
 }
 
 export interface WritingTelemetry {

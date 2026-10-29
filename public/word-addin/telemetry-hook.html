@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentience AI Telemetri Mührü</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 13px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #10b981;
+      color: #ffffff;
+    }
+    .badge.syncing {
+      background: #3b82f6;
+    }
+    .form-group {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      color: #94a3b8;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #ffffff;
+      font-size: 12px;
+    }
+    input:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+    button {
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      background: #4f46e5;
+      color: white;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    button:hover {
+      background: #4338ca;
+    }
+    .status-box {
+      margin-top: 14px;
+      padding: 10px;
+      border-radius: 6px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      font-family: monospace;
+      font-size: 11px;
+      color: #cbd5e1;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div style="font-weight: 700; color: #a5b4fc;">Sentience AI</div>
+    <span id="status-badge" class="badge">Hazır</span>
+  </div>
+
+  <div class="form-group">
+    <label for="student-uid">Öğrenci Kimliği / Token</label>
+    <input type="text" id="student-uid" placeholder="Örn: std_892348" />
+  </div>
+
+  <div class="form-group">
+    <label for="student-name">Ad Soyad</label>
+    <input type="text" id="student-name" placeholder="Örn: Ahmet Yılmaz" />
+  </div>
+
+  <button id="btn-seal">Belgeyi Sentience Kimliğiyle Mühürle</button>
+
+  <div class="status-box" id="log-box">
+    Word belgesi bağlanmayı bekliyor...
+  </div>
+
+  <script src="./telemetry-hook.js"></script>
+</body>
+</html>
