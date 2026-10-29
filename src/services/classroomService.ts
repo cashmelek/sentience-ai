@@ -8,7 +8,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, auth } from '../lib/firebase';
 import type { AppUser, SubscriptionPlan } from '../types';
 import type {
-  ClassRoom, Assignment, Enrollment, Submission, SubmissionScores, DigitalReceipt, ClassroomTabData, SubmissionAnnotation, AIDisclosureMatrix
+  ClassRoom, Assignment, Enrollment, Submission, SubmissionScores, DigitalReceipt, ClassroomTabData, SubmissionAnnotation, AIDisclosureMatrix, WritingTelemetry, RubricScoreItem
 } from '../types/classroom';
 import { SUBMISSION_LIMITS } from '../types/classroom';
 import { verifyPlagiarism } from './sentinelService';
@@ -116,7 +116,7 @@ export async function createClass(
 }
 
 export async function updateClass(classId: string, data: { name?: string; subject?: string; term?: string; archived?: boolean }): Promise<void> {
-  const patch: Record<string, any> = {};
+  const patch: Partial<ClassRoom> = {};
   if (data.name !== undefined) patch.name = data.name.trim();
   if (data.subject !== undefined) patch.subject = data.subject.trim();
   if (data.term !== undefined) patch.term = data.term.trim();
@@ -337,7 +337,7 @@ export async function submitOnBehalf(
     status: 'received',
     excludedSourceUrls: [],
     digitalReceipt: receipt,
-    noRepository: Boolean(payload.noRepository || (asgSnap.exists() && (asgSnap.data() as any)?.noRepository)),
+    noRepository: Boolean(payload.noRepository || (asgSnap.exists() && (asgSnap.data() as Assignment)?.noRepository)),
     createdAt: serverTimestamp(),
     ...(payload.file ? { fileName: payload.file.fileName, storagePath: payload.file.storagePath } : {})
   };
@@ -349,14 +349,14 @@ export async function submitOnBehalf(
 
 export async function getClass(classId: string): Promise<ClassRoom | null> {
   const snap = await getDoc(classRef(classId));
-  return snap.exists() ? { id: snap.id, ...(snap.data() as any) } : null;
+  return snap.exists() ? { id: snap.id, ...(snap.data() as ClassRoom) } : null;
 }
 
 export async function listMyClasses(uid: string): Promise<ClassroomTabData> {
   const teachingSnap = await getDocs(
     query(collection(db, 'classes'), where('instructorId', '==', uid), orderBy('createdAt', 'desc'))
   );
-  const teaching = teachingSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as ClassRoom[];
+  const teaching = teachingSnap.docs.map(d => ({ id: d.id, ...(d.data() as ClassRoom) })) as ClassRoom[];
 
   const mirrorSnap = await getDocs(
     query(collection(db, 'users', uid, 'classEnrollments'), orderBy('joinedAt', 'desc'))
@@ -364,14 +364,14 @@ export async function listMyClasses(uid: string): Promise<ClassroomTabData> {
   const enrolled: ClassRoom[] = [];
   for (const d of mirrorSnap.docs) {
     const c = await getDoc(classRef(d.data().classId as string));
-    if (c.exists()) enrolled.push({ id: c.id, ...(c.data() as any) } as ClassRoom);
+    if (c.exists()) enrolled.push({ id: c.id, ...(c.data() as ClassRoom) } as ClassRoom);
   }
   return { teaching, enrolled };
 }
 
 export async function listEnrollments(classId: string): Promise<Enrollment[]> {
   const snap = await getDocs(query(collection(db, 'classes', classId, 'enrollments'), orderBy('joinedAt', 'asc')));
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Enrollment[];
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as Enrollment) })) as Enrollment[];
 }
 
 // --- Ödevler ---
@@ -412,7 +412,7 @@ export async function updateAssignment(
   assignmentId: string,
   data: Partial<{ title: string; instructions: string; startDate: string; dueDate: string; noRepository: boolean }>
 ): Promise<void> {
-  const patch: Record<string, any> = {};
+  const patch: Partial<Assignment> = {};
   if (data.title !== undefined) patch.title = data.title.trim();
   if (data.instructions !== undefined) patch.instructions = data.instructions.trim();
   if (data.startDate !== undefined) patch.startDate = data.startDate;
@@ -428,7 +428,7 @@ export async function deleteAssignment(classId: string, assignmentId: string): P
 
 export async function listAssignments(classId: string): Promise<Assignment[]> {
   const snap = await getDocs(query(assignmentsCol(classId), orderBy('createdAt', 'desc')));
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Assignment[];
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as Assignment) })) as Assignment[];
 }
 
 // --- B21 Faz 2: dosya yükleme (PDF/DOCX, <=20 MB) ---
@@ -489,7 +489,7 @@ export async function submitText(
     text: string;
     file?: { fileName: string; storagePath: string };
     noRepository?: boolean;
-    telemetry?: any;
+    telemetry?: WritingTelemetry;
     aiDisclosure?: AIDisclosureMatrix;
   }
 ): Promise<Submission> {
@@ -540,7 +540,7 @@ export async function submitText(
     excludedSourceUrls: [],
     digitalReceipt: receipt,
     academicIntegrityLocked: true,
-    noRepository: Boolean(payload.noRepository || (asgSnap.exists() && (asgSnap.data() as any)?.noRepository)),
+    noRepository: Boolean(payload.noRepository || (asgSnap.exists() && (asgSnap.data() as Assignment)?.noRepository)),
     createdAt: serverTimestamp(),
     isLate,
     ...(isLate && typeof lateDurationMinutes === 'number' ? { lateDurationMinutes } : {}),
@@ -591,9 +591,9 @@ export async function gradeSubmission(
   classId: string,
   assignmentId: string,
   studentId: string,
-  payload: { grade?: number | null; feedback?: string; gradedBy?: string; rubricScores?: any[] }
+  payload: { grade?: number | null; feedback?: string; gradedBy?: string; rubricScores?: RubricScoreItem[] }
 ): Promise<void> {
-  const updateData: Record<string, any> = {
+  const updateData: Partial<Submission> = {
     gradedAt: serverTimestamp(),
   };
   if (payload.grade !== undefined) {
@@ -624,7 +624,7 @@ export async function updateSubmissionAnnotations(
 
 export async function listSubmissions(classId: string, assignmentId: string): Promise<Submission[]> {
   const snap = await getDocs(query(submissionsCol(classId, assignmentId), orderBy('createdAt', 'desc')));
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Submission[];
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as Submission) })) as Submission[];
 }
 
 export function subscribeSubmissions(
@@ -634,7 +634,7 @@ export function subscribeSubmissions(
 ): () => void {
   const q = query(submissionsCol(classId, assignmentId), orderBy('createdAt', 'desc'));
   return onSnapshot(q, (snap) => {
-    const list = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as Submission[];
+    const list = snap.docs.map(d => ({ id: d.id, ...(d.data() as Submission) })) as Submission[];
     callback(list);
   }, (err) => {
     console.error('Submissions live sync error:', err);
@@ -643,7 +643,7 @@ export function subscribeSubmissions(
 
 export async function getMySubmission(classId: string, assignmentId: string, studentId: string): Promise<Submission | null> {
   const snap = await getDoc(submissionRef(classId, assignmentId, studentId));
-  return snap.exists() ? ({ id: snap.id, ...(snap.data() as any) } as Submission) : null;
+  return snap.exists() ? ({ id: snap.id, ...(snap.data() as Submission) } as Submission) : null;
 }
 
 export async function forwardSubmissionToInstitute(
@@ -698,13 +698,13 @@ export async function listInstituteQueue(instructorUid: string, isAdmin = false)
   const queue: InstituteQueueItem[] = [];
 
   for (const cDoc of classesSnap.docs) {
-    const cls = { id: cDoc.id, ...(cDoc.data() as any) } as ClassRoom;
+    const cls = { id: cDoc.id, ...(cDoc.data() as ClassRoom) } as ClassRoom;
     const asgSnap = await getDocs(query(assignmentsCol(cDoc.id), limit(20)));
     for (const aDoc of asgSnap.docs) {
-      const asg = { id: aDoc.id, ...(aDoc.data() as any) } as Assignment;
+      const asg = { id: aDoc.id, ...(aDoc.data() as Assignment) } as Assignment;
       const subSnap = await getDocs(query(submissionsCol(cDoc.id, aDoc.id), where('forwardedToInstitute', '==', true)));
       for (const sDoc of subSnap.docs) {
-        const sub = { id: sDoc.id, ...(sDoc.data() as any) } as Submission;
+        const sub = { id: sDoc.id, ...(sDoc.data() as Submission) } as Submission;
         queue.push({
           classId: cls.id,
           className: cls.name,
@@ -794,9 +794,10 @@ export async function scoreSubmission(
       sensitivity: input.sensitivity
     });
     return { ...scores, scoredBy: 'server' };
-  } catch (err: any) {
-    if (SCORING_FALLBACK_BLOCKED_CODES.has(String(err?.code || ''))) throw err;
-    console.warn('[classroom] Sunucu-tarafı skorlama kullanılamadı, istemci yedeğine düşülüyor:', err?.code || err?.message);
+  } catch (err: unknown) {
+    const e = err as { code?: string; message?: string };
+    if (SCORING_FALLBACK_BLOCKED_CODES.has(String(e?.code || ''))) throw err;
+    console.warn('[classroom] Sunucu-tarafı skorlama kullanılamadı, istemci yedeğine düşülüyor:', e?.code || e?.message);
   }
   // Faz 1 yedeği: CF dağıtılı değilse/erişilemezse skor istemcide hesaplanır ve yazılır.
   const scores = await runSubmissionScoring(input);

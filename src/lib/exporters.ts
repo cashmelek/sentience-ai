@@ -5,6 +5,15 @@ import { db } from './firebase';
 import type { HumanizeOptions } from '../services/geminiService';
 import type { CombinedAnalysisResult, AuditorResult } from '../types';
 import type { MLAnalysisResult } from '../services/mlService';
+import type { PlagiarismSource } from '../services/sentinelService';
+
+interface TrainingDoc {
+  isTrained?: boolean;
+  originalText?: string;
+  humanizedText?: string;
+  aiScore?: number;
+  tone?: string;
+}
 
 /**
  * B20 Adım 5 (Core Refactor): DOCX/PDF/TXT dışa aktarma ve eğitim verisi indirme
@@ -116,7 +125,7 @@ export const exportToDocx = async (ctx: ExportContext) => {
               heading: HeadingLevel.HEADING_2,
               spacing: { before: 300, after: 100 }
             }),
-            ...analysis.sources.map((s: any) =>
+            ...analysis.sources.map((s: PlagiarismSource) =>
               new Paragraph({
                 children: [
                   new TextRun({ text: `• ${s.title || 'Kaynak'}: `, bold: true }),
@@ -134,9 +143,10 @@ export const exportToDocx = async (ctx: ExportContext) => {
     const blob = await Packer.toBlob(doc);
     saveAs(blob, `Sentience_AI_${Date.now()}.docx`);
     toast.success("DOCX raporu başarıyla indirildi.");
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    toast.error("DOCX dışa aktarma hatası: " + (err?.message || "Bilinmeyen hata"));
+    const e = err as { message?: string };
+    toast.error("DOCX dışa aktarma hatası: " + (e?.message || "Bilinmeyen hata"));
   }
 };
 
@@ -161,7 +171,7 @@ export const exportToPDF = (ctx: ExportContext) => {
     ? `<div class="section">
         <h2>Sentinel Doğrulanmış Kaynaklar</h2>
         <ul>
-          ${analysis.sources.map((s: any) => `
+          ${analysis.sources.map((s: PlagiarismSource) => `
             <li><strong>${s.title || 'İnternet Kaynağı'}</strong> - <a href="${s.url}" target="_blank">${s.url}</a> ${s.similarity ? `(%${Math.round(s.similarity * 100)} benzerlik)` : ''}</li>
           `).join('')}
         </ul>
@@ -273,7 +283,7 @@ export const downloadTrainingData = async (opts: { permitted: boolean; onDone?: 
     let docs = snapshot.docs;
 
     if (onlyTrainingReady) {
-      docs = docs.filter(d => (d.data() as any).isTrained !== true);
+      docs = docs.filter(d => (d.data() as TrainingDoc).isTrained !== true);
     }
 
     if (docs.length === 0) {
@@ -291,7 +301,7 @@ export const downloadTrainingData = async (opts: { permitted: boolean; onDone?: 
     };
 
     const qualityDocs = docs.filter(d => {
-      const data = d.data() as any;
+      const data = d.data() as TrainingDoc;
       if (!data.originalText || !data.humanizedText) return false;
       const wc = (data.humanizedText || '').trim().split(/\s+/).filter(Boolean).length;
       if (wc < 80) return false;
@@ -306,7 +316,7 @@ export const downloadTrainingData = async (opts: { permitted: boolean; onDone?: 
     }
 
     const jsonlData = qualityDocs.map(d => {
-      const data = d.data() as any;
+      const data = d.data() as TrainingDoc;
       const tone = data.tone || 'Akademik';
       return JSON.stringify({
         contents: [
@@ -330,8 +340,9 @@ export const downloadTrainingData = async (opts: { permitted: boolean; onDone?: 
       }
     }, 500);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Download training data error:", err);
-    toast.error(`Hata: ${err?.message || "Bilinmeyen bir hata oluştu"}`);
+    const e = err as { message?: string };
+    toast.error(`Hata: ${e?.message || "Bilinmeyen bir hata oluştu"}`);
   }
 };
