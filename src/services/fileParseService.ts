@@ -4,6 +4,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 // Worker ayrı chunk olarak sunulur (?url) — ana bundle'ı şişirmez
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { extractRawText } from 'mammoth';
+import { extractDocxForensics } from './docxForensicService';
+import type { DocxForensicReport } from '../types/classroom';
 
 export const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024; // 20 MB
 
@@ -20,6 +22,7 @@ export interface ParsedDocument {
   contentType: string;
   pageCount?: number;
   text: string;
+  docxForensics?: DocxForensicReport;
 }
 
 export function isSupportedDocument(file: { type: string; size: number }): boolean {
@@ -38,13 +41,16 @@ async function parsePdf(file: File): Promise<{ text: string; pageCount: number }
   return { text: pages.join('\n\n'), pageCount: pdf.numPages };
 }
 
-async function parseDocx(file: File): Promise<string> {
+async function parseDocx(file: File, expectedStudentUid?: string): Promise<{ text: string; docxForensics?: DocxForensicReport }> {
   const arrayBuffer = await file.arrayBuffer();
   const result = await extractRawText({ arrayBuffer });
-  return result.value;
+  const rawText = result.value || '';
+  const wordCount = rawText.trim().split(/\s+/).filter(Boolean).length;
+  const docxForensics = await extractDocxForensics(arrayBuffer, wordCount, expectedStudentUid);
+  return { text: rawText, docxForensics };
 }
 
-export async function parseDocumentFile(file: File): Promise<ParsedDocument> {
+export async function parseDocumentFile(file: File, expectedStudentUid?: string): Promise<ParsedDocument> {
   if (!ACCEPTED_DOCUMENT_TYPES[file.type]) {
     throw new Error('Desteklenmeyen dosya türü (yalnızca PDF ve DOCX).');
   }
@@ -55,9 +61,8 @@ export async function parseDocumentFile(file: File): Promise<ParsedDocument> {
   const isPdf = file.type === 'application/pdf';
   const parsed = isPdf
     ? await parsePdf(file)
-    : { text: await parseDocx(file), pageCount: undefined };
+    : await parseDocx(file, expectedStudentUid);
 
-  // Kontrollü karakterler temizlenir; ayrıştırıcı çıktısı ham depolanan metne dönüşür
   const text = parsed.text.replace(/\u0000/g, ' ').trim();
   if (text.length < 50) {
     throw new Error('Dosyadan okunan metin çok kısa (en az 50 karakter).');
@@ -67,7 +72,8 @@ export async function parseDocumentFile(file: File): Promise<ParsedDocument> {
     fileName: file.name,
     fileSize: file.size,
     contentType: file.type,
-    pageCount: parsed.pageCount,
-    text
+    pageCount: 'pageCount' in parsed ? parsed.pageCount : undefined,
+    text,
+    docxForensics: 'docxForensics' in parsed ? parsed.docxForensics : undefined
   };
 }

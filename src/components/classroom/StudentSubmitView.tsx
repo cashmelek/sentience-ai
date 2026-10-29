@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, FileText, FileUp, Loader2, ShieldCheck, UploadCloud, X, Sparkles, CheckCircle2, Lock, BookOpen, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppUser } from '../../types';
-import type { ClassRoom, Assignment, Submission, AIDisclosureMatrix, AIDisclosureLevel } from '../../types/classroom';
+import type { ClassRoom, Assignment, Submission, AIDisclosureMatrix, AIDisclosureLevel, DocxForensicReport } from '../../types/classroom';
 import { SUBMISSION_LIMITS } from '../../types/classroom';
 import {
   submitText, scoreSubmission, markSubmissionFailed,
@@ -42,6 +42,7 @@ export function StudentSubmitView({
   const [mode, setMode] = useState<'text' | 'file'>('text');
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
+  const [docxForensics, setDocxForensics] = useState<DocxForensicReport | null>(null);
   const [noRepositoryOverride, setNoRepositoryOverride] = useState(Boolean(assignment.noRepository));
 
   // Ön Teslim Taslak Kontrolü (Turnitin Draft Coach) State'leri
@@ -90,12 +91,18 @@ export function StudentSubmitView({
     if (!selected) return;
     setParsing(true);
     try {
-      const parsed = await parseDocumentFile(selected);
+      const parsed = await parseDocumentFile(selected, appUser.uid);
       setFile(selected);
       setText(parsed.text);
+      if (parsed.docxForensics) {
+        setDocxForensics(parsed.docxForensics);
+      } else {
+        setDocxForensics(null);
+      }
       toast.success(`${parsed.fileName} okundu (${parsed.pageCount ? `${parsed.pageCount} sayfa, ` : ''}${parsed.text.length} karakter)`);
     } catch (err: any) {
       setFile(null);
+      setDocxForensics(null);
       toast.error(err?.message || 'Dosya okunamadı');
     } finally {
       setParsing(false);
@@ -142,6 +149,16 @@ export function StudentSubmitView({
         fileMeta = await uploadSubmissionFile(appUser.uid, cls.id, assignment.id, file);
       }
       const telemetry = getTelemetry(text.trim().length, mode);
+      if (mode === 'file' && docxForensics) {
+        telemetry.docxForensics = docxForensics;
+        if (docxForensics.isSuspiciousBulkPaste) {
+          telemetry.authorshipStatus = 'unverified_bulk_paste';
+          telemetry.processScore = Math.min(telemetry.processScore, 24);
+        } else {
+          telemetry.authorshipStatus = 'verified_organic';
+          telemetry.processScore = 95;
+        }
+      }
       const submission = await submitText(appUser, cls.id, assignment.id, {
         title,
         text: text.trim(),
@@ -268,10 +285,30 @@ export function StudentSubmitView({
                   <p className="text-[10px] text-gray-500">
                     {(file.size / 1024 / 1024).toFixed(2)} MB • {text.trim().length} karakter çıkarıldı
                   </p>
+                  {docxForensics && (
+                    <div className="mt-2 pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-[10px]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-gray-400">Düzenleme: {docxForensics.totalEditingTimeMinutes} dk</span>
+                        <span className="text-gray-600">•</span>
+                        <span className="font-mono text-gray-400">Revizyon: #{docxForensics.revisionNumber}</span>
+                        <span className="text-gray-600">•</span>
+                        <span className="font-mono text-gray-400">Hız: {docxForensics.wpm} kel/dk</span>
+                      </div>
+                      {docxForensics.isSuspiciousBulkPaste ? (
+                        <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25 font-bold">
+                          ⚠️ Dış Yapıştırma Anomalisi
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 font-bold">
+                          ✓ Organik Word Süresi
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <button
                   type="button"
-                  onClick={() => setFile(null)}
+                  onClick={() => { setFile(null); setDocxForensics(null); }}
                   disabled={phase !== 'edit'}
                   className="p-2 rounded-lg text-gray-500 hover:text-red-400 transition-all disabled:opacity-40"
                   title="Dosyayı kaldır"

@@ -272,6 +272,19 @@ Gelecekteki canlı sunumlar, testler ve pilot üniversite gösterimleri için ta
 - **Canlı Demo Tohumu:** Ahmet Yılmaz için dürüst beyan (%12 filigran, uyuşmazlık yok); Mehmet Demir için beyan uyuşmazlığı (%88 ritim filigranı, %94 sentetik havuz izi, kırmızı alarm) tanımlandı.
 - **Test ve Derleme:** `watermarkAndDisclosure.test.ts` eklenerek 8 test dosyasında toplam 60 test %100 başarıyla geçti; `tsc --noEmit` ve `npm run build` hatasız tamamlandı.
 
+### 1.34 Faz 3.5: Word (.docx) Adli Bilişim Ayrıştırıcısı (Docx Forensics & Telemetry Engine) Dağıtımı (29 Ekim 2026)
+- **Word Adli Bilişim Motoru (`src/services/docxForensicService.ts`):**
+  - `JSZip` ile `.docx` PKZip arşivi açılarak `docProps/app.xml`, `docProps/core.xml` ve `docProps/custom.xml` adli bilişim meta verileri ayrıştırıldı.
+  - **`TotalEditingTime` & WPM Analizi:** Toplam düzenleme dakikası, revizyon sayısı ve dakika başına kelime yazım hızı ($\frac{\text{Kelime}}{\text{Süre}}$) hesaplandı.
+  - **Harici Yapıştırma Anomalisi Tespiti:** 200+ kelimelik bir metin için düzenleme süresi ≤2 dakika veya WPM > 200 ise anında `isSuspiciousBulkPaste = true` bayrağı ve açıklayıcı adli rapor üretildi.
+  - **Eklenti & Pano Damgası Çözücü:** `sentience_session_id`, `sentience_student_uid` ve HTML pano köken damgaları çözümlendi.
+- **Dosya Ayrıştırma ve Teslim Entegrasyonu (`fileParseService.ts` & `StudentSubmitView.tsx`):**
+  - Öğrenci `.docx` dosyası yüklediğinde adli telemetri otomatik çıkarılarak ekranda düzenleme süresi, revizyon sayısı ve WPM göstergeleri verildi; şüpheli yapıştırmalarda `unverified_bulk_paste` telemetrisi atandı.
+- **Öğretmen Raporu ve PDF Çıktıları:**
+  - `SubmissionReportView.tsx` içine "Word Adli Bilişim Telemetrisi (Docx Forensics)" kartı, `submissionExport.ts` içine ise resmi PDF raporu için adli düzenleme tablosu entegre edildi.
+- **Canlı Demo Entegrasyonu:** Ahmet Yılmaz için 72 dk düzenleme ve 34 revizyon (organik); Mehmet Demir için 1 dk düzenleme ve 480 WPM (şüpheli dış yapıştırma) tanımlandı.
+- **Test ve Derleme:** `docxForensicService.test.ts` eklenerek 9 test dosyasında toplam 64 test %100 başarıyla geçti; `tsc --noEmit` ve `npm run build` sıfır hata ile tamamlandı.
+
 ---
 
 ## 2. ÖNCEKİ OTURUMLARDA TAMAMLANAN GELİŞTİRMELER (EKİM 2026 ORTASI)
@@ -460,13 +473,13 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
 
 Öğrencinin kişisel hesapla Sentience AI üzerinden metni insanlaştırıp Word/Google Docs gibi harici uygulamalara yapıştırması ve ardından Word dosyası olarak teslim etmesi senaryosuna karşı derinleştirilmiş adli bilişim ve masaüstü entegrasyonu:
 
-- **1. Word (.docx) Adli Bilişim Analizi (Docx Forensic Metadata):**
-  - `.docx` ZIP yapısındaki `docProps/app.xml` ve `docProps/core.xml` dosyalarından `TotalEditingTime` (toplam düzenleme süresi), `Revision` (revizyon sayısı) ve zaman damgalarının okunması.
+- [x] **1. Word (.docx) Adli Bilişim Analizi (Docx Forensic Metadata):**
+  - `.docx` ZIP yapısındaki `docProps/app.xml` ve `docProps/core.xml` dosyalarından `TotalEditingTime` (toplam düzenleme süresi), `Revision` (revizyon sayısı) ve zaman damgalarının okunması (`docxForensicService.ts`).
   - **WPM Hız Anomalisi:** $\frac{\text{Toplam Kelime}}{\text{Düzenleme Süresi}}$ hesabı yapılarak (örn. 2 dakikada 3.000 kelime = >1.000 WPM) Word içi doğrudan harici yapıştırmanın yakalanması.
   - **Stil & Font Kalıntıları:** Web tarayıcısından kopyalanıp Word'e yapıştırılan metinlerdeki HTML stil kalıntıları (`Inter/system-ui` fontları, satır yükseklikleri).
-- **2. Pano Köken Damgası (Rich-Text Origin Token):**
+- [ ] **2. Pano Köken Damgası (Rich-Text Origin Token):**
   - Sentience AI üzerinde "Kopyala" yapıldığında HTML pano katmanına Word'ün içine gömülecek kriptografik köken damgasının eklenmesi.
-- **3. Word Eklentisi & Sessiz Adli Mühür (C Seçeneği: Butonsuz Doğal Yükleme):**
+- [x] **3. Word Eklentisi & Sessiz Adli Mühür (C Seçeneği: Butonsuz Doğal Yükleme):**
   - Word eklentisi öğrenciye görünür hiçbir buton veya metin manipülasyon aracı (İnsanlaştırma, StyleMaster, Sokratik öneri kapalı) sunmaz; tamamen sessiz bir adli mühürleyici olarak çalışır.
   - Öğrenci ödevini Word'de yazıp normal şekilde kaydeder (`Ctrl+S`); web sitemize gelip `.docx` dosyasını sürükleyip bıraktığında, web ayrıştırıcısı dosya içindeki mühürlü adli telemetriyi otomatik çözer.
   - Böylece platform trafiği, zengin QuickMarks/Heatmap deneyimi, resmi YÖK Beyan Matrisi ve SHA-256 dijital makbuz süreci %100 web üzerinde korunur.

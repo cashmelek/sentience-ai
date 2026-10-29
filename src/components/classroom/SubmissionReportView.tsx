@@ -808,6 +808,72 @@ export function SubmissionReportView({
             );
           })()}
 
+          {(() => {
+            const df = submission.docxForensics || submission.telemetry?.docxForensics;
+            if (!df) return null;
+            return (
+              <div className={cn(
+                "p-4 rounded-2xl border space-y-3 transition-all",
+                df.isSuspiciousBulkPaste
+                  ? "bg-amber-500/[0.05] border-amber-500/25"
+                  : "bg-blue-500/[0.04] border-blue-500/20"
+              )}>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className={cn("w-4 h-4", df.isSuspiciousBulkPaste ? "text-amber-400" : "text-blue-400")} />
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white">
+                      Word Adli Bilişim Telemetrisi (Docx Forensics)
+                    </h4>
+                  </div>
+                  <span className={cn(
+                    "text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider",
+                    df.isSuspiciousBulkPaste
+                      ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                      : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                  )}>
+                    {df.isSuspiciousBulkPaste ? "⚠️ Word İçi Dış Yapıştırma Anomalisi" : "✓ Doğrulanmış Word Düzenleme Süresi"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                  <div className="p-2.5 bg-black/30 border border-white/5 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Toplam Düzenleme</span>
+                    <span className="text-xs font-mono font-bold text-gray-200">
+                      {df.totalEditingTimeMinutes} dakika
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-black/30 border border-white/5 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Revizyon Sayısı</span>
+                    <span className="text-xs font-mono font-bold text-gray-200">
+                      #{df.revisionNumber} revizyon
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-black/30 border border-white/5 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Hesaplanan Hız</span>
+                    <span className={cn("text-xs font-mono font-bold", df.wpm > 150 ? "text-amber-400" : "text-emerald-400")}>
+                      {df.wpm} kelime/dk
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-black/30 border border-white/5 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Kelime / Karakter</span>
+                    <span className="text-xs font-mono font-bold text-gray-200">
+                      {df.wordCount} kelime
+                    </span>
+                  </div>
+                </div>
+
+                <p className={cn(
+                  "text-[11px] leading-relaxed p-2.5 rounded-xl border",
+                  df.isSuspiciousBulkPaste
+                    ? "text-amber-300/90 bg-amber-500/10 border-amber-500/20"
+                    : "text-gray-300/90 bg-white/[0.02] border-white/5"
+                )}>
+                  <strong>Adli Bilişim Bulgusu:</strong> {df.forensicReason}
+                </p>
+              </div>
+            );
+          })()}
+
           {submission.hasDisclosureDiscrepancy && (
             <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />

@@ -89,6 +89,25 @@ export interface SubmissionScores {
 
 export type AuthorshipStatus = 'verified_organic' | 'mixed_with_citations' | 'unverified_bulk_paste' | 'file_upload';
 
+export interface DocxForensicReport {
+  totalEditingTimeMinutes: number;
+  revisionNumber: number;
+  wordCount: number;
+  wpm: number;
+  application?: string;
+  created?: string;
+  modified?: string;
+  creator?: string;
+  lastModifiedBy?: string;
+  isSuspiciousBulkPaste: boolean;
+  forensicReason?: string;
+  addinSessionId?: string;
+  addinStudentUid?: string;
+  isAddinVerified?: boolean;
+  hasClipboardToken?: boolean;
+  clipboardOriginAccount?: string;
+}
+
 export interface WritingTelemetry {
   totalTypingTimeMs: number;
   pasteCount: number;
@@ -99,6 +118,7 @@ export interface WritingTelemetry {
   processScore: number; // 0..100
   authorshipStatus: AuthorshipStatus;
   legitimateQuotesCount?: number;
+  docxForensics?: DocxForensicReport;
 }
 
 export type AIDisclosureLevel = 'none' | 'assisted' | 'generated';
@@ -182,6 +202,7 @@ export interface Submission {
   hasInternalGeneratorMatch?: boolean;
   internalGeneratorSimilarity?: number;
   telemetry?: WritingTelemetry;
+  docxForensics?: DocxForensicReport;
   aiDisclosure?: AIDisclosureMatrix;
   watermarkResult?: WatermarkAnalysisResult;
   hasWatermarkSignature?: boolean;

@@ -159,7 +159,20 @@ Araştırma karma yöntem (mixed-method) yaklaşımıyla tasarlanmış olup 120 
       pasteRatio: 0.12,
       processScore: 94,
       authorshipStatus: 'verified_organic',
-      legitimateQuotesCount: 2
+      legitimateQuotesCount: 2,
+      docxForensics: {
+        totalEditingTimeMinutes: 72,
+        revisionNumber: 34,
+        wordCount: 520,
+        wpm: 38,
+        application: 'Microsoft Office Word',
+        created: '2026-10-29T14:30:00Z',
+        modified: '2026-10-29T15:42:00Z',
+        creator: 'Ahmet Yılmaz',
+        lastModifiedBy: 'Ahmet Yılmaz',
+        isSuspiciousBulkPaste: false,
+        forensicReason: 'Word adli düzenleme süresi (72 dk, 34 revizyon) organik yazım standartlarıyla uyumludur.'
+      }
     },
     aiDisclosure: {
       literatureSearch: { level: 'assisted', tools: ['Google Scholar', 'Connected Papers'] },
@@ -230,7 +243,20 @@ Bu nedenle YÖK ve üniversite enstitüleri tarafından belirlenen %15 intihal t
       pasteRatio: 0.98,
       processScore: 24,
       authorshipStatus: 'unverified_bulk_paste',
-      legitimateQuotesCount: 0
+      legitimateQuotesCount: 0,
+      docxForensics: {
+        totalEditingTimeMinutes: 1,
+        revisionNumber: 1,
+        wordCount: 480,
+        wpm: 480,
+        application: 'Microsoft Office Word',
+        created: '2026-10-29T16:00:00Z',
+        modified: '2026-10-29T16:01:00Z',
+        creator: 'Bilinmeyen Kullanıcı',
+        lastModifiedBy: 'Mehmet Demir',
+        isSuspiciousBulkPaste: true,
+        forensicReason: 'Word düzenleme süresi (1 dk) kelime sayısına (480 kelime) göre anormal derecede düşüktür (480 kelime/dk). Metin Word içerisine dışarıdan toplu yapıştırılmıştır.'
+      }
     },
     aiDisclosure: {
       literatureSearch: { level: 'none' },

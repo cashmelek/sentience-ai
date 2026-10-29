@@ -247,6 +247,36 @@ export function exportSubmissionReportPDF(cls: ClassRoom, assignment: Assignment
       </div>
       ` : ''}
 
+      ${(submission.docxForensics || submission.telemetry?.docxForensics) ? `
+      <div class="section" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin: 20px 0;">
+        <h2 style="margin-top: 0; font-size: 13px; text-transform: uppercase; color: #166534; border-bottom: 1px solid #86efac; padding-bottom: 6px;">
+          Word (.docx) Adli Bilişim ve Düzenleme Telemetrisi
+        </h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px;">
+          <tr>
+            <td style="width: 220px; font-weight: bold;">Adli İnceleme Durumu</td>
+            <td><strong>${(submission.docxForensics || submission.telemetry?.docxForensics)?.isSuspiciousBulkPaste ? '⚠️ Anormal Düşük Düzenleme Süresi (Harici Blok Yapıştırma)' : '✓ Doğrulanmış Organik Word Düzenleme Süresi'}</strong></td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Toplam Düzenleme Süresi</td>
+            <td>${(submission.docxForensics || submission.telemetry?.docxForensics)?.totalEditingTimeMinutes} dakika</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Revizyon Numarası</td>
+            <td>#${(submission.docxForensics || submission.telemetry?.docxForensics)?.revisionNumber} revizyon</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Yazım Hızı (WPM)</td>
+            <td>${(submission.docxForensics || submission.telemetry?.docxForensics)?.wpm} kelime/dakika</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Adli Rapor Özeti</td>
+            <td>${escapeHtml((submission.docxForensics || submission.telemetry?.docxForensics)?.forensicReason || 'Adli inceleme tamamlandı.')}</td>
+          </tr>
+        </table>
+      </div>
+      ` : ''}
+
       ${submission.aiDisclosure ? `
       <div class="section" style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 14px; margin: 20px 0;">
         <h2 style="margin-top: 0; font-size: 13px; text-transform: uppercase; color: #581c87; border-bottom: 1px solid #d8b4fe; padding-bottom: 6px;">
