@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, FileText, FileUp, Loader2, ShieldCheck, UploadCloud, X, Sparkles, CheckCircle2, Lock, BookOpen, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppUser } from '../../types';
-import type { ClassRoom, Assignment, Submission, AIDisclosureMatrix, AIDisclosureLevel, DocxForensicReport } from '../../types/classroom';
+import type { ClassRoom, Assignment, Submission, AIDisclosureMatrix, AIDisclosureLevel, DocxForensicReport, SubmissionScores } from '../../types/classroom';
 import { SUBMISSION_LIMITS } from '../../types/classroom';
 import {
   submitText, scoreSubmission, markSubmissionFailed,
@@ -47,12 +47,13 @@ export function StudentSubmitView({
 
   // Ön Teslim Taslak Kontrolü (Turnitin Draft Coach) State'leri
   const [draftChecking, setDraftChecking] = useState(false);
-  const [draftResult, setDraftResult] = useState<{ similarityScore: number; aiScore: number } | null>(
+  const [draftResult, setDraftResult] = useState<SubmissionScores | { similarityScore: number; aiScore: number; sources?: any[]; sentenceScores?: any[] } | null>(
     existingSubmission?.lastDraftScores ? {
       similarityScore: existingSubmission.lastDraftScores.similarityScore,
       aiScore: existingSubmission.lastDraftScores.aiScore,
     } : null
   );
+  const [showDeepAnalysisDetails, setShowDeepAnalysisDetails] = useState(false);
   const [draftCount, setDraftCount] = useState<number>(existingSubmission?.draftCheckCount || 0);
   const [showSocraticCoach, setShowSocraticCoach] = useState(false);
   const [showDisclosureDetails, setShowDisclosureDetails] = useState(false);
@@ -127,11 +128,9 @@ export function StudentSubmitView({
       );
       const nextCount = draftCount + 1;
       setDraftCount(nextCount);
-      setDraftResult({
-        similarityScore: scores.similarityScore,
-        aiScore: scores.aiScore
-      });
-      toast.success(`Taslak kontrolü tamamlandı! Kalan hak: ${Math.max(0, maxDrafts - nextCount)}`);
+      setDraftResult(scores);
+      setShowDeepAnalysisDetails(true);
+      toast.success(`Derin analiz ve taslak kontrolü tamamlandı! Kalan hak: ${Math.max(0, maxDrafts - nextCount)}`);
     } catch (err: any) {
       toast.error(err?.message || 'Taslak kontrolü sırasında hata oluştu.');
     } finally {
@@ -418,38 +417,92 @@ export function StudentSubmitView({
                 className="px-3.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-40 flex items-center gap-1.5"
               >
                 {draftChecking ? (
-                  <><Loader2 className="w-3 h-3 animate-spin" /> Taslak Taranıyor...</>
+                  <><Loader2 className="w-3 h-3 animate-spin" /> Derin Analiz Taranıyor...</>
                 ) : (
-                  <><Sparkles className="w-3 h-3" /> Taslağı Şimdi Kontrol Et</>
+                  <><ShieldCheck className="w-3 h-3" /> Derin Analiz & Taslak Kontrolü</>
                 )}
               </button>
             </div>
             <p className="text-[10px] text-gray-400">
-              Nihai teslimi yapmadan önce taslağınızı ön kontrolden geçirebilirsiniz. Bu işlem metninizi havuza kaydetmez ve resmi teslim sayılmaz.
+              Nihai teslimi yapmadan önce taslağınızı Denetçi ve Sentinel ile ön kontrolden geçirebilirsiniz. Bu işlem metninizi havuza kaydetmez ve resmi teslim sayılmaz.
             </p>
 
             {draftResult && (
-              <div className="p-3 bg-black/40 border border-emerald-500/20 rounded-xl flex items-center justify-around text-center">
-                <div>
-                  <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Taslak Benzerlik</span>
-                  <span className="text-sm font-black text-amber-400">
-                    %{Math.round((draftResult.similarityScore > 1 ? draftResult.similarityScore : draftResult.similarityScore * 100))}
-                  </span>
+              <div className="space-y-2">
+                <div className="p-3 bg-black/40 border border-emerald-500/20 rounded-xl flex items-center justify-around text-center">
+                  <div>
+                    <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Taslak Benzerlik</span>
+                    <span className="text-sm font-black text-amber-400">
+                      %{Math.round((draftResult.similarityScore > 1 ? draftResult.similarityScore : draftResult.similarityScore * 100))}
+                    </span>
+                  </div>
+                  <div className="h-6 w-px bg-white/10" />
+                  <div>
+                    <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Taslak YZ Skoru</span>
+                    <span className="text-sm font-black text-purple-400">
+                      %{Math.round((draftResult.aiScore > 1 ? draftResult.aiScore : draftResult.aiScore * 100))}
+                    </span>
+                  </div>
+                  <div className="h-6 w-px bg-white/10" />
+                  <button
+                    type="button"
+                    onClick={() => setShowDeepAnalysisDetails(!showDeepAnalysisDetails)}
+                    className="text-right text-[10px] text-emerald-400 hover:text-emerald-300 font-bold transition-colors flex items-center gap-1"
+                  >
+                    <span>{showDeepAnalysisDetails ? 'Detayları Gizle' : 'Teşhis Detayları'}</span>
+                    {showDeepAnalysisDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  </button>
                 </div>
-                <div className="h-6 w-px bg-white/10" />
-                <div>
-                  <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Taslak YZ Skoru</span>
-                  <span className="text-sm font-black text-purple-400">
-                    %{Math.round((draftResult.aiScore > 1 ? draftResult.aiScore : draftResult.aiScore * 100))}
-                  </span>
-                </div>
-                <div className="h-6 w-px bg-white/10" />
-                <div className="text-right">
-                  <span className="text-[9px] text-emerald-400 font-bold block flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 inline" /> Ön Tarama Hazır
-                  </span>
-                  <span className="text-[8px] text-gray-500">Gerekiyorsa alıntıları düzeltin</span>
-                </div>
+
+                {showDeepAnalysisDetails && (
+                  <div className="p-3.5 bg-black/50 border border-white/5 rounded-xl space-y-3 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                        Derin Analiz & Özgünlük Teşhisi
+                      </span>
+                      <span className="text-[9px] text-gray-500 font-mono">Turnitin Standartlarında Ön Tarama</span>
+                    </div>
+
+                    {'sources' in draftResult && draftResult.sources && draftResult.sources.length > 0 ? (
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold text-amber-400 block">Eşleşen Akademik & Web Kaynakları:</span>
+                        <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                          {draftResult.sources.slice(0, 5).map((src: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02] border border-white/5 text-[10px]">
+                              <span className="truncate pr-2 text-gray-300">{src.title || src.url || 'Bilinmeyen Kaynak'}</span>
+                              <span className="font-mono text-amber-400 font-bold shrink-0">%{Math.round(src.similarity || 0)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-gray-400">
+                        Belirgin bir harici kaynak benzerliği saptanmadı (Özgünlük kabul edilebilir düzeyde).
+                      </p>
+                    )}
+
+                    {'sentenceScores' in draftResult && draftResult.sentenceScores && draftResult.sentenceScores.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-bold text-purple-400 block">Cümle Bazlı Yapay Zeka Risk Yoğunluğu:</span>
+                        <div className="space-y-1 max-h-28 overflow-y-auto custom-scrollbar">
+                          {draftResult.sentenceScores
+                            .filter((s: any) => (s.aiScore || s.score || 0) > 0.4)
+                            .slice(0, 4)
+                            .map((s: any, idx: number) => (
+                              <div key={idx} className="p-1.5 rounded bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-200">
+                                "{s.sentence || s.text}"
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-2 rounded bg-blue-500/[0.05] border border-blue-500/10 text-[10px] text-gray-400 leading-relaxed">
+                      💡 <strong>Akademik İpucu:</strong> Yüksek benzerlik görülen yerlerde alıntılarınızı tırnak (<code className="text-gray-300">"..."</code>) içine alınız ve kaynakçasını belirtiniz. Yapay zeka yoğunluğu saptanan cümleleri ise makineye insanlaştırmadan, <strong>kendi akademik ifadenizle</strong> yeniden yazınız.
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

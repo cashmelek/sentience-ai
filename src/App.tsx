@@ -157,14 +157,24 @@ export default function App() {
   const { systemSettings, localAuditorSensitivity, handleSensitivityChange } = useSystemSettings(!!isAdmin);
   const { projects, fetchProjects, projectsLimit, setProjectsLimit, hasMoreProjects } = useProjects(user);
 
+  const isStudentUser = Boolean(
+    appUser?.role === 'student' ||
+    appUser?.academicProfile === 'student'
+  );
+
   useEffect(() => {
-    if (user?.email && (user.email.includes('.edu') || appUser?.academicProfile === 'student')) {
+    if (isStudentUser) {
+      setIsAcademicIntegrityLocked(true);
+      if (activeTab !== 'classroom') {
+        setActiveTab('classroom');
+      }
+    } else if (user?.email && user.email.includes('.edu')) {
       const stored = localStorage.getItem('sentience_academic_integrity_lock');
       if (stored === null) {
         setIsAcademicIntegrityLocked(true);
       }
     }
-  }, [user?.email, appUser?.academicProfile]);
+  }, [isStudentUser, user?.email, activeTab]);
 
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -474,10 +484,30 @@ export default function App() {
         {activeTab === 'classroom' && appUser && featureVisibility.classroom ? (
           <div className="flex-1 overflow-y-auto custom-scrollbar relative z-30 bg-brand-bg">
             <header className="h-16 border-b border-brand-border px-4 lg:px-8 flex items-center justify-between bg-brand-card/50 backdrop-blur-xl sticky top-0 z-40">
-              <div className="flex items-center gap-3"><button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 lg:hidden text-gray-400"><Menu className="w-6 h-6" /></button><GraduationCap className="w-5 h-5 text-sky-500" /><h2 className="text-lg lg:text-xl font-black text-white tracking-tighter uppercase">SINIFLARIM</h2></div>
-              <button onClick={() => setActiveTab('editor')} className="p-2 hover:bg-white/5 rounded-xl text-gray-500"><X className="w-5 h-5" /></button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 lg:hidden text-gray-400">
+                  <Menu className="w-6 h-6" />
+                </button>
+                <GraduationCap className="w-5 h-5 text-sky-500" />
+                <h2 className="text-lg lg:text-xl font-black text-white tracking-tighter uppercase">
+                  {isStudentUser ? 'ÖĞRENCİ ÇALIŞMA MASASI' : 'SINIFLARIM'}
+                </h2>
+              </div>
+              {!isStudentUser && (
+                <button onClick={() => setActiveTab('editor')} className="p-2 hover:bg-white/5 rounded-xl text-gray-500" title="Editöre Dön">
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </header>
-            <div className="p-4 lg:p-8"><Suspense fallback={<div className="flex items-center justify-center p-12"><RefreshCw className="w-8 h-8 text-emerald-500 animate-spin" /></div>}><ClassroomPanel appUser={appUser} scoringConfig={{ sentinelEnabled: systemSettings.sentinelEnabled, auditorModel: systemSettings.auditorModel, sensitivity: localAuditorSensitivity }} onClose={() => setActiveTab('editor')} /></Suspense></div>
+            <div className="p-4 lg:p-8">
+              <Suspense fallback={<div className="flex items-center justify-center p-12"><RefreshCw className="w-8 h-8 text-emerald-500 animate-spin" /></div>}>
+                <ClassroomPanel 
+                  appUser={appUser} 
+                  scoringConfig={{ sentinelEnabled: systemSettings.sentinelEnabled, auditorModel: systemSettings.auditorModel, sensitivity: localAuditorSensitivity }} 
+                  onClose={isStudentUser ? undefined : () => setActiveTab('editor')} 
+                />
+              </Suspense>
+            </div>
           </div>
         ) : activeTab === 'admin' && isAdmin ? (
           <div className="flex-1 overflow-y-auto custom-scrollbar relative z-30 bg-brand-bg">

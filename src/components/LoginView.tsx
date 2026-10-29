@@ -17,7 +17,8 @@ import {
   School,
   Search,
   ChevronDown,
-  Check
+  Check,
+  Key
 } from 'lucide-react';
 import {
   signInWithPopup,
@@ -48,6 +49,7 @@ export function LoginView({ isAdmin, onBack }: LoginViewProps) {
   const [selectedUni, setSelectedUni] = useState<string>('Uşak Üniversitesi');
   const [companyName, setCompanyName] = useState('');
   const [classCode, setClassCode] = useState('');
+  const [instructorCode, setInstructorCode] = useState('');
   const [uniSearchQuery, setUniSearchQuery] = useState('');
   const [isUniDropdownOpen, setIsUniDropdownOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,6 +116,16 @@ export function LoginView({ isAdmin, onBack }: LoginViewProps) {
         return;
       }
     }
+    if (!isLoginView && accountRole === 'academic') {
+      const trimmedCode = instructorCode.trim().toUpperCase();
+      const validInstructorCodes = ['INST-EDU-2026', 'DEMO-2026', 'AKADEMIK2026', 'SENT26'];
+      if (!trimmedCode || !validInstructorCodes.includes(trimmedCode)) {
+        const msg = "Akademisyen hesabı açmak için geçerli bir Kurumsal Yetkilendirme / Lisans Anahtarı (Örn: INST-EDU-2026) girmelisiniz.";
+        setErrorMessage(msg);
+        toast.error(msg);
+        return;
+      }
+    }
     if (password.length < 6) {
       const msg = "Şifreniz en az 6 karakter olmalıdır.";
       setErrorMessage(msg);
@@ -130,7 +142,7 @@ export function LoginView({ isAdmin, onBack }: LoginViewProps) {
         await setDoc(doc(db, 'users', cred.user.uid), {
           uid: cred.user.uid,
           email: cleanEmail,
-          role: accountRole === 'academic' ? 'instructor' : 'user',
+          role: accountRole === 'academic' ? 'instructor' : (accountRole === 'student' ? 'student' : 'user'),
           academicProfile: accountRole,
           institution: accountRole === 'professional' ? (companyName.trim() || 'Bireysel / İş Dünyası') : (selectedUni || detectedDomain || 'Bağımsız'),
           institutionDomain: accountRole === 'professional' ? (cleanEmail.includes('@') ? cleanEmail.split('@')[1] : null) : (selectedUniDomain || detectedDomain || null),
@@ -439,6 +451,29 @@ export function LoginView({ isAdmin, onBack }: LoginViewProps) {
                         </div>
                       </>
                     )}
+                  </div>
+                )}
+
+                {!isLoginView && accountRole === 'academic' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">EĞİTMEN LİSANS / YETKİ ANAHTARI</label>
+                      <span className="text-[9px] text-amber-400 font-mono">Zorunlu</span>
+                    </div>
+                    <div className="relative group">
+                      <Key className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-emerald-400 transition-colors pointer-events-none" />
+                      <input
+                        type="text"
+                        value={instructorCode}
+                        onChange={e => setInstructorCode(e.target.value.toUpperCase())}
+                        placeholder="Örn: INST-EDU-2026 (Bölüm Yetki Anahtarı)"
+                        className="w-full bg-white/5 border border-white/5 rounded-2xl py-3.5 pl-12 pr-4 text-xs text-white outline-none focus:border-emerald-500/50 transition-all placeholder:text-gray-700 font-mono uppercase"
+                        required
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-500 ml-1">
+                      Sınıf açma yetkisi için kurumunuzca tanımlanmış anahtarı giriniz (Demo: INST-EDU-2026).
+                    </p>
                   </div>
                 )}
 

@@ -15,7 +15,7 @@ export interface OnboardingState {
 export interface AppUser {
   uid: string;
   email: string | null;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'student' | 'instructor';
   plan: SubscriptionPlan;
   dailyUsage: number; // Represents daily character usage
   lastResetDate: string;
@@ -33,6 +33,7 @@ export interface AppUser {
   institution?: string | null;
   institutionDomain?: string | null;
   companyName?: string | null;
+  enrolledClassCode?: string | null;
 }
 
 export const PLAN_LIMITS: Record<SubscriptionPlan, { dailyRequests: number; promoRequests: number; promoDays: number; dailyChars: number; promoChars: number }> = {

@@ -22,7 +22,13 @@ export function OnboardingChecklist({ user }: OnboardingChecklistProps) {
 
   if (onboarding.dismissed) return null;
 
-  const steps = [
+  const isStudent = user.role === 'student' || user.academicProfile === 'student';
+
+  const steps = isStudent ? [
+    { id: 'firstClass', label: 'Sınıfına Katıl veya Ödev Seç', completed: Boolean(user.enrolledClassCode) },
+    { id: 'firstAnalysis', label: 'Derin Analiz ile Özgünlük Tara', completed: onboarding.firstAnalysis },
+    { id: 'firstDraft', label: 'Sokratik Koç ile Metnini İncele', completed: onboarding.firstDraft }
+  ] : [
     { id: 'firstHumanize', label: 'İlk Metnini İnsanileştir', completed: onboarding.firstHumanize },
     { id: 'firstAnalysis', label: 'Derin Analiz Aracını Kullan', completed: onboarding.firstAnalysis },
     { id: 'firstDraft', label: 'Bir Taslak Kaydet', completed: onboarding.firstDraft }

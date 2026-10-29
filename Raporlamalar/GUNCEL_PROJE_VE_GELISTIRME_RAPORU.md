@@ -285,6 +285,39 @@ Gelecekteki canlı sunumlar, testler ve pilot üniversite gösterimleri için ta
 - **Canlı Demo Entegrasyonu:** Ahmet Yılmaz için 72 dk düzenleme ve 34 revizyon (organik); Mehmet Demir için 1 dk düzenleme ve 480 WPM (şüpheli dış yapıştırma) tanımlandı.
 - **Test ve Derleme:** `docxForensicService.test.ts` eklenerek 9 test dosyasında toplam 64 test %100 başarıyla geçti; `tsc --noEmit` ve `npm run build` sıfır hata ile tamamlandı.
 
+### 1.35 Faz 3.5 & Akademik Zengin İçerik: Word Eklenti Paketi ve Formül/Görsel Ayrıştırıcısı Dağıtımı (29 Ekim 2026)
+- **Word Eklenti Paketi (Office Web Add-in):**
+  - Standart `manifest.xml` (`public/word-addin/manifest.xml`) ve Office JS API hook'u (`public/word-addin/telemetry-hook.html`, `telemetry-hook.js`) oluşturuldu.
+  - Word içinde öğrenci kimliğini (`sentience_student_uid`, `sentience_student_name`, `sentience_session_id`) ve oturum zaman damgasını `docProps/custom.xml` alanına kriptografik olarak mühürleyen mekanizma devreye alındı.
+  - Windows kullanıcıları için tek tıkla Office WEF dizinine sideload eden PowerShell kurulum betiği (`Install-WordAddin.ps1`) sağlandı.
+  - Öğrenci teslim ekranına ([`StudentSubmitView.tsx`](file:///c:/Users/OEM/.gemini/antigravity/playground/sentience-ai/src/components/classroom/StudentSubmitView.tsx)) manifest ve kurulum scripti indirme butonları yerleştirildi.
+- **Akademik Zengin İçerik Ayrıştırma (Formül, Tablo, Görsel, Dipnot):**
+  - `docxForensicService.ts` genişletilerek `word/document.xml` içerisindeki `<m:oMath>` / `<m:oMathPara>` matematiksel formülleri (OMML), `<w:tbl>` tabloları, `word/footnotes.xml` dipnotları ve `word/media/*` altındaki gömülü infografik/görseller otomatik envantere döküldü.
+  - Tip Şeması (`src/types/classroom.ts`): `mathFormulasCount`, `extractedFormulas`, `tablesCount`, `imagesCount`, `imagesList`, `footnotesCount` alanları eklendi.
+  - Öğrenci ve Öğretmen Arayüzleri: `StudentSubmitView.tsx` üzerinde dosya seçildiğinde anlık formül/tablo/görsel rozetleri; `SubmissionReportView.tsx` üzerinde ise "Akademik Zengin İçerik Analizi" kartı ile öğretmen raporuna yansıtıldı.
+- **Test ve Dağıtım Doğrulaması:**
+  - `src/test/docxForensicService.test.ts` içine zengin içerik test senaryosu eklendi. 9 test dosyasında 65/65 test %100 başarıyla geçti.
+  - `npm run lint` (`tsc --noEmit`) 0 hata.
+  - `npm run build` 18.48s içinde hatasız tamamlandı.
+  - Firebase Hosting (`sentience-ai-free-2026.web.app`) üzerine canlı dağıtım gerçekleştirildi.
+
+### 1.36 Faz 4.8: Öğrenci Arayüzü İzolasyonu, .edu.tr Rol Ayrımı ve Derin Analizli Öğrenci Çalışma Masası Dağıtımı (30 Ekim 2026)
+- **Giriş & Kayıt Katmanında (.edu/.edu.tr) Rol Ayrımı ve Lisans Kilidi (`LoginView.tsx`):**
+  - Kayıt esnasında Kullanıcı Tipi (Akademisyen / Öğrenci / Profesyonel) ayrımı tam yetkilendirildi.
+  - **Öğrenci Kaydı:** `.edu/.edu.tr` öğrencileri doğrudan `role: 'student'` ve `academicProfile: 'student'` olarak kaydedilir, kod zorunluluğu yoktur.
+  - **Akademisyen Lisans Anahtarı Zorunluluğu:** Öğrencilerin sahte eğitmen hesabı açmasını önlemek amacıyla kurumsal anahtar (`INST-EDU-2026`, `DEMO-2026`, `AKADEMIK2026`, `SENT26`) zorunlu kılındı; geçerli anahtar olmadan akademisyen yetkisi verilmesi engellendi.
+- **Öğrenci Ekran İzolasyonu (DOM & Route Seviyesi - `App.tsx` & `OnboardingChecklist.tsx`):**
+  - `role === 'student'` veya `academicProfile === 'student'` olan kullanıcılar giriş yaptığında doğrudan **"ÖĞRENCİ ÇALIŞMA MASASI"** ekranına kilitlenir; genel editör ve insanlaştırma butonları DOM'dan tamamen kaldırılır.
+  - Sol paneldeki görevler öğrenciye göre uyarlandı: *"Sınıfına Katıl veya Ödev Seç"*, *"Derin Analiz ile Özgünlük Tara"*, *"Sokratik Koç ile Metnini İncele"*.
+- **Derin Analizli Öğrenci Teslim Masası (`StudentSubmitView.tsx`):**
+  - Öğrenci ödev teslimi yaparken "Derin Analiz & Taslak Kontrolü" butonu ile metnini Turnitin standartlarında Denetçi ve Sentinel ile ön taramadan geçirebilir.
+  - **Sentinel Kaynak Çakışmaları:** Eşleşen makale ve web kaynaklarının benzerlik oranları listelenir.
+  - **Cümle Bazlı Isı Haritası (Sentence-level Heatmap):** Sentetik/YZ riski yüksek cümleler renklendirilerek öğrenciye sunulur; öğrenciye metni makineye insanlaştırmadan **kendi kelimeleriyle ve atıflarla** revize etmesi için pedagojik kılavuzluk sağlanır.
+- **Test ve Dağıtım:**
+  - `src/test/studentWorkspaceIsolation.test.ts` eklenerek 10 test dosyasında 68/68 test %100 başarıyla geçti.
+  - `tsc --noEmit` ve `npm run build` (18.66s) sıfır hatayla derlendi.
+  - Firebase Hosting (`sentience-ai-free-2026.web.app`) üzerine canlı dağıtım tamamlandı.
+
 ---
 
 ## 2. ÖNCEKİ OTURUMLARDA TAMAMLANAN GELİŞTİRMELER (EKİM 2026 ORTASI)
@@ -484,21 +517,34 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   - Öğrenci ödevini Word'de yazıp normal şekilde kaydeder (`Ctrl+S`); web sitemize gelip `.docx` dosyasını sürükleyip bıraktığında, web ayrıştırıcısı dosya içindeki mühürlü adli telemetriyi otomatik çözer.
   - Böylece platform trafiği, zengin QuickMarks/Heatmap deneyimi, resmi YÖK Beyan Matrisi ve SHA-256 dijital makbuz süreci %100 web üzerinde korunur.
 
-### 1.35 Faz 3.5 & Akademik Zengin İçerik: Word Eklenti Paketi ve Formül/Görsel Ayrıştırıcısı Dağıtımı (29 Ekim 2026)
-- **Word Eklenti Paketi (Office Web Add-in):**
-  - Standart `manifest.xml` (`public/word-addin/manifest.xml`) ve Office JS API hook'u (`public/word-addin/telemetry-hook.html`, `telemetry-hook.js`) oluşturuldu.
-  - Word içinde öğrenci kimliğini (`sentience_student_uid`, `sentience_student_name`, `sentience_session_id`) ve oturum zaman damgasını `docProps/custom.xml` alanına kriptografik olarak mühürleyen mekanizma devreye alındı.
-  - Windows kullanıcıları için tek tıkla Office WEF dizinine sideload eden PowerShell kurulum betiği (`Install-WordAddin.ps1`) sağlandı.
-  - Öğrenci teslim ekranına ([`StudentSubmitView.tsx`](file:///c:/Users/OEM/.gemini/antigravity/playground/sentience-ai/src/components/classroom/StudentSubmitView.tsx)) manifest ve kurulum scripti indirme butonları yerleştirildi.
-- **Akademik Zengin İçerik Ayrıştırma (Formül, Tablo, Görsel, Dipnot):**
-  - `docxForensicService.ts` genişletilerek `word/document.xml` içerisindeki `<m:oMath>` / `<m:oMathPara>` matematiksel formülleri (OMML), `<w:tbl>` tabloları, `word/footnotes.xml` dipnotları ve `word/media/*` altındaki gömülü infografik/görseller otomatik envantere döküldü.
-  - Tip Şeması (`src/types/classroom.ts`): `mathFormulasCount`, `extractedFormulas`, `tablesCount`, `imagesCount`, `imagesList`, `footnotesCount` alanları eklendi.
-  - Öğrenci ve Öğretmen Arayüzleri: `StudentSubmitView.tsx` üzerinde dosya seçildiğinde anlık formül/tablo/görsel rozetleri; `SubmissionReportView.tsx` üzerinde ise "Akademik Zengin İçerik Analizi" kartı ile öğretmen raporuna yansıtıldı.
-- **Test ve Dağıtım Doğrulaması:**
-  - `src/test/docxForensicService.test.ts` içine zengin içerik test senaryosu eklendi. 9 test dosyasında 65/65 test %100 başarıyla geçti.
-  - `npm run lint` (`tsc --noEmit`) 0 hata.
-  - `npm run build` 18.48s içinde hatasız tamamlandı.
-  - Firebase Hosting (`sentience-ai-free-2026.web.app`) üzerine canlı dağıtım gerçekleştirildi.
+### 4.8 Öncelik 8: Öğrenci Arayüzü İzolasyonu, .edu.tr Rol Ayrımı ve Derin Analizli Öğrenci Çalışma Masası
+
+Öğrencinin (.edu/.edu.tr veya öğrenci rolü) sisteme girdiğinde genel editör ve insanlaştırma araçlarından tamamen arındırılmış; yalnızca ödev teslimi, Sokratik koç ve Derin Analiz (Denetçi + Sentinel) araçlarını barındıran müstakil bir çalışma alanına sahip olması:
+
+#### Çalışma Şablonu & Görev Kontrol Listesi
+- [x] **Aşama 1: Giriş & Kayıt Katmanında (.edu/.edu.tr) Rol Ayrımı ve Güvenlik Kilidi**
+  - [x] `.edu` veya `.edu.tr` e-postası girildiğinde profil seçimi modalı (`[ 🎓 Öğrenci ]` vs `[ 🏛️ Akademisyen / Eğitmen ]`).
+  - [x] **Öğrenci Kuralı:** Kod gerektirmez, doğrudan Öğrenci Statüsü atanır.
+  - [x] **Akademisyen Kuralı:** Kurumsal Lisans / Eğitmen Davet Anahtarı (`INST-...`) doğrulanmadan akademisyen yetkisi verilmez (öğrencinin sahte akademisyen hesabı açması engellenir).
+- [x] **Aşama 2: Öğrenci Arayüzü İzolasyonu (DOM & Route Ayrımı)**
+  - [x] `role === 'student'` veya öğrenci oturumu için genel editör (`EditorView`) DOM'dan tamamen kaldırılır.
+  - [x] İnsanlaştırma butonu (`İNSANLAŞTIR`), StyleMaster ton ayarı, Hazır Şablonlar ve kafa karıştırıcı "Akademik Kilit Aktif" rozeti arayüzden temizlenir.
+  - [x] Sol paneldeki Onboarding görevleri öğrenciye uyarlanır: *"İlk Ödevini Seç"*, *"Derin Analiz ile Özgünlük Tara"*, *"Sokratik Koç İncelemesi Yap"*.
+- [x] **Aşama 3: Öğrenci Çalışma Masası (Student Workspace & Deep Analysis Integration)**
+  - [x] **Sol Panel (Ödev & Metin Masası):**
+    - Sınıf & Ödev seçimi, Ödev detayları, teslim tarihi ve rubrik kriterleri.
+    - Metin yazma / `.docx` dosya yükleme alanı (formül/tablo/görsel rozetleri ile).
+    - Sokratik Koç butonu, Ön Teslim Taslak Kontrolü (Turnitin Draft Coach), SHA-256 Dijital Makbuzlu Teslim.
+  - [x] **Sağ Panel (Derin Analiz Kartı):**
+    - 🛡️ Denetçi Analizi (YZ olasılık skoru, risk düzeyi, cümle bazlı ısı haritası).
+    - 🌐 Sentinel Canlı Kaynak Taraması (Crossref, Semantic Scholar, CORE, arXiv).
+    - 🔍 Eksik Atıf, Hatalı Tırnak ve Akademik Dilbilgisi Teşhisi.
+    - 💡 "Kendi Kelimelerinle Düzenle" yönlendirmesi (otomatik insanlaştırma yok).
+- [x] **Aşama 4: Test, Doğrulama ve Canlı Dağıtım**
+  - [x] Öğrenci / Eğitmen giriş simülasyon birim testleri.
+  - [x] `npm test -- --run` (65+ test doğrulaması - 68/68 test başarılı).
+  - [x] `npm run lint` (`tsc --noEmit`) ve `npm run build` kontrolü.
+  - [x] Firebase Hosting ve GitHub senkronizasyonu.
 
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*
