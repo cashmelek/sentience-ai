@@ -63,9 +63,10 @@ export function useAppUser(user: User | null) {
             await updateDoc(userRef, { dailyUsage: 0, lastResetDate: today, createdAt: userCreatedAt }).catch(err => {
               if (isQuotaError(err)) { setQuotaExhausted(true); }
             });
-            setAppUser({ ...data, dailyUsage: 0, lastResetDate: today, createdAt: userCreatedAt } as AppUser);
+            setAppUser({ uid: user.uid, ...data, dailyUsage: 0, lastResetDate: today, createdAt: userCreatedAt } as AppUser);
           } else {
             setAppUser({
+              uid: user.uid,
               ...data,
               createdAt: userCreatedAt,
               onboarding: data.onboarding || {

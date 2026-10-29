@@ -5,7 +5,7 @@ import {
 import { getApp } from 'firebase/app';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import type { AppUser, SubscriptionPlan } from '../types';
 import type {
   ClassRoom, Assignment, Enrollment, Submission, SubmissionScores, DigitalReceipt, ClassroomTabData, SubmissionAnnotation, AIDisclosureMatrix
@@ -743,7 +743,9 @@ export async function setSourceExcluded(
 // --- KVKK aydınlatma onayı (D2) ---
 
 export async function acceptKvkk(uid: string): Promise<void> {
-  await updateDoc(doc(db, 'users', uid), { kvkkAcceptedAt: new Date().toISOString() });
+  const targetUid = uid || auth.currentUser?.uid;
+  if (!targetUid) throw new Error('Kullanıcı oturum kimliği bulunamadı.');
+  await updateDoc(doc(db, 'users', targetUid), { kvkkAcceptedAt: new Date().toISOString() });
 }
 
 // --- Teslim skorlama (B21 Faz 2 §21.5: sunucu-öncelikli, istemci yalnız yedek) ---

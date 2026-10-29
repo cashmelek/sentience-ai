@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { GraduationCap, RefreshCw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
+import { db, auth } from '../../lib/firebase';
 import type { AppUser } from '../../types';
 import type { ClassRoom, Assignment, Enrollment, Submission } from '../../types/classroom';
 import * as svc from '../../services/classroomService';
@@ -90,28 +91,32 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
   };
 
   const loadClasses = useCallback(async () => {
+    const targetUid = appUser?.uid || auth.currentUser?.uid;
+    if (!targetUid) return;
     setLoading(true);
     try {
-      setData(await svc.listMyClasses(appUser.uid));
+      setData(await svc.listMyClasses(targetUid));
     } catch (err: any) {
       toast.error(err?.message || 'Sınıflar yüklenemedi');
     } finally {
       setLoading(false);
     }
-  }, [appUser.uid]);
+  }, [appUser?.uid]);
 
   const loadInstituteQueue = useCallback(async () => {
     if (isStudent) return;
+    const targetUid = appUser?.uid || auth.currentUser?.uid;
+    if (!targetUid) return;
     setQueueLoading(true);
     try {
-      const items = await svc.listInstituteQueue(appUser.uid, appUser.role === 'admin');
+      const items = await svc.listInstituteQueue(targetUid, appUser.role === 'admin');
       setInstituteQueue(items);
     } catch {
       // sessiz yedek
     } finally {
       setQueueLoading(false);
     }
-  }, [appUser.uid, appUser.role, isStudent]);
+  }, [appUser?.uid, appUser.role, isStudent]);
 
   useEffect(() => {
     if (consent) {
@@ -418,7 +423,12 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
 
   const handleAcceptKvkk = async () => {
     try {
-      await svc.acceptKvkk(appUser.uid);
+      const targetUid = appUser?.uid || auth.currentUser?.uid;
+      if (!targetUid) {
+        toast.error('Oturum kimliği doğrulanamadı, lütfen sayfayı yenileyiniz.');
+        return;
+      }
+      await svc.acceptKvkk(targetUid);
       setConsent(true);
       toast.success('Aydınlatma metni onaylandı');
     } catch (err: any) {
@@ -428,7 +438,7 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
 
   const handleDeclineKvkk = () => {
     toast.info('Sınıf özelliğini kullanmak için aydınlatma metnini onaylamanız gerekir.');
-    onClose();
+    if (onClose) onClose();
   };
 
   return (

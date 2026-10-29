@@ -546,5 +546,39 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   - [x] `npm run lint` (`tsc --noEmit`) ve `npm run build` kontrolü.
   - [x] Firebase Hosting ve GitHub senkronizasyonu.
 
+### 1.37 KVKK Aydınlatma Onayı "indexOf" Null-Safety Onarımı ve Normal Kullanıcı Ekran Temizliği (30 Ekim 2026)
+- **KVKK Onay "n.indexOf is undefined" Hatası Giderildi:**
+  - `useAppUser.ts` içerisinde Firestore dokümanından dönen verilerde `uid` alanı eksik olduğunda `appUser.uid` tanımsız kalıyordu.
+  - `acceptKvkk` çağrısında `doc(db, 'users', undefined)` tetiklendiğinde Firestore SDK'nın path ayrıştırıcısı hata veriyordu.
+  - `useAppUser.ts` hook'unda `uid: user.uid` zorunlu tutuldu; `classroomService.ts` içinde `uid || auth.currentUser?.uid` fallback koruması eklendi; Firestore'daki test öğrencisi dokümanına `uid` doğrudan yamalandı.
+- **Normal Kullanıcı Arayüzü Temizliği (Akademik Kilit & Mod İzolasyonu):**
+  - `App.tsx` ve `StyleMasterHeader.tsx` bileşenlerinde normal kullanıcılar (`role: 'user'`, `academicProfile: 'professional'`) için "Akademik Mod" butonu, "Akademik Kilit Aktif" başlığı ve kilitli buton durumu tamamen devre dışı bırakıldı.
+  - Normal kullanıcı oturum açtığında tarayıcı hafızasındaki (`localStorage`) eski kilit bayrakları otomatik temizlendi.
+- **Canlı Dağıtım:** 68 birim testi başarıyla geçirildi; `npm run build` tamamlandı ve `firebase deploy --only hosting` ile canlı ortama aktarıldı.
+
+### 4.9 Öncelik 9: Windows Masaüstü Word Setup Paketi (.exe Installer / InnoSetup)
+- [ ] **Mevcut Durum Analizi:** Halihazırda Office Web Add-in manifestosu (`manifest.xml`) ve PowerShell sideloading betiği (`Install-WordAddin.ps1`) bulunmaktadır.
+- [ ] **Masaüstü Kurulum Sihirbazı (.exe):**
+  - InnoSetup veya NSIS tabanlı tek tıkla kurulum sihirbazı (`SentienceWordSetup.exe`).
+  - Kurulum sırasında kullanıcının Word/Office sürümünü tespit edip `%APPDATA%\Microsoft\Office\AddIns` veya yerel güvenilen katalog kayıt defteri (Registry: `HKCU\Software\Microsoft\Office\16.0\WEF\TrustedCatalogs`) anahtarlarını otomatik yapılandırma.
+  - Eklentiyi Word'ün Ekle -> Eklentilerim bölümüne otomatik yerleştirme ve kaldırma (uninstaller) desteği.
+
+### 4.10 Öncelik 10: Admin Paneli Entegrasyon Planı (Kullanıcı Rolleri & Kurumsal Kodlar)
+- [ ] **Kullanıcı Yönetimi Sekmesi Genişletmesi (`AdminPanel.tsx`):**
+  - Kullanıcı tablosunda yeni rollerin (`Öğrenci`, `Akademisyen / Eğitmen`, `Standart Kullanıcı`, `Admin`) filtrelenebilir rozetlerle gösterimi.
+  - Admin tarafından tek tıkla rol değiştirme (örn. yanlışlıkla öğrenci olarak kaydolan akademisyeni onaylama).
+  - Kullanıcının bağlı olduğu Üniversite / Kurum ve onay durumu.
+- [ ] **Kurumsal Lisans Anahtarları Yönetimi:**
+  - `INST-...` kodlarının admin panelinden dinamik oluşturulması, geçerlilik süresi ve kota sınırlarının belirlenmesi.
+
+### 4.11 Öncelik 11: Kullanıcı Rehberi (User Guide) Yeni Konular Listesi
+- [ ] Rehber modülüne (`UserGuideView.tsx`) eklenecek yeni akademik başlıklar:
+  1. *Öğrenci Çalışma Masası ve Turnitin Draft Coach Kullanım Rehberi*
+  2. *Sokratik Koç: Ödevinizi İnsanlaştırmadan Kendi Kelimelerinizle Geliştirme*
+  3. *SHA-256 Dijital Makbuz ve YÖK Uyumlu Teslim Kanıtı Doğrulama*
+  4. *DOCX Adli Bilişim (WPM Hız Anomalisi & Düzenleme Süresi) Nasıl İncelenir?*
+  5. *Yapay Zeka Katkı Beyan Matrisi (Disclosure Statement) Doldurma Adımları*
+  6. *Word Eklentisi (Word Add-in) Masaüstü Kurulumu ve Kullanımı*
+
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*

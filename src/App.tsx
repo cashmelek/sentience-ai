@@ -536,8 +536,8 @@ export default function App() {
               isAdmin={!!isAdmin}
               isOverLimit={isOverLimit}
               userPlan={appUser?.plan}
-              isAcademicIntegrityLocked={isAcademicIntegrityLocked || activeTab === 'classroom'}
-              onToggleAcademicIntegrity={toggleAcademicIntegrity}
+              isAcademicIntegrityLocked={(isAdmin || appUser?.academicProfile === 'academic' || isStudentUser) && (isAcademicIntegrityLocked || activeTab === 'classroom')}
+              onToggleAcademicIntegrity={isAdmin || appUser?.academicProfile === 'academic' ? toggleAcademicIntegrity : undefined}
             />
 
             {/* Mobile Navigation Tabs (Segmented Switcher) */}
