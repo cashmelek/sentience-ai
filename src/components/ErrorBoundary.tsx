@@ -22,6 +22,18 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uygulama hatası:', error, errorInfo);
+
+    // Otomatik kurtarma: Dinamik modül yükleme hatası durumunda sayfayı yenile
+    if (error.message.includes('Failed to fetch dynamically imported module')) {
+      const reloadKey = 'sentience_module_reload';
+      const lastReload = sessionStorage.getItem(reloadKey);
+
+      // Infinite loop engelleme: Sadece son 5 saniye içinde yenilenmemişse yenile
+      if (!lastReload || (Date.now() - parseInt(lastReload)) > 5000) {
+        sessionStorage.setItem(reloadKey, Date.now().toString());
+        window.location.reload();
+      }
+    }
   }
 
   public render() {

@@ -32,6 +32,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Use Network-First strategy for index.html and navigation requests
+  if (event.request.mode === 'navigate' || event.request.url.includes('/index.html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const cloned = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, cloned);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cached) => {
+            if (cached) return cached;
+            return caches.match('/index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // Use Cache-First strategy for other static assets
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
@@ -45,9 +69,7 @@ self.addEventListener('fetch', (event) => {
         });
         return networkResponse;
       }).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
+        // Silently fail for other assets, index.html fallback is handled above for navigation
       });
     })
   );
