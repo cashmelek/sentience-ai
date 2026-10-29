@@ -78,6 +78,8 @@ export interface SubmissionScores {
   sources: PlagiarismSource[];
   sentenceScores?: any[];
   metrics?: any;
+  hasInternalGeneratorMatch?: boolean;
+  internalGeneratorSimilarity?: number;
 }
 
 export interface SubmissionAnnotation {
@@ -128,6 +130,8 @@ export interface Submission {
   lateDurationMinutes?: number;
   noRepository?: boolean;
   academicIntegrityLocked?: boolean;
+  hasInternalGeneratorMatch?: boolean;
+  internalGeneratorSimilarity?: number;
   // Ön teslim taslak sayacı
   draftCheckCount?: number;
   lastDraftScores?: {

@@ -169,5 +169,12 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid == userId;
       allow update: if false;
     }
+
+    // Faz 2: Platform İçi Sentetik Üretim Parmak İzi Havuzu (Zero-Knowledge 4-gram Shingle Parmak İzleri)
+    match /internalGeneratedVault/{vaultId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
   }
 }

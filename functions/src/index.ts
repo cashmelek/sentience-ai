@@ -135,6 +135,17 @@ JSON FORMATI:
     await recordUserUsage(uid, text.length);
 
     const parsed = JSON.parse(result.text || "{}");
+    if (parsed.humanizedText && typeof parsed.humanizedText === "string") {
+      const shingles = generateTextShingles(parsed.humanizedText, 4).slice(0, 200);
+      if (shingles.length > 0) {
+        db.collection("internalGeneratedVault").add({
+          shingles,
+          textLength: parsed.humanizedText.length,
+          sourceType: "humanizer",
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        }).catch(() => {});
+      }
+    }
     return parsed;
   } catch (err: any) {
     throw new HttpsError("internal", err?.message || "Sunucu işlem hatası.");
@@ -401,6 +412,37 @@ JSON FORMATI:
       console.warn("Repository comparison error:", repoErr);
     }
 
+    let hasInternalGeneratorMatch = false;
+    let internalGeneratorSimilarity = 0;
+    try {
+      const vaultSnap = await db.collection("internalGeneratedVault")
+        .orderBy("createdAt", "desc")
+        .limit(150)
+        .get();
+      for (const vDoc of vaultSnap.docs) {
+        const vData = vDoc.data() || {};
+        const vShingles = Array.isArray(vData.shingles) ? vData.shingles : [];
+        const overlap = computeShingleOverlap(currShingles, vShingles);
+        if (overlap >= 0.15) {
+          hasInternalGeneratorMatch = true;
+          const pct = Math.round(overlap * 100);
+          if (pct > internalGeneratorSimilarity) {
+            internalGeneratorSimilarity = pct;
+          }
+          sources.push({
+            title: "Platform İçi Sentetik Üretim İzi (Humanizer Vault)",
+            url: `internal-vault://synthetic-generator/${vDoc.id}`,
+            similarity: overlap,
+            snippet: "Bu metin platformun İnsanlaştırma / StyleMaster motoru tarafından üretilmiş bir çıktıyla parmak izi eşleşmesi göstermektedir.",
+            trust: "high",
+            matchGroup: "internal_generator"
+          });
+        }
+      }
+    } catch (vaultErr) {
+      console.warn("Vault comparison error:", vaultErr);
+    }
+
     const excluded = new Set<string>(Array.isArray(submission.excludedSourceUrls) ? submission.excludedSourceUrls : []);
     const activeSources = sources.filter((s) => !excluded.has(s.url));
     similarityScore = activeSources.length > 0
@@ -412,7 +454,9 @@ JSON FORMATI:
       aiScore: typeof ai.score === "number" ? ai.score : 0,
       sources,
       sentenceScores: Array.isArray(ai.sentenceScores) ? ai.sentenceScores : [],
-      metrics: ai.metrics || {}
+      metrics: ai.metrics || {},
+      hasInternalGeneratorMatch,
+      ...(hasInternalGeneratorMatch ? { internalGeneratorSimilarity } : {})
     };
 
     await submissionRef.update({

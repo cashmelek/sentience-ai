@@ -12,7 +12,8 @@ export type MatchGroup =
   | 'missing_citation'
   | 'cited_and_quoted'
   | 'peer_match'
-  | 'self_plagiarism';
+  | 'self_plagiarism'
+  | 'internal_generator';
 
 export type SourceRegion =
   | 'domestic' // Yerli (.tr, .com.tr vb.)

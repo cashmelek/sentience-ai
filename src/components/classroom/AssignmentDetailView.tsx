@@ -166,6 +166,11 @@ export function AssignmentDetailView({
                       <span className={`text-xs font-black ${scoreColor(s.aiScore)}`}>
                         {pct(s.aiScore)}
                       </span>
+                      {s.hasInternalGeneratorMatch && (
+                        <span className="block mt-0.5 text-[8px] font-bold text-red-400">
+                          ⚠️ Havuz İzi
+                        </span>
+                      )}
                     </div>
                     <div>
                       <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Not</span>
@@ -257,7 +262,16 @@ export function AssignmentDetailView({
                         )}
                       </td>
                       <td className={`px-4 py-3 font-black ${scoreColor(s.similarityScore)}`}>{pct(s.similarityScore)}</td>
-                      <td className={`px-4 py-3 font-black ${scoreColor(s.aiScore)}`}>{pct(s.aiScore)}</td>
+                      <td className={`px-4 py-3 font-black ${scoreColor(s.aiScore)}`}>
+                        <div className="flex items-center gap-1.5">
+                          <span>{pct(s.aiScore)}</span>
+                          {s.hasInternalGeneratorMatch && (
+                            <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30" title="Sentetik Üretim İzi: Platform içi insanlaştırma havuzuyla eşleşti!">
+                              HAVUZ İZİ
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-xs">
                         <span className="text-gray-400 block">{fmtDateTime(s.createdAt)}</span>
                         {s.isLate && (

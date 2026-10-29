@@ -9,6 +9,7 @@ export const matchGroupLabel: Record<string, string> = {
   cited_and_quoted: 'Doğru Atıf',
   peer_match: 'Eş-Öğrenci Eşleşmesi',
   self_plagiarism: 'Öz-İntihal',
+  internal_generator: 'Platform Sentetik Üretim İzi (Humanizer Vault)',
 };
 
 export const trustLabel: Record<string, string> = {
@@ -50,12 +51,15 @@ export function exportSubmissionReportPDF(cls: ClassRoom, assignment: Assignment
         <ul>
           ${sources.map((s) => {
             const isExcluded = excluded.has(s.url);
+            const isVault = s.url.startsWith('internal-vault://');
             const isInternal = s.url.startsWith('internal://');
-            const linkHtml = isInternal
+            const linkHtml = isVault
+              ? `<span style="color: #ef4444; font-weight: 700;">[Platform İçi Sentetik Üretim İzi (Humanizer Vault)]</span>`
+              : isInternal
               ? `<span style="color: #6366f1; font-weight: 600;">[Sınıf Deposu Kaydı]</span>`
               : `<a href="${escapeHtml(s.url)}" target="_blank" rel="noreferrer">${escapeHtml(s.url)}</a>`;
             return `<li>
-              <strong>${escapeHtml(s.title || (isInternal ? 'Sınıf İçi Teslim Deposu' : 'İnternet Kaynağı'))}</strong>
+              <strong>${escapeHtml(s.title || (isVault ? 'Platform İçi Sentetik Havuz' : isInternal ? 'Sınıf İçi Teslim Deposu' : 'İnternet Kaynağı'))}</strong>
               ${s.similarity ? `(%${Math.round(s.similarity * 100)} benzerlik)` : ''}
               ${s.matchGroup ? `— ${escapeHtml(matchGroupLabel[s.matchGroup] || s.matchGroup)}` : ''}
               ${s.trust ? `(güven: ${escapeHtml(trustLabel[s.trust] || s.trust)})` : ''}
@@ -144,6 +148,17 @@ export function exportSubmissionReportPDF(cls: ClassRoom, assignment: Assignment
           AKADEMİK İZOLASYON
         </div>
       </div>
+
+      ${submission.hasInternalGeneratorMatch ? `
+      <div style="background: rgba(239, 68, 68, 0.08); border: 2px solid #ef4444; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #b91c1c; font-weight: 800; font-size: 10.5pt;">
+          <span>⚠️ SENTETİK ÜRETİM ALARMI (Platform İçi Havuz Eşleşmesi)</span>
+          <span style="background: #ef4444; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 8pt; font-weight: 900;">%${submission.internalGeneratorSimilarity || 90}+ EŞLEŞME</span>
+        </div>
+        <p style="font-size: 8.5pt; color: #7f1d1d; margin: 6px 0 0; line-height: 1.5;">
+          Bu teslim, platformun <strong>İnsanlaştırma / StyleMaster</strong> motorunda üretilmiş bir metin çıktısıyla <strong>%${submission.internalGeneratorSimilarity || 90}+</strong> 4-gram parmak izi örtüşmesi göstermektedir. Öğrencinin harici veya kişisel bir hesapla metni insanlaştırıp sisteme yüklediği tespit edilmiştir.
+        </p>
+      </div>` : ''}
 
       <div class="section">
         <h2>Teslim Bilgileri</h2>

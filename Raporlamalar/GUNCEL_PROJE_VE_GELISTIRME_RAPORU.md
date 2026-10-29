@@ -236,6 +236,13 @@ Gelecekteki canlı sunumlar, testler ve pilot üniversite gösterimleri için ta
 - **Resmi Sertifikasyon ve Dijital Makbuz:** `submissionExport.ts` içerisindeki `exportDigitalReceiptPDF` ve `exportSubmissionReportPDF` fonksiyonlarına *"SENTIENCE AKADEMİK BÜTÜNLÜK MODUNDA (İNSANLAŞTIRMA KİLİTLİ) TARANMIŞTIR"* resmi kaşesi ve güvenlik damgası eklendi.
 - **Test ve Tip Doğrulaması:** `src/test/academicIntegrityIsolation.test.ts` eklenerek toplam test sayısı 46'ya çıkarıldı (%100 başarı). `tsc --noEmit` ve `npm run build` ile sıfır hatayla derlendi.
 
+### 1.31 Faz 2: Platform İçi Sentetik Üretim Parmak İzi Havuzu (Internal Generator Vault) Dağıtımı (29 Ekim 2026)
+- **Zero-Knowledge 4-gram MinHash / Shingle Parmak İzi Havuzu (`internalGeneratedVault`):** Platform üzerinde ister kişisel (Gmail), ister anonim bir oturumda "İnsanlaştır" veya "StyleMaster" çalıştırılsın; üretilen tüm çıktıların gizlilik-korumalı (Privacy-Preserving) 4-gram shingle parmak izleri `internalVaultService.ts` ve `functions/src/index.ts` üzerinden `internalGeneratedVault` koleksiyonuna kaydedildi. Kullanıcı ham metni veya kimliği asla saklanmaz.
+- **Sınıf Teslimlerinde Çapraz Sentetik Tarama:** Kurumsal (.edu.tr) hesapla sınıfa teslim edilen her ödev, hem web/makale kaynaklarıyla hem de bu iç sentetik havuzla taranır (`runSubmissionScoring` ve Cloud Function `scoreSubmission`).
+- **Öğretmen Alarm Rozeti:** Eşleşme tespit edildiğinde raporda ve teslim tablosunda *"⚠️ Sentetik Üretim İzi: Bu metin platformun İnsanlaştırma Motoru tarafından üretilmiş bir çıktıyla %90+ parmak izi eşleşmesi göstermektedir"* uyarısı (`SubmissionReportView.tsx`, `AssignmentDetailView.tsx`) ve PDF raporunda kırmızı alarm kutusu (`submissionExport.ts`) sağlandı.
+- **Canlı Demo Entegrasyonu:** `classroomDemoService.ts` içindeki Mehmet Demir teslimi `%94` oranında iç sentetik havuz eşleşmesiyle tohumlanarak öğretmen senaryo sunumuna hazır hale getirildi.
+- **Güvenlik Kuralları & Testler:** `firestore.rules` güncellendi (`internalGeneratedVault` okuma/yazma kuralları). `internalGeneratorVault.test.ts` yazılarak toplam test sayısı 50'ye çıkarıldı (%100 başarı).
+
 ---
 
 ## 2. ÖNCEKİ OTURUMLARDA TAMAMLANAN GELİŞTİRMELER (EKİM 2026 ORTASI)
@@ -404,10 +411,10 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   - **Pedagojik Mod:** İnsanlaştırma yerine yalnızca akademik dilbilgisi, ifade açıklığı ve atıf formatı öneren "Socratic Academic Coach" kılavuzluğunun sunulması (`socraticCoachService.ts`, `SocraticCoachModal.tsx`).
   - **Resmi Sertifikasyon:** Üretilen SHA-256 karekodlu dijital makbuza ve PDF teslim raporuna *"Sentience Akademik Bütünlük Modunda (İnsanlaştırma Kilitli) Taranmıştır"* resmi kaşe ve damgasının eklenmesi.
 
-- [ ] **Faz 2 (P2 - Yüksek): Platform İçi Sentetik Üretim Parmak İzi Havuzu (Internal Generator Vault)**
-  - **Kapsam:** Platform üzerinde ister kişisel (Gmail), ister anonim bir hesapla "İnsanlaştır" veya "StyleMaster" çalıştırılsın; üretilen tüm çıktıların gizlilik-dostu (Privacy-Preserving / Zero-Knowledge) 4-gram MinHash/Shingle parmak izinin `internalGeneratedVault` koleksiyonuna kaydedilmesi.
-  - **Çapraz Teslim Denetimi:** Kurumsal (.edu.tr) hesapla sınıfa teslim edilen her ödevin, harici makalelerin yanı sıra bu iç sentetik havuzla taranması.
-  - **Öğretmen Alarm Rozeti:** Eşleşme tespit edildiğinde raporda *"Sentetik Üretim İzi: Bu metin platformun İnsanlaştırma Motoru tarafından üretilmiş bir çıktıyla %90+ parmak izi eşleşmesi göstermektedir"* uyarısının verilmesi.
+- [x] **Faz 2 (P2 - Yüksek): Platform İçi Sentetik Üretim Parmak İzi Havuzu (Internal Generator Vault)**
+  - **Kapsam:** Platform üzerinde ister kişisel (Gmail), ister anonim bir hesapla "İnsanlaştır" veya "StyleMaster" çalıştırılsın; üretilen tüm çıktıların gizlilik-dostu (Privacy-Preserving / Zero-Knowledge) 4-gram MinHash/Shingle parmak izinin `internalGeneratedVault` koleksiyonuna kaydedilmesi (`internalVaultService.ts`, `useEditorWorkflow.tsx`, `functions/src/index.ts`).
+  - **Çapraz Teslim Denetimi:** Kurumsal (.edu.tr) hesapla sınıfa teslim edilen her ödevin, harici makalelerin yanı sıra bu iç sentetik havuzla taranması (`runSubmissionScoring`, `scoreSubmission`).
+  - **Öğretmen Alarm Rozeti:** Eşleşme tespit edildiğinde raporda *"Sentetik Üretim İzi: Bu metin platformun İnsanlaştırma Motoru tarafından üretilmiş bir çıktıyla %90+ parmak izi eşleşmesi göstermektedir"* uyarısının verilmesi (`SubmissionReportView.tsx`, `AssignmentDetailView.tsx`, `submissionExport.ts`).
 
 - [ ] **Faz 3 (P3 - Yüksek): Yapıştırma ve Yazım Hızı Telemetrisi (Authorship Provenance & Paste Telemetry)**
   - **Kapsam:** Editör bileşenine klavye vuruş ritmi (keystroke dynamics) ve blok yapıştırma (paste event) telemetrisinin eklenmesi.

@@ -20,6 +20,7 @@ import type { FactCheckReport } from '../services/sentinelService';
 import type { AppUser, Project, SystemSettings, CombinedAnalysisResult, AuditorResult } from '../types';
 import { DEMO_PROJECTS } from '../services/demoProjectsService';
 import { sendBrowserNotification } from '../utils/browserNotification';
+import { recordGeneratedFingerprint } from '../services/internalVaultService';
 
 /**
  * B20 Adım 5 (Core Refactor): insanlaştırma/analiz/taslak/geçmiş iş akışı App.tsx'ten
@@ -188,6 +189,8 @@ export function useEditorWorkflow(deps: EditorWorkflowDeps) {
 
       setHumanizedText(combinedResult.humanizedText);
       setAnalysis(combinedResult);
+
+      recordGeneratedFingerprint(combinedResult.humanizedText, 'humanizer').catch(() => {});
 
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {

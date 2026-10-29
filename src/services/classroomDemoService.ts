@@ -173,6 +173,19 @@ Bu nedenle YÖK ve üniversite enstitüleri tarafından belirlenen %15 intihal t
     similarityScore: 42,
     aiScore: 35,
     academicIntegrityLocked: true,
+    hasInternalGeneratorMatch: true,
+    internalGeneratorSimilarity: 94,
+    sources: [
+      {
+        title: 'Platform İçi Sentetik Üretim İzi (Humanizer Vault)',
+        url: 'internal-vault://synthetic-generator/demo-vault-doc',
+        similarity: 0.94,
+        snippet: 'Bu metin platformun İnsanlaştırma / StyleMaster motoru tarafından üretilmiş bir çıktıyla %94 parmak izi eşleşmesi göstermektedir.',
+        matchedText: 'Platform içi sentetik parmak izi eşleşmesi',
+        trust: 'high',
+        matchGroup: 'internal_generator'
+      }
+    ],
     draftCheckCount: 2,
     createdAt: serverTimestamp(),
     scoredAt: serverTimestamp(),

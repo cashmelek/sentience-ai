@@ -649,6 +649,26 @@ export function SubmissionReportView({
             </div>
           )}
 
+          {/* Faz 2: Öğretmen Sentetik Üretim Alarm Rozeti */}
+          {submission.hasInternalGeneratorMatch && (
+            <div className="p-4 bg-red-500/[0.08] border-2 border-red-500/30 rounded-2xl flex items-start gap-3 shadow-lg">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-black text-red-400 uppercase tracking-tight">Sentetik Üretim İzi (Platform Havuzu Eşleşmesi)</span>
+                  <span className="text-[9px] font-mono font-bold text-red-400 bg-red-500/15 px-2 py-0.5 rounded-full border border-red-500/25">
+                    %{submission.internalGeneratorSimilarity || 90}+ Parmak İzi Eşleşmesi
+                  </span>
+                </div>
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  Bu teslim, platformun <strong>İnsanlaştırma / StyleMaster</strong> motoru tarafından üretilmiş bir çıktı ile doğrudan 4-gram MinHash örtüşmesi göstermektedir. Öğrencinin kişisel veya farklı bir hesapla metni insanlaştırıp teslim ettiği tespit edilmiştir.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* 3 Sütunlu Karar Destek Metrik Şeridi */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-4 bg-white/[0.03] border border-white/5 rounded-2xl">

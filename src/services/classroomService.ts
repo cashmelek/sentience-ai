@@ -13,6 +13,7 @@ import type {
 import { SUBMISSION_LIMITS } from '../types/classroom';
 import { verifyPlagiarism } from './sentinelService';
 import { detectAI } from './geminiService';
+import { queryInternalVaultMatches } from './internalVaultService';
 
 // --- Saf yardımcılar (birim testi için dışa açık) ---
 
@@ -561,7 +562,9 @@ export async function updateSubmissionScores(
     metrics: scores.metrics || {},
     status: scores.status || 'scored',
     scoredBy: scores.scoredBy || 'client',
-    scoredAt: serverTimestamp()
+    scoredAt: serverTimestamp(),
+    ...(scores.hasInternalGeneratorMatch !== undefined ? { hasInternalGeneratorMatch: scores.hasInternalGeneratorMatch } : {}),
+    ...(scores.internalGeneratorSimilarity !== undefined ? { internalGeneratorSimilarity: scores.internalGeneratorSimilarity } : {})
   });
 }
 
@@ -788,7 +791,7 @@ export async function scoreSubmission(
 
 // İstemci-tarafı skor motoru (yedek yol; CF erişilebilir olduğunda bu kullanılmaz)
 export async function runSubmissionScoring(input: SubmissionScoringInput): Promise<SubmissionScores> {
-  const [plagiarism, ai] = await Promise.all([
+  const [plagiarism, ai, vaultMatch] = await Promise.all([
     verifyPlagiarism(input.text, input.sentinelEnabled, 0, {
       searchPhrasesCount: 10,
       minWordCount: 8,
@@ -796,14 +799,37 @@ export async function runSubmissionScoring(input: SubmissionScoringInput): Promi
       trustFilter: true,
       regionFilter: true
     }),
-    detectAI(input.text, input.sensitivity, input.auditorModel)
+    detectAI(input.text, input.sensitivity, input.auditorModel),
+    queryInternalVaultMatches(input.text).catch(() => ({ hasMatch: false, maxSimilarity: 0 }))
   ]);
+
+  const sources = [...(plagiarism.sources || [])];
+  let hasInternalGeneratorMatch = false;
+  let internalGeneratorSimilarity = 0;
+
+  if (vaultMatch && vaultMatch.hasMatch) {
+    hasInternalGeneratorMatch = true;
+    internalGeneratorSimilarity = Math.round(vaultMatch.maxSimilarity * 100);
+    const vaultId = 'matchedVaultId' in vaultMatch ? vaultMatch.matchedVaultId : 'vault-match';
+    sources.push({
+      title: 'Platform İçi Sentetik Üretim İzi (Humanizer Vault)',
+      url: `internal-vault://synthetic-generator/${vaultId || 'vault-match'}`,
+      similarity: vaultMatch.maxSimilarity,
+      snippet: 'Bu metin platformun İnsanlaştırma / StyleMaster motoru tarafından üretilmiş bir çıktıyla parmak izi eşleşmesi göstermektedir.',
+      matchedText: 'Platform içi sentetik parmak izi eşleşmesi',
+      trust: 'high',
+      matchGroup: 'internal_generator'
+    });
+  }
+
   return {
     similarityScore: plagiarism.similarityScore ?? 0,
     aiScore: ai.score ?? 0,
-    sources: plagiarism.sources ?? [],
+    sources,
     sentenceScores: ai.sentenceScores ?? [],
-    metrics: ai.metrics ?? {}
+    metrics: ai.metrics ?? {},
+    hasInternalGeneratorMatch,
+    ...(hasInternalGeneratorMatch ? { internalGeneratorSimilarity } : {})
   };
 }
 
