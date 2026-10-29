@@ -674,28 +674,35 @@ export async function listInstituteQueue(instructorUid: string, isAdmin = false)
     ? await getDocs(query(collection(db, 'classes'), orderBy('createdAt', 'desc'), limit(50)))
     : await getDocs(query(collection(db, 'classes'), where('instructorId', '==', instructorUid), limit(30)));
 
-  const queue: InstituteQueueItem[] = [];
+  const queueNested = await Promise.all(
+    classesSnap.docs.map(async (cDoc) => {
+      const cls = { id: cDoc.id, ...(cDoc.data() as any) } as ClassRoom;
+      const asgSnap = await getDocs(query(assignmentsCol(cDoc.id), limit(20)));
 
-  for (const cDoc of classesSnap.docs) {
-    const cls = { id: cDoc.id, ...(cDoc.data() as any) } as ClassRoom;
-    const asgSnap = await getDocs(query(assignmentsCol(cDoc.id), limit(20)));
-    for (const aDoc of asgSnap.docs) {
-      const asg = { id: aDoc.id, ...(aDoc.data() as any) } as Assignment;
-      const subSnap = await getDocs(query(submissionsCol(cDoc.id, aDoc.id), where('forwardedToInstitute', '==', true)));
-      for (const sDoc of subSnap.docs) {
-        const sub = { id: sDoc.id, ...(sDoc.data() as any) } as Submission;
-        queue.push({
-          classId: cls.id,
-          className: cls.name,
-          cls,
-          assignmentId: asg.id,
-          assignmentTitle: asg.title,
-          assignment: asg,
-          submission: sub
+      const asgPromises = asgSnap.docs.map(async (aDoc) => {
+        const asg = { id: aDoc.id, ...(aDoc.data() as any) } as Assignment;
+        const subSnap = await getDocs(query(submissionsCol(cDoc.id, aDoc.id), where('forwardedToInstitute', '==', true)));
+
+        return subSnap.docs.map((sDoc) => {
+          const sub = { id: sDoc.id, ...(sDoc.data() as any) } as Submission;
+          return {
+            classId: cls.id,
+            className: cls.name,
+            cls,
+            assignmentId: asg.id,
+            assignmentTitle: asg.title,
+            assignment: asg,
+            submission: sub
+          } as InstituteQueueItem;
         });
-      }
-    }
-  }
+      });
+
+      const asgResults = await Promise.all(asgPromises);
+      return asgResults.flat();
+    })
+  );
+
+  const queue = queueNested.flat();
 
   return queue.sort((a, b) => {
     const dateA = a.submission.forwardedToInstituteAt || a.submission.createdAt || '';
