@@ -14,11 +14,7 @@ export interface WorkerResponse {
 }
 
 const countSyllables = (word: string): number => {
-  const vowels = "aeıioöuüAEIİOÖUÜ";
-  let count = 0;
-  for (let char of word) {
-    if (vowels.includes(char)) count++;
-  }
+  const count = word.match(/[aeıioöuüAEIİOÖUÜ]/g)?.length || 0;
   return Math.max(1, count);
 };
 
