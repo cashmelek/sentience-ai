@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { GraduationCap, RefreshCw } from 'lucide-react';
+import { GraduationCap, RefreshCw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
 import type { AppUser } from '../../types';
 import type { ClassRoom, Assignment, Enrollment, Submission } from '../../types/classroom';
 import * as svc from '../../services/classroomService';
+import { seedClassroomDemo } from '../../services/classroomDemoService';
 import { KvkkConsentModal } from './KvkkConsentModal';
 import { ClassFormModal } from './ClassFormModal';
 import { JoinClassModal } from './JoinClassModal';
@@ -18,7 +19,11 @@ import { StudentSubmitView } from './StudentSubmitView';
 import { SubmissionReportView } from './SubmissionReportView';
 import { InstituteQueueView } from './InstituteQueueView';
 import { OnBehalfSubmitModal } from './OnBehalfSubmitModal';
+import { BatchSubmitModal } from './BatchSubmitModal';
+import { PeerMatrixModal } from './PeerMatrixModal';
+import { ScenarioCheatSheetModal } from './ScenarioCheatSheetModal';
 import { exportSubmissionsCSV, exportSubmissionsExcel } from './submissionExport';
+import { sendBrowserNotification } from '../../utils/browserNotification';
 
 export interface ClassroomPanelProps {
   appUser: AppUser;
@@ -58,6 +63,31 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
   const [busyId, setBusyId] = useState<string | null>(null);
   // B21 Faz 2: öğrenci adına teslim bağlamı
   const [behalfCtx, setBehalfCtx] = useState<{ cls: ClassRoom; assignment: Assignment } | null>(null);
+  // Toplu doküman yükleme kuyruğu bağlamı
+  const [batchCtx, setBatchCtx] = useState<{ cls: ClassRoom; assignment: Assignment } | null>(null);
+  // Sınıf içi eş-düzey benzerlik matrisi bağlamı
+  const [peerMatrixCtx, setPeerMatrixCtx] = useState<{ cls: ClassRoom; assignment: Assignment } | null>(null);
+  const [showCheatSheet, setShowCheatSheet] = useState(false);
+  const [isSeedingDemo, setIsSeedingDemo] = useState(false);
+
+  const handleSeedDemo = async () => {
+    setIsSeedingDemo(true);
+    try {
+      const res = await seedClassroomDemo(appUser);
+      toast.success('YZ-501 Demo Sınıfı, ödev ve 2 öğrenci teslimi başarıyla yüklendi!');
+      await loadClasses();
+      const list = await svc.listMyClasses(appUser.uid);
+      setData(list);
+      const targetClass = list.teaching.find((c) => c.id === res.classId) || list.enrolled.find((c) => c.id === res.classId);
+      if (targetClass) {
+        openClass(targetClass, isStudent ? 'student' : 'instructor');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Demo verileri yüklenemedi');
+    } finally {
+      setIsSeedingDemo(false);
+    }
+  };
 
   const loadClasses = useCallback(async () => {
     setLoading(true);
@@ -304,7 +334,7 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
     }
   };
 
-  const handleSaveGrade = async (grade: number | null, feedback: string) => {
+  const handleSaveGrade = async (grade: number | null, feedback: string, rubricScores?: any[]) => {
     if (!reportCtx) return;
     const { cls, assignment, submission } = reportCtx;
     try {
@@ -312,6 +342,7 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
         grade,
         feedback,
         gradedBy: appUser.uid,
+        rubricScores,
       });
       const updatedSub: Submission = {
         ...submission,
@@ -319,6 +350,7 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
         feedback,
         gradedBy: appUser.uid,
         gradedAt: new Date().toISOString(),
+        rubricScores,
       };
       setReportCtx({ cls, assignment, submission: updatedSub });
       const k = subKey(cls.id, assignment.id);
@@ -327,8 +359,32 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
         [k]: (prev[k] || []).map((s) => (s.id === updatedSub.id ? updatedSub : s)),
       }));
       toast.success('Not ve geri bildirim kaydedildi');
+      sendBrowserNotification('Akademik Değerlendirme Kaydedildi', {
+        body: `${submission.studentName} için not: ${grade !== null ? grade : '—'} ve geri bildirim kaydedildi.`
+      });
     } catch (err: any) {
       toast.error(err?.message || 'Değerlendirme kaydedilemedi');
+    }
+  };
+
+  const handleSaveAnnotations = async (annotations: any[]) => {
+    if (!reportCtx) return;
+    const { cls, assignment, submission } = reportCtx;
+    try {
+      await svc.updateSubmissionAnnotations(cls.id, assignment.id, submission.studentId, annotations);
+      const updatedSub: Submission = {
+        ...submission,
+        annotations,
+      };
+      setReportCtx({ cls, assignment, submission: updatedSub });
+      const k = subKey(cls.id, assignment.id);
+      setSubmissions((prev) => ({
+        ...prev,
+        [k]: (prev[k] || []).map((s) => (s.id === updatedSub.id ? updatedSub : s)),
+      }));
+    } catch (err: any) {
+      toast.error(err?.message || 'Satır içi notlar kaydedilemedi');
+      throw err;
     }
   };
 
@@ -339,6 +395,9 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
       setMySubs((prev) => ({ ...prev, [assignment.id]: mine || s }));
       if ((mine || s).status === 'scored') {
         setReportCtx({ cls, assignment, submission: (mine || s) as Submission });
+        sendBrowserNotification('Ödev Tesliminiz Skorlandı', {
+          body: `"${assignment.title}" ödeviniz başarıyla teslim alındı ve benzerlik analizi tamamlandı.`
+        });
       }
     } catch {
       setMySubs((prev) => ({ ...prev, [assignment.id]: s }));
@@ -393,6 +452,25 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCheatSheet(true)}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                title="Sunum & Senaryo Rehberi"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Senaryo Rehberi</span>
+              </button>
+
+              <button
+                onClick={handleSeedDemo}
+                disabled={isSeedingDemo}
+                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                title="Doç. Dr. İsmail Kaleci & Ahmet Yılmaz demo sınıfını yükle"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-black" />
+                <span>{isSeedingDemo ? 'Yükleniyor...' : 'Demo Sınıfı Yükle'}</span>
+              </button>
+
               {isStudent && (
                 <button
                   onClick={() => setShowJoin(true)}
@@ -454,6 +532,8 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
               onEdit={(cls) => { setEditingClass(cls); setShowClassForm(true); }}
               onArchiveToggle={handleArchiveToggle}
               onRegenerateKey={handleRegenerateKey}
+              onSeedDemo={handleSeedDemo}
+              isSeeding={isSeedingDemo}
             />
           ) : !isStudent && tab === 'institute_queue' ? (
             <InstituteQueueView
@@ -546,6 +626,8 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
           onDownloadExcel={() => handleDownloadExcel(view.cls, view.assignment)}
           canSubmitOnBehalf={(enrollments[view.cls.id] || []).length > 0}
           onOpenBehalf={() => setBehalfCtx({ cls: view.cls, assignment: view.assignment })}
+          onOpenBatch={() => setBatchCtx({ cls: view.cls, assignment: view.assignment })}
+          onOpenPeerMatrix={() => setPeerMatrixCtx({ cls: view.cls, assignment: view.assignment })}
         />
       )}
 
@@ -555,6 +637,7 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
           assignment={view.assignment}
           appUser={appUser}
           scoringConfig={scoringConfig}
+          existingSubmission={mySubs[view.assignment.id] || null}
           onBack={() => openClass(view.cls, 'student')}
           onDone={(s) => handleSubmitDone(view.cls, view.assignment, s)}
         />
@@ -589,6 +672,7 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
             onRerun={() => handleRerun(reportCtx.cls, reportCtx.assignment, reportCtx.submission)}
             onClose={() => setReportCtx(null)}
             onSaveGrade={handleSaveGrade}
+            onSaveAnnotations={handleSaveAnnotations}
           />
         )}
         {behalfCtx && (
@@ -609,6 +693,36 @@ export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPan
             }}
           />
         )}
+        {batchCtx && (
+          <BatchSubmitModal
+            cls={batchCtx.cls}
+            assignment={batchCtx.assignment}
+            enrollments={enrollments[batchCtx.cls.id] || []}
+            instructor={appUser}
+            scoringConfig={scoringConfig}
+            onClose={() => setBatchCtx(null)}
+            onDone={async () => {
+              const ctx = batchCtx;
+              setBatchCtx(null);
+              await refreshSubmissions(ctx.cls, ctx.assignment);
+            }}
+          />
+        )}
+        {peerMatrixCtx && (
+          <PeerMatrixModal
+            cls={peerMatrixCtx.cls}
+            assignment={peerMatrixCtx.assignment}
+            submissions={submissions[subKey(peerMatrixCtx.cls.id, peerMatrixCtx.assignment.id)] || []}
+            onClose={() => setPeerMatrixCtx(null)}
+            onOpenReport={(s) => setReportCtx({ cls: peerMatrixCtx.cls, assignment: peerMatrixCtx.assignment, submission: s })}
+          />
+        )}
+        <ScenarioCheatSheetModal
+          isOpen={showCheatSheet}
+          onClose={() => setShowCheatSheet(false)}
+          onTriggerSeed={handleSeedDemo}
+          isSeeding={isSeedingDemo}
+        />
       </AnimatePresence>
     </div>
   );

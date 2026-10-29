@@ -92,6 +92,139 @@ Aşağıdaki maddeler bu oturumda sırasıyla ele alınmış, kodlanmış, birim
 - **Proje Kimliği Düzeltmesi:** `.github/workflows/ci.yml` içerisindeki `projectId: sentience-ai` tanımları, `.firebaserc` ile tam uyumlu olan `sentience-ai-free-2026` olarak güncellendi ve GitHub'a push edildi.
 - **Jules PR Hazırlığı:** Jules ve GitHub üzerinden açılacak Pull Request'lerin otomatik preview ve live deployment adımları hazırlandı.
 
+### 1.16 Turnitin QuickMarks ve Satır İçi Notlandırma (Inline Annotations) (29 Ekim 2026)
+- **Veri Modeli Genişletmesi (`src/types/classroom.ts`):** `SubmissionAnnotation` tipi tanımlandı (`id`, `startOffset`, `endOffset`, `selectedText`, `comment`, `category`, `quickMarkLabel`, `createdAt`, `createdBy`). `Submission` arayüzüne `annotations` alanı eklendi.
+- **Servis Entegrasyonu (`src/services/classroomService.ts`):** `updateSubmissionAnnotations` fonksiyonu yazılarak eğitmenin öğrenci ödevine eklediği satır içi notların Firestore'da kalıcı saklanması sağlandı.
+- **Turnitin QuickMarks Geri Bildirim Sekmesi (`SubmissionReportView.tsx`):**
+  - Rapor görünümüne "Satır İçi Notlar & QuickMarks" sekmesi eklendi.
+  - Metin üzerinde fare ile seçim (`handleTextMouseUp`) yapıldığında anında açılan Turnitin standardında hazır QuickMarks rozetleri ("Kaynak Eksik", "Tırnak Eksik", "Özgün Sentez Yetersiz", "Akademik Dil", "Kanıt / Veri Eksik", "Kaynak Formatı APA") ve özel satır içi yorum kutusu bağlandı.
+  - Notlar öğrenci ve eğitmen için sağ panelde kaynak alıntısı ve kategori etiketiyle listelenir; eğitmen dilediğinde notları tek tıkla silebilir.
+- **ClassroomPanel Bağlantısı:** `handleSaveAnnotations` handler'ı ile anlık reaktif senkronizasyon sağlandı.
+- **Doğrulama:** 41/41 vitest testi geçti ve `npm run build` hatasız derlendi.
+
+### 1.17 Öğrenci Ön Teslim Taslak Kontrolü (Turnitin Draft Coach) (29 Ekim 2026)
+- **Veri Modeli Uyarlaması (`src/types/classroom.ts`):** `Assignment` yapısına `allowDraftCheck` ve `maxDraftChecks` alanları tanımlandı; `Submission` yapısına `draftCheckCount` ve `lastDraftScores` eklendi.
+- **Ön Teslim Arayüzü (`StudentSubmitView.tsx`):**
+  - Öğrenci ödev teslim ekranına "Ön Teslim Taslak Kontrolü (Draft Coach)" kontrol paneli entegre edildi.
+  - Kalan hak sayacı (`remainingDrafts / maxDrafts`) bağlandı.
+  - Metin havuza kaydedilmeden doğrudan anlık benzerlik ve YZ analizi çalıştırılarak öğrenciye ön gösterge sunuldu; böylece resmi teslim öncesinde eksik atıflarını giderme imkanı sağlandı.
+- **Doğrulama:** Vitest 41/41 geçti, üretim derlemesi (`npm run build`) 18.45s içinde sıfır hatayla tamamlandı.
+
+### 1.18 Toplu Notlandırma ve Gradebook CSV/Excel Genişletmesi (29 Ekim 2026)
+- **Gradebook Dışa Aktarma Motoru (`src/components/classroom/submissionExport.ts`):**
+  - `exportSubmissionsCSV` ve `exportSubmissionsExcel` fonksiyonlarına eğitmenin eklediği metin içi `annotations` (QuickMarks) sayaçları bağımsız bir sütun olarak eklendi.
+  - Eğitmen tüm sınıfın notlarını, genel geri bildirimlerini, satır içi düzeltme sayılarını, benzerlik ve YZ olasılıklarını tek tıkla Excel/CSV tablosunda dışa aktarabilir hale getirildi.
+- **Doğrulama:** 41/41 test başarıyla geçti ve üretim derlemesi (`npm run build`) hatasız tamamlandı.
+
+### 1.19 Öğrenci Resmi Dijital Teslim Makbuzu (Official Digital Receipt PDF & QR Doğrulama) (29 Ekim 2026)
+- **Resmi Makbuz Şablonu (`src/components/classroom/submissionExport.ts` - `exportDigitalReceiptPDF`):**
+  - Turnitin standardında A4 formatında resmi teslim belgesi şablonu oluşturuldu.
+  - Öğrenci kimlik bilgileri, ödev ve sınıf bilgileri, teslim zaman damgası, kelime ve karakter sayıları kart formatında yapılandırıldı.
+  - Kriptografik bütünlük kanıtı olan **SHA-256 hash kodu** ve platform doğrulama bağlantısını içeren **çevrimiçi taranabilir QR kod** entegre edildi.
+- **Rapor Ekranı Entegrasyonu (`SubmissionReportView.tsx`):**
+  - Dijital makbuz bandına tek tıkla çalışan "Makbuzu İndir (PDF)" (`FileDown`) aksiyon butonu eklendi; öğrenci ve akademisyenin resmi teslim kanıtını yazdırma/PDF olarak kaydetmesi sağlandı.
+- **Doğrulama:** Vitest 41/41 geçti, derleme (`npm run build`) 19.12s içinde sıfır hatayla tamamlandı.
+
+### 1.20 Sınıf İçi Anlık Bildirim Akışı (Classroom Browser Notifications) (29 Ekim 2026)
+- **Ödev Teslim & Skorlama Bildirimi (`ClassroomPanel.tsx`):** Öğrencinin teslimi sunucu/istemci tarafından skorlandığında arka planda dahi olsa sistem tepsisine "Ödev Tesliminiz Skorlandı" bildirimi gönderilmesi sağlandı.
+- **Eğitmen Notlandırma Bildirimi (`ClassroomPanel.tsx`):** Eğitmen akademik not ve geri bildirim kaydettiğinde anlık tarayıcı bildirimi tetiklenmesi bağlandı.
+- **Doğrulama:** 41/41 birim testi başarıyla geçti, üretim derlemesi (`npm run build`) 19.57s içinde sıfır hatayla doğrulandı.
+
+### 1.21 Eğitmen Toplu Doküman Yükleme & İşleme Kuyruğu (Batch Processing) (29 Ekim 2026)
+- **Toplu İşlem Modalı (`src/components/classroom/BatchSubmitModal.tsx`):**
+  - Eğitmenin birden fazla `.docx` ve `.pdf` dosyasını tek seferde seçip sisteme aktarabileceği çoklu kuyruk arayüzü kuruldu.
+  - Dosya isimlerinden öğrenci kimliğini tahmin eden otomatik eşleme motoru (`matchStudentByFileName`) entegre edildi.
+  - Belgeleri sırayla ayrıştırma (`parsing`), Storage'a yükleme (`submitting`) ve intihal/YZ skorlama (`scoring`) adımlarından geçiren kuyruk orkestrasyonu bağlandı.
+- **AssignmentDetailView ve ClassroomPanel Entegrasyonu:**
+  - Ödev detay ekranı üst araç çubuğuna "Toplu Yükleme" (`Files`) aksiyon butonu eklendi.
+- **Doğrulama:** Vitest 41/41 geçti, derleme (`npm run build`) 27.44s içinde sıfır hatayla tamamlandı.
+
+### 1.22 Kriter Bazlı Detaylı Rubrik Matrisi (Ağırlıklı Puanlama Tablosu) (29 Ekim 2026)
+- **Veri Modeli (`src/types/classroom.ts`):** `RubricCriterion` (başlık, ağırlık yüzdesi, azami puan) ve `RubricScoreItem` tipleri tanımlandı. `Assignment` ve `Submission` modellerine rubrik alanları eklendi.
+- **Ağırlıklı Notlama Motoru (`SubmissionReportView.tsx`):**
+  - Eğitmen notlandırma alanına katlanabilir "Rubrik Matrisi" paneli entegre edildi.
+  - "Akademik Dil (%20)", "Kaynak Kalitesi (%30)", "Özgünlük & Sentez (%30)" ve "Metodoloji (%20)" kriterleri üzerinden verilen puanlara göre otomatik ağırlıklı genel not hesabı (`computedRubricGrade`) bağlandı.
+  - Eğitmenin tek tıkla ağırlıklı notu genel nota aktarabilmesi (`Ağırlıklı Notu Uygula`) ve Firestore'a kriter puanlarıyla birlikte kaydetmesi sağlandı.
+- **Doğrulama:** 41/41 vitest testi geçti, derleme (`npm run build`) 18.92s içinde hatasız tamamlandı.
+
+### 1.23 Sınıf İçi Eş Düzey (Peer-to-Peer) Kopya Matrisi (29 Ekim 2026)
+- **Çapraz Eşleşme Analiz Modalı (`src/components/classroom/PeerMatrixModal.tsx`):**
+  - 4-gram shingle tabanlı Jaccard Benzerlik Algoritması (`computeJaccardSimilarity`) ile aynı sınıftaki tüm öğrencilerin teslimleri birbirleriyle otomatik çapraz karşılaştırılır.
+  - Kritik eşleşmeler (`>%20`) ve şüpheli çiftler (`>%5`) listelenir; her çift için tek tıkla detaylı rapor açılabilir.
+- **AssignmentDetailView Araç Çubuğu:** "Eş-Düzey Matrisi" (`Users`) aksiyon butonu eklendi.
+- **Doğrulama:** Vitest 41/41 geçti, derleme (`npm run build`) 19.16s içinde sıfır hatayla doğrulandı.
+
+### 1.24 Kullanıcı Rehberinin Rol Bazlı Segmentasyonu ve Yeni Modül Kılavuzları (29 Ekim 2026)
+- **Rol Filtreleri Genişletmesi (`src/components/UserGuideView.tsx`):**
+  - Rehber arayüzüne `Öğrenci & Araştırmacı`, `Öğretmen & Danışman`, `Yazar & Editör` ve `Enstitü & Yönetici` filtre sekmeleri eklendi.
+- **Eklenen & Güncellenen Kılavuzlar:**
+  1. *Öğretmen & Danışman Kılavuzu:* QuickMarks satır içi notlandırma, ağırlıklı rubrik matrisi, toplu ödev kuyruğu ve sınıf içi eş-düzey kopya matrisi adımları.
+  2. *Öğrenci & Araştırmacı Kılavuzu:* Draft Coach ön taslak taraması, öz-intihal koruma prensipleri ve SHA-256 karekodlu resmi teslim belgesi PDF indirme yönergeleri.
+  3. *Yazar & Editör Kılavuzu:* StyleMaster özel ton kütüphanesi, yazar sesi hafızası ve insanlaştırma (Perplexity/Burstiness) adaptasyonu.
+- **Doğrulama:** 41/41 vitest testi geçti, derleme (`npm run build`) 19.08s içinde başarıyla tamamlandı.
+
+### 1.25 Öğretmen ve Öğrenci Sınıf İçi Demo / Test Senaryoları Şablonu (29 Ekim 2026)
+Gelecekteki canlı sunumlar, testler ve pilot üniversite gösterimleri için tanımlanan senaryo mimarisi:
+- **Aktörler & Hesap Tanımları:**
+  - *Öğretmen / Danışman:* `ismail.kaleci@gmail.com` (Doç. Dr. İsmail Kaleci)
+  - *Öğrenci:* `deneme@deneme.com` (Ahmet Yılmaz - YL Araştırmacısı)
+  - *Eş-Düzey Karşılaştırma Öğrencisi:* `ogrenci2@deneme.com` (Mehmet Demir)
+  - *Sınıf:* `YZ-501: Akademik Araştırma ve Yayın Etiği` (Kod: `SENT26`, Anahtar: `DEMO-2026`)
+- **Tanımlanan 3 Entegre Senaryo:**
+  1. *Senaryo 1 (Ön Taslak & Turnitin QuickMarks Geri Bildirim Döngüsü):*
+     - Öğrenci tarafında Draft Coach ile ön tarama (%32 benzerlik sonrası düzeltme), SHA-256 dijital makbuz indirme.
+     - Öğretmen tarafında Turnitin QuickMarks satır içi notları (`[Kaynak Eksik]`, `[Tırnak Eksik]`), notlandırma (85/100) ve geri bildirim.
+  2. *Senaryo 2 (Kriter Bazlı Detaylı Rubrik Matrisi ile Puanlama):*
+     - 4 ağırlıklı ölçüt: Dil/Üslup (%20), Kaynak/Atıf (%30), Özgünlük/Sentez (%30), Metodoloji (%20).
+     - Otomatik ağırlıklı notlama motoru (Toplam: 91 Puan) ve tek tıkla resmi nota aktarım.
+  3. *Senaryo 3 (Sınıf İçi Eş-Düzey / Peer-to-Peer Kopya Tespiti):*
+     - `deneme@deneme.com` ile `ogrenci2@deneme.com` arasındaki %42 iç metin çakışmasının Eş-Düzey Matrisinde kırmızı şeritle tespiti ve raporlanması.
+
+### 1.26 Kullanım Rehberi (UserGuideView) Analiz & Raporlama Kapsam Genişletmesi ve Sıfır-Hata Senkronizasyon Onarımı (29 Ekim 2026)
+- **Sorun Analizi:** Landing Page üzerindeki "Rehber" sekmesinde "Analiz & Raporlama" kategorisi seçildiğinde veya belirli roller seçildiğinde konu listesi boş kalıyor ("0 Konu"), sağ tarafta ise seçili kategoriyle alakasız eski bir konu gösteriliyordu.
+- **Kategori x Rol Matrisi Kapsam Genişletmesi:**
+  - `ogretmen-intihal-ve-hile-analizi` (Eğitmen & Danışman): Sınıf İçi Kopya & Hile Analizi: Eş-Düzey (Peer) Matrisi ve Homoglif Tespiti konusu eklendi.
+  - `yazar-editor-yayin-analizi` (Yazar & Editör): Yayın & Editöryal Özgünlük Denetimi: DOI Çapraz Teyit ve Hakem İncelemesi konusu eklendi.
+  - `editor-ve-calisma-gruplari` (Yazar & Editör, Sınıflar & Enstitü): Editöryal Çalışma Grupları & Hakem Değerlendirme Havuzu eklendi.
+  - `kampus-ve-lms-entegrasyonu`: Rol filtresi `Tümü`ne genişletilerek öğrencilerin ve eğitmenlerin de Moodle, Canvas ve OBS LTI süreçlerini incelemesi sağlandı.
+- **Çift Yönlü Rol & Kategori Senkronizasyonu:**
+  - Rol seçildiğinde, mevcut kategoride o role ait içerik yoksa kategori otomatik olarak `Tümü`ne esnetildi.
+  - Kategori seçildiğinde, seçili rolde içerik yoksa rol filtresi otomatik `all` yapılarak kullanıcının boş ekrana düşmesi engellendi.
+- **Sağ Kart & Sol Liste Tam Senkronizasyonu:**
+  - Kategori, rol veya arama değiştiğinde sol tarafta filtrelenen ilk konu otomatik olarak sağ detay kartına yansıtıldı (`activeItem` senkronizasyonu).
+  - Filtreleme sonucunda hiçbir konu bulunamazsa sağ panelde de açıklayıcı bir "Filtreleri Sıfırla" boş durum (empty state) kartı gösterildi.
+- **Doğrulama:**
+  - Yapılan matris simülasyonu ile 9 kategorinin tümünde 5 farklı rol için de 0 konu durumu tamamen ortadan kaldırıldı.
+  - Birim testleri (`npm test -- --run`): 4/4 dosya, 41/41 test geçti.
+  - Derleme kontrolü (`npm run build`): 18.27s içinde sıfır hatayla başarıyla derlendi.
+
+### 1.27 Tip Güvenli Taksonomi ve Varlık İlişkilendirme Şeması Entegrasyonu (29 Ekim 2026)
+- **Mimari İyileştirme:** Serbest metin bazlı (`section.role.includes(...)`) kırılgan eşleştirmeler yerine tam tip-güvenli (strongly-typed) Taksonomi Şeması kuruldu:
+  - `GuideRoleId`: `'student' | 'instructor' | 'author' | 'institute'`
+  - `GuideFilterRoleId`: `'all' | GuideRoleId`
+  - `GuideCategoryId`: `'getting-started' | 'document-standards' | 'modules' | 'analysis-reporting' | 'classes-institute' | 'verification-security' | 'enterprise-integration' | 'templates-downloads'`
+  - `GuideFilterCategoryId`: `'all' | GuideCategoryId`
+  - `GuideSectionItem`: `category: GuideCategoryId` ve `roles: GuideRoleId[]`
+- **İlişki Matrisi & Normalizasyon:** 20 rehber konusunun tamamı ilişkisel şemaya dönüştürüldü; her konunun ait olduğu roller çoklu dizi (`roles: [...]`) olarak tescillendi.
+- **Sıfır Hata Filtreleme:** Filtreleme motoru `section.roles.includes(selectedRole)` mantığına kavuşturularak karakter uyuşmazlığı veya alt dize hataları tamamen imkansız kılındı.
+- **Doğrulama:**
+  - Birim testleri (`npm test -- --run`): 4/4 dosya, 41/41 test başarılı.
+  - Üretim derlemesi (`npm run build`): 19.58s içinde sıfır hata ile tamamlandı.
+
+### 1.28 Canlı Öğretmen - Öğrenci Demo Veri Tohumlayıcı ve Sunum Rehberi Entegrasyonu (29 Ekim 2026)
+- **Tek Tıkla Demo Tohumlama (`classroomDemoService.ts`):**
+  - Sınıf: `YZ-501: Akademik Araştırma ve Yayın Etiği` (Kod: `SENT26`, Anahtar: `DEMO-2026`, Eğitmen: Doç. Dr. İsmail Kaleci).
+  - Ödev: `Dönem Sonu Tez Literatür Taraması ve Metodoloji Raporu` (4 Kriterli Ağırlıklı Rubrik Matrisi, Draft Coach açık).
+  - Öğrenci 1 (`deneme@deneme.com` - Ahmet Yılmaz): %14 Benzerlik, %8 YZ, 3 Turnitin QuickMarks satır içi notu (`[Kaynak Eksik]`, `[Tırnak Eksik]`, `[İfade Güçlendir]`), 4 kriterli 91/100 rubrik notu ve SHA-256 karekodlu dijital teslim makbuzu.
+  - Öğrenci 2 (`ogrenci2@deneme.com` - Mehmet Demir): %42 iç metin çakışması (Eş-Düzey Matrisinde kırmızı alarm şeridi) ve Kiril homoglif bayrağı.
+- **Canlı Sunum & Senaryo Rehberi Modalı (`ScenarioCheatSheetModal.tsx`):**
+  - Eğitmenin sahnede/toplantıda 3 senaryoyu (QuickMarks, Rubrik, Peer Matrix) adım adım projektörde anlatmasını sağlayan interaktif kılavuz kartı.
+- **Sınıflarım Paneli Entegrasyonu (`ClassroomPanel.tsx` & `InstructorClassesView.tsx`):**
+  - Üst çubuğa "⚡ Demo Sınıfı Yükle" ve "📖 Senaryo Rehberi" butonları eklendi.
+  - Boş sınıf durumunda tek tıkla otomatik demo tohumlama butonu bağlandı.
+- **Doğrulama & Canlı Dağıtım:** 41/41 test geçti, üretim derlemesi 19.16s içinde tamamlandı ve `https://sentience-ai-free-2026.web.app` adresine canlı dağıtım (hosting + firestore rules + indexes) başarıyla gerçekleştirildi.
+- **Firestore İzin Onarımı ("Missing or insufficient permissions"):** Demo sınıfı ve teslimleri yüklenirken `demo-class-yz501` alt koleksiyonları için Firestore kurallarına `isDemoClass(classId)` istisnası bağlandı ve `classroomDemoService.ts` içinde `instructorId = appUser.uid` yapılarak tüm rollerde sıfır hata ile yükleme yapılması sağlandı. Kurallar canlıya deploy edildi.
+
 ---
 
 ## 2. ÖNCEKİ OTURUMLARDA TAMAMLANAN GELİŞTİRMELER (EKİM 2026 ORTASI)

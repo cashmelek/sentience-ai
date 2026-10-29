@@ -12,6 +12,7 @@ functions/lib/
 
 .vercel
 .netlify
+.firebase/
 
 # --- Commit hijyeni: geçici artefaktlar (Bölüm 35) ---
 scratch/

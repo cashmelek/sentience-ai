@@ -8,7 +8,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '../lib/firebase';
 import type { AppUser, SubscriptionPlan } from '../types';
 import type {
-  ClassRoom, Assignment, Enrollment, Submission, SubmissionScores, DigitalReceipt, ClassroomTabData
+  ClassRoom, Assignment, Enrollment, Submission, SubmissionScores, DigitalReceipt, ClassroomTabData, SubmissionAnnotation
 } from '../types/classroom';
 import { SUBMISSION_LIMITS } from '../types/classroom';
 import { verifyPlagiarism } from './sentinelService';
@@ -570,7 +570,7 @@ export async function gradeSubmission(
   classId: string,
   assignmentId: string,
   studentId: string,
-  payload: { grade?: number | null; feedback?: string; gradedBy?: string }
+  payload: { grade?: number | null; feedback?: string; gradedBy?: string; rubricScores?: any[] }
 ): Promise<void> {
   const updateData: Record<string, any> = {
     gradedAt: serverTimestamp(),
@@ -584,7 +584,21 @@ export async function gradeSubmission(
   if (payload.gradedBy) {
     updateData.gradedBy = payload.gradedBy;
   }
+  if (payload.rubricScores !== undefined) {
+    updateData.rubricScores = payload.rubricScores;
+  }
   await updateDoc(submissionRef(classId, assignmentId, studentId), updateData);
+}
+
+export async function updateSubmissionAnnotations(
+  classId: string,
+  assignmentId: string,
+  studentId: string,
+  annotations: SubmissionAnnotation[]
+): Promise<void> {
+  await updateDoc(submissionRef(classId, assignmentId, studentId), {
+    annotations
+  });
 }
 
 export async function listSubmissions(classId: string, assignmentId: string): Promise<Submission[]> {

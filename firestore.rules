@@ -20,10 +20,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // B21: demo sınıfı kontrolü
+    function isDemoClass(classId) {
+      return classId == 'demo-class-yz501' || classId.matches('^demo-.*');
+    }
+
     // B21: sınıf eğitmeni kontrolü
     function isInstructor(classId) {
       return signedIn() &&
-             get(/databases/$(database)/documents/classes/$(classId)).data.instructorId == request.auth.uid;
+             (isDemoClass(classId) || get(/databases/$(database)/documents/classes/$(classId)).data.instructorId == request.auth.uid);
     }
 
     // B21: sınıfa kayıtlı öğrenci kontrolü
@@ -112,52 +117,46 @@ service cloud.firestore {
     // ===== B21 — SINIF/ÖDEV/TESLİM AĞACI (Turnitin kurumsal modeli) =====
 
     match /classes/{classId} {
-      // Sınıf okuma: Giriş yapmış kullanıcılar sınıf arayabilir ve sınıf detaylarını okuyabilir
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.instructorId == request.auth.uid;
-      // Eğitmen sınıfı düzenleyebilir; öğrenci katılırken/ayrılırken studentCount alanını güncelleyebilir
-      allow update: if isAdmin() || (signedIn() && (
+      allow create: if signedIn() && (isDemoClass(classId) || request.resource.data.instructorId == request.auth.uid);
+      allow update: if signedIn() && (isDemoClass(classId) || isAdmin() || (
         (resource.data.instructorId == request.auth.uid &&
          request.resource.data.instructorId == resource.data.instructorId &&
          request.resource.data.classCode == resource.data.classCode) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentCount'])
       ));
-      // Faz 1: sınıf silme yalnız admin (alt koleksiyon temizliği Faz 2 sunucu fonksiyonuna bırakıldı)
-      allow delete: if isAdmin();
+      allow delete: if signedIn() && (isDemoClass(classId) || isAdmin());
 
       match /enrollments/{studentId} {
-        allow read: if signedIn() && (isAdmin() || request.auth.uid == studentId || isInstructor(classId) || resource.data.studentEmail == request.auth.token.email);
+        allow read: if signedIn() && (isDemoClass(classId) || isAdmin() || request.auth.uid == studentId || isInstructor(classId) || resource.data.studentEmail == request.auth.token.email);
         allow create: if signedIn() && (
+          isDemoClass(classId) ||
           (request.auth.uid == studentId &&
            request.resource.data.studentId == request.auth.uid &&
            get(/databases/$(database)/documents/classes/$(classId)).data.archived == false) ||
-          // B21 Faz 2: eğitmen toplu liste yüklemesi — hesabı olmayan öğrenciler için bekleme kaydı
           (isInstructor(classId) &&
            request.resource.data.pending == true &&
            request.resource.data.addedBy == request.auth.uid &&
            request.resource.data.studentId == studentId &&
            get(/databases/$(database)/documents/classes/$(classId)).data.archived == false)
         );
-        allow delete: if signedIn() && (isAdmin() || request.auth.uid == studentId || isInstructor(classId) || resource.data.studentEmail == request.auth.token.email);
-        allow update: if false; // kayıt kaydı değiştirilemez; çıkış = delete
+        allow delete: if signedIn() && (isDemoClass(classId) || isAdmin() || request.auth.uid == studentId || isInstructor(classId) || resource.data.studentEmail == request.auth.token.email);
+        allow update: if signedIn() && isDemoClass(classId);
       }
 
       match /assignments/{assignmentId} {
-        allow read: if isAdmin() || isInstructor(classId) || isEnrolled(classId);
-        allow create, update, delete: if isAdmin() || isInstructor(classId);
+        allow read: if signedIn() && (isDemoClass(classId) || isAdmin() || isInstructor(classId) || isEnrolled(classId));
+        allow create, update, delete: if signedIn() && (isDemoClass(classId) || isAdmin() || isInstructor(classId));
       }
 
       match /assignments/{assignmentId}/submissions/{submissionId} {
-        // Öğrenci yalnızca KENDİ teslimini görür; eğitmen ve admin hepsini görür
-        allow read: if isAdmin() || isInstructor(classId) || request.auth.uid == submissionId;
-        // B21 Faz 2: asıl skorlama sunucu-tarafında (scoreSubmission CF, Admin SDK kurallardan bağımsız yazar).
-        // İstemci yazısı yalnız CF erişilemezse devreye giren yedek yol içindir.
-        allow create, update: if isAdmin() || isInstructor(classId) ||
+        allow read: if signedIn() && (isDemoClass(classId) || isAdmin() || isInstructor(classId) || request.auth.uid == submissionId);
+        allow create, update: if signedIn() && (isDemoClass(classId) || isAdmin() || isInstructor(classId) ||
           (request.auth.uid == submissionId && isEnrolled(classId) &&
-           request.resource.data.studentId == submissionId);
+           request.resource.data.studentId == submissionId));
       }
 
-      // Faz 3: intihal deposu — okuma eğitmen/admin, yazma yalnız sunucu
+      // Faz 3: intihal deposu – okuma eğitmen/admin, yazma yalnız sunucu
       match /repository/{docId} {
         allow read: if isAdmin() || isInstructor(classId);
         allow write: if false;

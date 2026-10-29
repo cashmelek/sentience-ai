@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, FileText, FileUp, Loader2, ShieldCheck, UploadCloud, X } from 'lucide-react';
+import { ArrowLeft, FileText, FileUp, Loader2, ShieldCheck, UploadCloud, X, Sparkles, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppUser } from '../../types';
 import type { ClassRoom, Assignment, Submission } from '../../types/classroom';
@@ -17,6 +17,7 @@ interface StudentSubmitViewProps {
   assignment: Assignment;
   appUser: AppUser;
   scoringConfig: { sentinelEnabled: boolean; auditorModel: string; sensitivity: number };
+  existingSubmission?: Submission | null;
   onBack: () => void;
   onDone: (submission: Submission) => void;
 }
@@ -28,17 +29,31 @@ export function StudentSubmitView({
   assignment,
   appUser,
   scoringConfig,
+  existingSubmission,
   onBack,
   onDone,
 }: StudentSubmitViewProps) {
-  const [title, setTitle] = useState(`${assignment.title} - Teslim`);
-  const [text, setText] = useState('');
+  const [title, setTitle] = useState(existingSubmission?.title || `${assignment.title} - Teslim`);
+  const [text, setText] = useState(existingSubmission?.text || '');
   const [phase, setPhase] = useState<Phase>('edit');
   // B21 Faz 2: dosya yükleme modu (PDF/DOCX). Varsayılan 'text' — mevcut davranış korunur
   const [mode, setMode] = useState<'text' | 'file'>('text');
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [noRepositoryOverride, setNoRepositoryOverride] = useState(Boolean(assignment.noRepository));
+
+  // Ön Teslim Taslak Kontrolü (Turnitin Draft Coach) State'leri
+  const [draftChecking, setDraftChecking] = useState(false);
+  const [draftResult, setDraftResult] = useState<{ similarityScore: number; aiScore: number } | null>(
+    existingSubmission?.lastDraftScores ? {
+      similarityScore: existingSubmission.lastDraftScores.similarityScore,
+      aiScore: existingSubmission.lastDraftScores.aiScore,
+    } : null
+  );
+  const [draftCount, setDraftCount] = useState<number>(existingSubmission?.draftCheckCount || 0);
+  const maxDrafts = assignment.maxDraftChecks ?? 2;
+  const isDraftAllowed = assignment.allowDraftCheck !== false;
+  const remainingDrafts = Math.max(0, maxDrafts - draftCount);
 
   const today = todayIso();
   const usedToday = appUser.submissionResetDate === today ? (appUser.submissionUsage || 0) : 0;
@@ -68,6 +83,36 @@ export function StudentSubmitView({
       toast.error(err?.message || 'Dosya okunamadı');
     } finally {
       setParsing(false);
+    }
+  };
+
+  const handleRunDraftCheck = async () => {
+    if (!text.trim() || text.trim().length < 50) {
+      toast.error('Taslak kontrolü için en az 50 karakter metin girmelisiniz.');
+      return;
+    }
+    if (remainingDrafts <= 0) {
+      toast.error('Bu ödev için tanımlanan ön taslak kontrol haklarınız doldu.');
+      return;
+    }
+    setDraftChecking(true);
+    try {
+      // Taslak kontrolü repository'e kaydetmeden doğrudan hafif skorlama çalıştırır
+      const scores = await scoreSubmission(
+        { text: text.trim(), ...scoringConfig },
+        { classId: cls.id, assignmentId: assignment.id, studentId: appUser.uid }
+      );
+      const nextCount = draftCount + 1;
+      setDraftCount(nextCount);
+      setDraftResult({
+        similarityScore: scores.similarityScore,
+        aiScore: scores.aiScore
+      });
+      toast.success(`Taslak kontrolü tamamlandı! Kalan hak: ${Math.max(0, maxDrafts - nextCount)}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Taslak kontrolü sırasında hata oluştu.');
+    } finally {
+      setDraftChecking(false);
     }
   };
 
@@ -221,6 +266,61 @@ export function StudentSubmitView({
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 transition-all resize-y disabled:opacity-60 custom-scrollbar"
           />
         </div>
+
+        {/* Ön Teslim Taslak Kontrolü (Turnitin Draft Coach) Kutusu */}
+        {isDraftAllowed && (
+          <div className="p-4 bg-emerald-500/[0.04] border border-emerald-500/15 rounded-2xl space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white">Ön Teslim Taslak Kontrolü (Draft Coach)</span>
+                <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  Kalan Hak: {remainingDrafts} / {maxDrafts}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRunDraftCheck}
+                disabled={draftChecking || remainingDrafts <= 0 || text.trim().length < 50 || phase !== 'edit'}
+                className="px-3.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-40 flex items-center gap-1.5"
+              >
+                {draftChecking ? (
+                  <><Loader2 className="w-3 h-3 animate-spin" /> Taslak Taranıyor...</>
+                ) : (
+                  <><Sparkles className="w-3 h-3" /> Taslağı Şimdi Kontrol Et</>
+                )}
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-400">
+              Nihai teslimi yapmadan önce taslağınızı ön kontrolden geçirebilirsiniz. Bu işlem metninizi havuza kaydetmez ve resmi teslim sayılmaz.
+            </p>
+
+            {draftResult && (
+              <div className="p-3 bg-black/40 border border-emerald-500/20 rounded-xl flex items-center justify-around text-center">
+                <div>
+                  <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Taslak Benzerlik</span>
+                  <span className="text-sm font-black text-amber-400">
+                    %{Math.round((draftResult.similarityScore > 1 ? draftResult.similarityScore : draftResult.similarityScore * 100))}
+                  </span>
+                </div>
+                <div className="h-6 w-px bg-white/10" />
+                <div>
+                  <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Taslak YZ Skoru</span>
+                  <span className="text-sm font-black text-purple-400">
+                    %{Math.round((draftResult.aiScore > 1 ? draftResult.aiScore : draftResult.aiScore * 100))}
+                  </span>
+                </div>
+                <div className="h-6 w-px bg-white/10" />
+                <div className="text-right">
+                  <span className="text-[9px] text-emerald-400 font-bold block flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 inline" /> Ön Tarama Hazır
+                  </span>
+                  <span className="text-[8px] text-gray-500">Gerekiyorsa alıntıları düzeltin</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center justify-between gap-4">
           <div className="space-y-0.5">

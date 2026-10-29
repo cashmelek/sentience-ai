@@ -391,6 +391,122 @@ export function exportInstituteApprovalPDF(
   }, 400);
 }
 
+export function exportDigitalReceiptPDF(cls: ClassRoom, assignment: Assignment, submission: Submission): void {
+  const printWin = window.open('', '_blank');
+  if (!printWin) return;
+
+  const receipt = submission.digitalReceipt;
+  const sha256 = receipt?.sha256 || 'N/A';
+  const submittedAt = receipt?.submittedAt ? fmtDateTime(receipt.submittedAt) : fmtDateTime(submission.createdAt);
+  const textLength = receipt?.textLength ?? submission.text?.length ?? 0;
+  const wordCount = submission.text?.trim().split(/\s+/).filter(Boolean).length || 0;
+  const qrCodeSvg = generateQRCodeSvg(
+    `https://sentience-ai-free-2026.web.app/verify?sha=${encodeURIComponent(sha256)}&sub=${encodeURIComponent(submission.id)}`,
+    120
+  );
+
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+      <meta charset="utf-8">
+      <title>Sentience AI — Resmi Dijital Teslim Makbuzu</title>
+      <style>
+        @page { size: A4 portrait; margin: 18mm; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; margin: 0; padding: 0; background: #fff; line-height: 1.5; font-size: 11pt; }
+        .receipt-card { border: 2px solid #0284c7; border-radius: 12px; padding: 24px; position: relative; }
+        .watermark { position: absolute; right: 24px; top: 24px; opacity: 0.85; }
+        .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 20px; }
+        .title h1 { margin: 0; font-size: 18pt; font-weight: 800; color: #0369a1; letter-spacing: -0.5px; }
+        .title p { margin: 2px 0 0 0; font-size: 9.5pt; color: #64748b; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+        .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+        .info-box label { display: block; font-size: 8pt; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .info-box value { display: block; font-size: 10.5pt; font-weight: 600; color: #0f172a; }
+        .hash-box { background: #f0f9ff; border: 1.5px dashed #0284c7; border-radius: 8px; padding: 14px; margin-bottom: 20px; }
+        .hash-box label { font-size: 8.5pt; font-weight: 800; color: #0369a1; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+        .hash-code { font-family: 'Courier New', Courier, monospace; font-size: 9pt; font-weight: 700; color: #0c4a6e; word-break: break-all; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #bae6fd; }
+        .notice { font-size: 9pt; color: #475569; background: #fafafa; border-left: 4px solid #0284c7; padding: 10px 14px; margin-bottom: 24px; border-radius: 0 8px 8px 0; }
+        .qr-section { display: flex; align-items: center; gap: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+        .qr-desc { font-size: 9pt; color: #64748b; }
+        .qr-desc strong { color: #0f172a; }
+      </style>
+    </head>
+    <body>
+      <div class="receipt-card">
+        <div class="header">
+          <div class="title">
+            <h1>SENTIENCE AI</h1>
+            <p>Resmi Dijital Teslim Makbuzu (Official Digital Submission Receipt)</p>
+          </div>
+          <div style="font-size: 9pt; text-align: right; color: #0369a1; font-weight: 700;">
+            Turnitin Standardı Uyumlu
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="info-box">
+            <label>Öğrenci Adı Soyadı</label>
+            <value>${escapeHtml(submission.studentName)}</value>
+          </div>
+          <div class="info-box">
+            <label>Öğrenci E-posta</label>
+            <value>${escapeHtml(submission.studentEmail)}</value>
+          </div>
+          <div class="info-box">
+            <label>Ders / Sınıf</label>
+            <value>${escapeHtml(cls.name)}</value>
+          </div>
+          <div class="info-box">
+            <label>Öğretim Üyesi / Eğitmen</label>
+            <value>${escapeHtml(cls.instructorName || 'Belirtilmedi')}</value>
+          </div>
+          <div class="info-box">
+            <label>Ödev Başlığı</label>
+            <value>${escapeHtml(assignment.title)}</value>
+          </div>
+          <div class="info-box">
+            <label>Teslim Edilen Dosya / Başlık</label>
+            <value>${escapeHtml(submission.fileName || submission.title)}</value>
+          </div>
+          <div class="info-box">
+            <label>Teslim Tarihi ve Saati</label>
+            <value>${escapeHtml(submittedAt)}</value>
+          </div>
+          <div class="info-box">
+            <label>Metin Boyutu / Kelime Sayısı</label>
+            <value>${textLength} karakter · ~${wordCount} kelime</value>
+          </div>
+        </div>
+
+        <div class="hash-box">
+          <label>Kriptografik Bütünlük Özeti (SHA-256 Hash)</label>
+          <div class="hash-code">${escapeHtml(sha256)}</div>
+        </div>
+
+        <div class="notice">
+          <strong>Öğrenci Bilgilendirmesi:</strong> Bu belge, çalışmanızın Sentience AI Akademik Dürüstlük Platformu'na başarıyla yüklendiğini teyit eder. Yukarıdaki SHA-256 şifreleme özeti teslim anında oluşturulmuş olup metnin içeriğinin daha sonra değiştirilmediğinin matematiksel kanıtıdır. Lütfen bu makbuzu teslim kanıtı olarak saklayınız.
+        </div>
+
+        <div class="qr-section">
+          <div>${qrCodeSvg}</div>
+          <div class="qr-desc">
+            <strong>Çevrimiçi Doğrulama Karekodu</strong><br/>
+            Bu karekodu taratarak veya Sentience AI doğrulama servisinden yukarıdaki SHA-256 hash'ini sorgulayarak teslimin orijinalliğini anında teyit edebilirsiniz.
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
+  setTimeout(() => {
+    printWin.focus();
+    printWin.print();
+  }, 400);
+}
+
 export function exportSubmissionsCSV(cls: ClassRoom, assignment: Assignment, submissions: Submission[]): void {
   if (submissions.length === 0) return;
   const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -401,6 +517,7 @@ export function exportSubmissionsCSV(cls: ClassRoom, assignment: Assignment, sub
     'Durum',
     'Not (0-100)',
     'Geri Bildirim',
+    'Satır İçi Not Sayısı',
     'Gecikme Durumu',
     'Benzerlik (%)',
     'YZ Olasılığı (%)',
@@ -424,6 +541,7 @@ export function exportSubmissionsCSV(cls: ClassRoom, assignment: Assignment, sub
       esc(statusLabel[s.status] || s.status),
       s.grade !== undefined && s.grade !== null ? s.grade : '',
       esc(s.feedback || ''),
+      s.annotations?.length ?? 0,
       esc(isLateText),
       simPct,
       aiPct,
@@ -463,6 +581,7 @@ export function exportSubmissionsExcel(cls: ClassRoom, assignment: Assignment, s
       <td>${escapeHtml(statusLabel[s.status] || s.status)}</td>
       <td style="text-align: center; font-weight: bold; color: #059669;">${s.grade !== undefined && s.grade !== null ? s.grade : '-'}</td>
       <td>${escapeHtml(s.feedback || '-')}</td>
+      <td style="text-align: center;">${s.annotations?.length ?? 0}</td>
       <td style="color: ${s.isLate ? '#dc2626' : '#64748b'};">${escapeHtml(isLateText)}</td>
       <td style="text-align: right; color: ${(simPct ?? 0) > 20 ? '#dc2626' : '#16a34a'}; font-weight: bold;">${simPct !== null ? '%' + simPct : '-'}</td>
       <td style="text-align: right; color: ${(aiPct ?? 0) > 70 ? '#dc2626' : '#16a34a'}; font-weight: bold;">${aiPct !== null ? '%' + aiPct : '-'}</td>
@@ -500,6 +619,7 @@ export function exportSubmissionsExcel(cls: ClassRoom, assignment: Assignment, s
             <th>Durum</th>
             <th>Not</th>
             <th>Geri Bildirim</th>
+            <th>Satır İçi Not</th>
             <th>Gecikme</th>
             <th>Benzerlik (%)</th>
             <th>YZ Olasılığı (%)</th>

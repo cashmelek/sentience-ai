@@ -16,6 +16,19 @@ export interface ClassRoom {
   createdAt: any;
 }
 
+export interface RubricCriterion {
+  id: string;
+  title: string;
+  description?: string;
+  weight: number; // Yüzde ağırlık (örn: 30)
+  maxPoints: number; // Azami puan (örn: 100)
+}
+
+export interface RubricScoreItem {
+  criterionId: string;
+  points: number; // Verilen puan
+}
+
 export interface Assignment {
   id: string;
   classId: string;
@@ -29,6 +42,11 @@ export interface Assignment {
   allowStudentViewReport?: boolean;
   // D5: Süresi geçen ödevlere gecikmiş teslim izni (varsayılan: true)
   allowLateSubmissions?: boolean;
+  // D6: Ön teslim taslak kontrol izni (Turnitin Draft Coach / Pre-submission)
+  allowDraftCheck?: boolean;
+  maxDraftChecks?: number; // Varsayılan: 2
+  // Kriter Bazlı Rubrik Tanımı
+  rubricCriteria?: RubricCriterion[];
   createdBy: string;
   createdAt: any;
 }
@@ -60,6 +78,18 @@ export interface SubmissionScores {
   metrics?: any;
 }
 
+export interface SubmissionAnnotation {
+  id: string;
+  startOffset: number;
+  endOffset: number;
+  selectedText: string;
+  comment: string;
+  category?: 'grammar' | 'citation' | 'plagiarism' | 'style' | 'general';
+  quickMarkLabel?: string;
+  createdAt: string;
+  createdBy: string;
+}
+
 export interface Submission {
   id: string;
   studentId: string;
@@ -88,10 +118,20 @@ export interface Submission {
   feedback?: string;
   gradedAt?: any;
   gradedBy?: string;
+  rubricScores?: RubricScoreItem[];
+  // Satır içi öğretmen notları ve QuickMarks
+  annotations?: SubmissionAnnotation[];
   // Gecikmiş teslim bilgisi
   isLate?: boolean;
   lateDurationMinutes?: number;
   noRepository?: boolean;
+  // Ön teslim taslak sayacı
+  draftCheckCount?: number;
+  lastDraftScores?: {
+    similarityScore: number;
+    aiScore: number;
+    checkedAt: string;
+  };
   forwardedToInstitute?: boolean;
   forwardedToInstituteAt?: string;
   instituteDecision?: 'pending' | 'approved' | 'revision_required' | 'rejected';

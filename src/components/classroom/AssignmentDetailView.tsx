@@ -1,4 +1,4 @@
-import { ArrowLeft, ClipboardList, Download, FileClock, RefreshCw, UserPlus, FileText, FileUp } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Download, FileClock, RefreshCw, UserPlus, FileText, FileUp, Files, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { getSubmissionFileUrl } from '../../services/classroomService';
 import type { ClassRoom, Assignment, Submission } from '../../types/classroom';
@@ -17,6 +17,8 @@ interface AssignmentDetailViewProps {
   // B21 Faz 2: öğrenci adına teslim (kayıtlı öğrenci varsa etkin)
   canSubmitOnBehalf: boolean;
   onOpenBehalf: () => void;
+  onOpenBatch?: () => void;
+  onOpenPeerMatrix?: () => void;
 }
 
 const statusChip: Record<string, { label: string; cls: string }> = {
@@ -38,6 +40,8 @@ export function AssignmentDetailView({
   onDownloadExcel,
   canSubmitOnBehalf,
   onOpenBehalf,
+  onOpenBatch,
+  onOpenPeerMatrix,
 }: AssignmentDetailViewProps) {
   const scored = submissions.filter((s) => s.status === 'scored');
 
@@ -74,6 +78,26 @@ export function AssignmentDetailView({
         >
           <UserPlus className="w-4 h-4" /> Adına Teslim
         </button>
+        {onOpenBatch && (
+          <button
+            onClick={onOpenBatch}
+            disabled={!canSubmitOnBehalf}
+            title={canSubmitOnBehalf ? 'Toplu ödev dosyası yükleyin ve sırayla taratın' : 'Toplu yükleme için önce sınıfa öğrenci ekleyin'}
+            className="flex items-center gap-2 px-4 py-2.5 bg-purple-500/15 border border-purple-500/30 text-purple-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-500/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Files className="w-4 h-4 text-purple-400" /> Toplu Yükleme
+          </button>
+        )}
+        {onOpenPeerMatrix && (
+          <button
+            onClick={onOpenPeerMatrix}
+            disabled={submissions.length < 2}
+            title={submissions.length >= 2 ? 'Öğrencilerin teslimleri arasındaki iç benzerlikleri karşılaştırın' : 'Eş-düzey analizi için en az 2 teslim gereklidir'}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/15 border border-amber-500/30 text-amber-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-500/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Users className="w-4 h-4 text-amber-400" /> Eş-Düzey Matrisi
+          </button>
+        )}
         <button
           onClick={onDownloadCsv}
           disabled={submissions.length === 0}

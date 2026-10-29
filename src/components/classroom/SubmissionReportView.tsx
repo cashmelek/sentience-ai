@@ -23,14 +23,18 @@ import {
   Send,
   CheckCircle2,
   ChevronDown,
-  ExternalLink
+  ExternalLink,
+  MessageSquare,
+  Plus,
+  Trash2,
+  Tag
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { getSubmissionFileUrl, forwardSubmissionToInstitute } from '../../services/classroomService';
 import { toast } from 'sonner';
-import type { ClassRoom, Assignment, Submission } from '../../types/classroom';
+import type { ClassRoom, Assignment, Submission, SubmissionAnnotation } from '../../types/classroom';
 import { fmtDateTime, scoreColor, scoreBarClass, pct, normalizeScore } from './format';
-import { exportSubmissionReportPDF, exportInstituteApprovalPDF, matchGroupLabel, trustLabel } from './submissionExport';
+import { exportSubmissionReportPDF, exportInstituteApprovalPDF, exportDigitalReceiptPDF, matchGroupLabel, trustLabel } from './submissionExport';
 import { detectIntegrityFlags } from '../../ml/textFeatures';
 
 export const MOSAIC_PALETTE = [
@@ -62,8 +66,18 @@ interface SubmissionReportViewProps {
   onToggleExclude: (url: string, excluded: boolean) => void;
   onRerun: () => void;
   onClose: () => void;
-  onSaveGrade?: (grade: number | null, feedback: string) => Promise<void>;
+  onSaveGrade?: (grade: number | null, feedback: string, rubricScores?: any[]) => Promise<void>;
+  onSaveAnnotations?: (annotations: SubmissionAnnotation[]) => Promise<void>;
 }
+
+export const QUICKMARKS_PRESETS = [
+  { label: 'Kaynak Eksik', category: 'citation', comment: 'Bu iddia veya veri için güvenilir bir akademik kaynak belirtilmelidir.' },
+  { label: 'Tırnak Eksik', category: 'citation', comment: 'Doğrudan alıntılanan metin tırnak ("...") içine alınmalıdır.' },
+  { label: 'Özgün Sentez Yetersiz', category: 'plagiarism', comment: 'Kaynak metin sadece kelime değiştirilerek verilmiş; kendi analizinizi katarak yeniden sentezleyin.' },
+  { label: 'Akademik Dil', category: 'style', comment: 'Gündelik ve samimi ifadeler yerine üçüncü şahıs akademik üslup tercih edilmelidir.' },
+  { label: 'Kanıt / Veri Eksik', category: 'general', comment: 'Bu argümanı destekleyen somut bir bulgu veya örnek sunulmalıdır.' },
+  { label: 'Kaynak Formatı (APA)', category: 'citation', comment: 'Metin içi atıf formatı standartlara (Yazar, Yıl: Sayfa) uygun düzenlenmelidir.' },
+] as const;
 
 export function SubmissionReportView({
   cls,
@@ -75,6 +89,7 @@ export function SubmissionReportView({
   onRerun,
   onClose,
   onSaveGrade,
+  onSaveAnnotations,
 }: SubmissionReportViewProps) {
   const [matchFilter, setMatchFilter] = useState<string>('all');
   const [excludeQuotes, setExcludeQuotes] = useState(false);
@@ -83,7 +98,7 @@ export function SubmissionReportView({
   const [minWordMatch, setMinWordMatch] = useState<number>(0);
   const [isWordThresholdOpen, setIsWordThresholdOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc' | 'alpha'>('desc');
-  const [viewTab, setViewTab] = useState<'sources' | 'mosaic'>('sources');
+  const [viewTab, setViewTab] = useState<'sources' | 'mosaic' | 'annotations'>('sources');
   const [isForwardedToInstitute, setIsForwardedToInstitute] = useState(Boolean(submission.forwardedToInstitute));
   const [forwarding, setForwarding] = useState(false);
   const [gradeInput, setGradeInput] = useState<string>(
@@ -93,7 +108,113 @@ export function SubmissionReportView({
   const [savingGrade, setSavingGrade] = useState(false);
   const [showIntegrityDetails, setShowIntegrityDetails] = useState(false);
 
+  // Rubrik Puanlama State'leri
+  const rubricCriteria = assignment.rubricCriteria || [];
+  const [rubricScores, setRubricScores] = useState<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    (submission.rubricScores || []).forEach(r => {
+      map[r.criterionId] = r.points;
+    });
+    return map;
+  });
+  const [showRubricModal, setShowRubricModal] = useState(false);
+
+  // Rubrikten otomatik hesaplanan ağırlıklı not
+  const computedRubricGrade = useMemo(() => {
+    if (rubricCriteria.length === 0) return null;
+    let totalWeighted = 0;
+    let totalWeight = 0;
+    rubricCriteria.forEach((crit) => {
+      const pts = rubricScores[crit.id] ?? 0;
+      totalWeighted += (pts / (crit.maxPoints || 100)) * crit.weight;
+      totalWeight += crit.weight;
+    });
+    return totalWeight > 0 ? Math.round((totalWeighted / totalWeight) * 100) : 0;
+  }, [rubricCriteria, rubricScores]);
+
+  // Satır içi notlar (Annotations) state'i
+  const [annotations, setAnnotations] = useState<SubmissionAnnotation[]>(submission.annotations || []);
+  const [savingAnnotations, setSavingAnnotations] = useState(false);
+  const [selectedRange, setSelectedRange] = useState<{ start: number; end: number; text: string } | null>(null);
+  const [newComment, setNewComment] = useState('');
+  const [newCategory, setNewCategory] = useState<'grammar' | 'citation' | 'plagiarism' | 'style' | 'general'>('general');
+
   const integrity = useMemo(() => detectIntegrityFlags(submission.text || ''), [submission.text]);
+
+  const handleAddAnnotation = async (quickMark?: { label: string; category: any; comment: string }) => {
+    if (!selectedRange) {
+      toast.error('Lütfen metin üzerinde not eklemek istediğiniz bir bölümü fare ile seçin.');
+      return;
+    }
+    const commentText = quickMark ? quickMark.comment : newComment.trim();
+    if (!commentText) {
+      toast.error('Lütfen bir yorum veya geri bildirim yazın.');
+      return;
+    }
+    const newAnn: SubmissionAnnotation = {
+      id: 'ann_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      startOffset: selectedRange.start,
+      endOffset: selectedRange.end,
+      selectedText: selectedRange.text,
+      comment: commentText,
+      category: quickMark ? quickMark.category : newCategory,
+      quickMarkLabel: quickMark ? quickMark.label : undefined,
+      createdAt: new Date().toISOString(),
+      createdBy: cls.instructorName || 'Eğitmen',
+    };
+    const nextList = [...annotations, newAnn];
+    setAnnotations(nextList);
+    setSelectedRange(null);
+    setNewComment('');
+    if (onSaveAnnotations) {
+      setSavingAnnotations(true);
+      try {
+        await onSaveAnnotations(nextList);
+        toast.success('Satır içi not eklendi');
+      } catch {
+        // Hata üst bileşende toastlandı
+      } finally {
+        setSavingAnnotations(false);
+      }
+    }
+  };
+
+  const handleDeleteAnnotation = async (annId: string) => {
+    const nextList = annotations.filter(a => a.id !== annId);
+    setAnnotations(nextList);
+    if (onSaveAnnotations) {
+      setSavingAnnotations(true);
+      try {
+        await onSaveAnnotations(nextList);
+        toast.success('Not silindi');
+      } catch {
+        // hata bildirildi
+      } finally {
+        setSavingAnnotations(false);
+      }
+    }
+  };
+
+  const handleTextMouseUp = () => {
+    if (!canExclude) return; // Sadece eğitmen not ekleyebilir
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+      return;
+    }
+    const text = selection.toString().trim();
+    if (text.length < 2) return;
+    
+    // Konumu metin içinde bul
+    const fullText = submission.text || '';
+    const start = fullText.indexOf(text);
+    if (start !== -1) {
+      setSelectedRange({
+        start,
+        end: start + text.length,
+        text
+      });
+    }
+  };
 
   const handleSaveGradeClick = async () => {
     if (!onSaveGrade) return;
@@ -104,7 +225,11 @@ export function SubmissionReportView({
     }
     setSavingGrade(true);
     try {
-      await onSaveGrade(parsed, feedbackInput);
+      const rubricPayload = Object.entries(rubricScores).map(([criterionId, points]) => ({
+        criterionId,
+        points,
+      }));
+      await onSaveGrade(parsed, feedbackInput, rubricPayload);
     } finally {
       setSavingGrade(false);
     }
@@ -702,8 +827,18 @@ export function SubmissionReportView({
                   </button>
                 </div>
               </div>
-              <div className="text-[10px] text-gray-500 font-mono text-right">
-                {wordCount} kelime · ~{pageCount} sayfa · {fmtDateTime(submission.digitalReceipt.submittedAt)}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="text-[10px] text-gray-500 font-mono text-right">
+                  {wordCount} kelime · ~{pageCount} sayfa · {fmtDateTime(submission.digitalReceipt.submittedAt)}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => exportDigitalReceiptPDF(cls, assignment, submission)}
+                  className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all"
+                  title="Resmi Dijital Makbuz Sertifikasını PDF İndir"
+                >
+                  <FileDown className="w-3.5 h-3.5" /> Makbuzu İndir (PDF)
+                </button>
               </div>
             </div>
           )}
@@ -716,10 +851,104 @@ export function SubmissionReportView({
                   <GraduationCap className="w-4 h-4 text-emerald-400" />
                   <h3 className="text-xs font-black uppercase tracking-widest text-white">Akademik Notlandırma &amp; Değerlendirme</h3>
                 </div>
-                {submission.gradedAt && (
-                  <span className="text-[10px] text-gray-500 font-mono">Son: {fmtDateTime(submission.gradedAt)}</span>
-                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowRubricModal(!showRubricModal)}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-[10px] font-bold text-emerald-400 transition-all flex items-center gap-1"
+                  >
+                    <span>📊 Rubrik Matrisi</span>
+                    {computedRubricGrade !== null && (
+                      <span className="font-mono text-[9px] bg-emerald-500/20 px-1 rounded">%{computedRubricGrade}</span>
+                    )}
+                  </button>
+                  {submission.gradedAt && (
+                    <span className="text-[10px] text-gray-500 font-mono">Son: {fmtDateTime(submission.gradedAt)}</span>
+                  )}
+                </div>
               </div>
+
+              {/* Katlanabilir Detaylı Rubrik Matrisi */}
+              {showRubricModal && (
+                <div className="p-4 bg-black/40 border border-emerald-500/20 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                      Ölçüt Bazlı Ağırlıklı Puanlama Tablosu
+                    </span>
+                    {computedRubricGrade !== null && (
+                      <button
+                        type="button"
+                        onClick={() => setGradeInput(String(computedRubricGrade))}
+                        className="text-[10px] text-emerald-300 underline font-mono hover:text-white"
+                      >
+                        Ağırlıklı Notu Uygula ({computedRubricGrade})
+                      </button>
+                    )}
+                  </div>
+
+                  {rubricCriteria.length === 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] text-gray-500 italic">
+                        Bu ödev için özel rubrik kriteri tanımlanmamış. Varsayılan akademik değerlendirme ölçütleri kullanılıyor:
+                      </p>
+                      {[
+                        { id: 'crit_lang', title: 'Akademik Dil & Üslup', weight: 20, max: 100 },
+                        { id: 'crit_ref', title: 'Kaynak Kalitesi & Atıf Düzeni', weight: 30, max: 100 },
+                        { id: 'crit_orig', title: 'Özgünlük & Sentez Başarısı', weight: 30, max: 100 },
+                        { id: 'crit_method', title: 'Metodoloji & Argümantasyon', weight: 20, max: 100 },
+                      ].map((crit) => (
+                        <div key={crit.id} className="flex items-center justify-between gap-3 p-2 bg-white/[0.02] border border-white/5 rounded-lg text-xs">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-gray-200 block truncate">{crit.title}</span>
+                            <span className="text-[9px] text-gray-500 font-mono">Ağırlık: %{crit.weight}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={rubricScores[crit.id] ?? ''}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setRubricScores(prev => ({ ...prev, [crit.id]: isNaN(val) ? 0 : val }));
+                              }}
+                              placeholder="0-100"
+                              className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono text-center focus:outline-none focus:border-emerald-500/50"
+                            />
+                            <span className="text-[10px] text-gray-500 font-mono">/ 100</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {rubricCriteria.map((crit) => (
+                        <div key={crit.id} className="flex items-center justify-between gap-3 p-2 bg-white/[0.02] border border-white/5 rounded-lg text-xs">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-gray-200 block truncate">{crit.title}</span>
+                            <span className="text-[9px] text-gray-500 font-mono">Ağırlık: %{crit.weight}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <input
+                              type="number"
+                              min="0"
+                              max={crit.maxPoints || 100}
+                              value={rubricScores[crit.id] ?? ''}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setRubricScores(prev => ({ ...prev, [crit.id]: isNaN(val) ? 0 : val }));
+                              }}
+                              placeholder={`0-${crit.maxPoints || 100}`}
+                              className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono text-center focus:outline-none focus:border-emerald-500/50"
+                            />
+                            <span className="text-[10px] text-gray-500 font-mono">/ {crit.maxPoints || 100}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="sm:col-span-1">
@@ -803,6 +1032,24 @@ export function SubmissionReportView({
                 >
                   <Highlighter className="w-3.5 h-3.5" /> İşlenmiş Metin (Mozaik İntihal)
                 </button>
+
+                <button
+                  onClick={() => setViewTab('annotations')}
+                  className={cn(
+                    "px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 relative",
+                    viewTab === 'annotations'
+                      ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm"
+                      : "text-gray-400 hover:text-white"
+                  )}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-400" /> 
+                  <span>Satır İçi Notlar & QuickMarks</span>
+                  {annotations.length > 0 && (
+                    <span className="text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded-full border border-emerald-500/30">
+                      {annotations.length}
+                    </span>
+                  )}
+                </button>
               </div>
 
               {viewTab === 'sources' && (
@@ -868,6 +1115,157 @@ export function SubmissionReportView({
                       </mark>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 1.5: SATIR İÇİ NOTLAR & QUICKMARKS (Eğitmen Geri Bildirim Stüdyosu) */}
+            {viewTab === 'annotations' && (
+              <div className="space-y-4">
+                <div className="p-3.5 bg-emerald-500/[0.04] border border-emerald-500/15 rounded-2xl flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-white">Turnitin QuickMarks &amp; Metin İçi Notlandırma</p>
+                      <p className="text-[10px] text-gray-400">
+                        {canExclude
+                          ? 'Aşağıdaki metin üzerinde herhangi bir bölümü fare ile seçerek QuickMarks rozeti ekleyin veya özel geri bildirim yazın.'
+                          : 'Eğitmeninizin bu teslim için metin üzerine iliştirdiği notlar ve değerlendirmeler.'}
+                      </p>
+                    </div>
+                  </div>
+                  {savingAnnotations && (
+                    <span className="text-[10px] font-mono text-emerald-400 animate-pulse">Kaydediliyor...</span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Sol/Orta Alan: Metin İçi Seçim Alanı */}
+                  <div className="lg:col-span-2 space-y-3">
+                    <div className="flex items-center justify-between text-[11px] text-gray-500 font-mono">
+                      <span>Öğrenci Metni (Metni seçerek not ekleyin)</span>
+                      <span>{submission.text.length} karakter</span>
+                    </div>
+
+                    <div
+                      onMouseUp={handleTextMouseUp}
+                      className="p-5 bg-black/40 border border-white/5 rounded-2xl text-xs leading-relaxed text-gray-300 max-h-[460px] overflow-y-auto whitespace-pre-wrap font-serif select-text custom-scrollbar focus:outline-none"
+                    >
+                      {submission.text}
+                    </div>
+
+                    {/* Metin Seçildiğinde Açılan QuickMarks Barı */}
+                    {selectedRange && canExclude && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 bg-[#141b22] border border-emerald-500/30 rounded-2xl space-y-3 shadow-2xl"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
+                            <Tag className="w-3.5 h-3.5" /> Seçili Kısım: "{selectedRange.text.slice(0, 40)}..."
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRange(null)}
+                            className="text-gray-500 hover:text-white text-xs"
+                          >
+                            İptal
+                          </button>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+                            Hızlı QuickMarks Rozetleri:
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {QUICKMARKS_PRESETS.map((qm) => (
+                              <button
+                                key={qm.label}
+                                type="button"
+                                onClick={() => handleAddAnnotation(qm)}
+                                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 text-[10px] font-bold text-gray-300 hover:text-emerald-300 transition-all"
+                              >
+                                + {qm.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-white/5 flex gap-2">
+                          <input
+                            type="text"
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Özel satır içi yorumunuzu yazın..."
+                            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddAnnotation()}
+                            className="px-3.5 py-1.5 bg-emerald-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-all shrink-0"
+                          >
+                            Not Ekle
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Sağ Alan: Eklenen Notların Listesi */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-[11px] text-gray-500 font-mono">
+                      <span>Eklenen Notlar ({annotations.length})</span>
+                    </div>
+
+                    {annotations.length === 0 ? (
+                      <div className="py-12 border border-dashed border-white/10 rounded-2xl text-center px-4">
+                        <MessageSquare className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                        <p className="text-xs text-gray-400 font-bold">Henüz eklenmiş not yok.</p>
+                        <p className="text-[10px] text-gray-600 mt-1">
+                          {canExclude
+                            ? 'Metinden bir alan seçip QuickMarks ekleyebilirsiniz.'
+                            : 'Eğitmeniniz henüz satır içi not eklemedi.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5 max-h-[460px] overflow-y-auto custom-scrollbar pr-1">
+                        {annotations.map((ann, idx) => (
+                          <div
+                            key={ann.id || idx}
+                            className="p-3 bg-white/[0.03] border border-white/10 rounded-xl space-y-2 text-xs"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono text-[9px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                {ann.quickMarkLabel || 'Özel Not'}
+                              </span>
+                              {canExclude && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteAnnotation(ann.id)}
+                                  className="text-gray-500 hover:text-red-400 p-1 transition-colors"
+                                  title="Notu Sil"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+
+                            <p className="text-[11px] text-gray-400 italic bg-black/30 p-2 rounded-lg border-l-2 border-emerald-500">
+                              "{ann.selectedText}"
+                            </p>
+
+                            <p className="text-gray-200 text-xs">{ann.comment}</p>
+
+                            <div className="flex items-center justify-between text-[9px] text-gray-500 font-mono pt-1 border-t border-white/5">
+                              <span>{ann.createdBy}</span>
+                              <span>{fmtDateTime(ann.createdAt)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
