@@ -517,7 +517,7 @@ class ApiKeyManager {
 
   async resetAllKeys() {
     const snap = await getDocs(collection(db, 'apiKeys'));
-    for (const d of snap.docs) { await updateDoc(d.ref, { usageCount: 0, status: 'active', updatedAt: serverTimestamp() }); }
+    await Promise.all(snap.docs.map(d => updateDoc(d.ref, { usageCount: 0, status: 'active', updatedAt: serverTimestamp() })));
     this.geminiPool.forEach(p => { p.status = 'active'; p.usageCount = 0; });
     this.searchPool.forEach(p => { p.status = 'active'; p.usageCount = 0; });
     this.corePool.forEach(p => { p.status = 'active'; p.usageCount = 0; });
