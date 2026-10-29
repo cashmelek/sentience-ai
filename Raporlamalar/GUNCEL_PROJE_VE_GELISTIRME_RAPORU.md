@@ -456,18 +456,20 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   - **AI Kullanım Beyanı (Disclosure Statement):** Elsevier, Nature, COPE ve YÖK standartlarında 5 kategorili Yapay Zeka Katkı Matrisi, popüler araç seçimi ve resmi taahhütname onayı (`StudentSubmitView.tsx`).
   - **Uyuşmazlık Tespiti:** Beyan edilmeyen sentetik üretim ve filigran varlığında öğretmen paneli ve PDF raporunda kırmızı uyuşmazlık alarmı (`SubmissionReportView.tsx`, `AssignmentDetailView.tsx`, `submissionExport.ts`).
 
-### 1.13 Landing Page & Footer CMS Kalıcı Senkronizasyon Onarımı (25 Ekim 2026)
-- **Kök Neden Tespiti:** Firestore güvenlik kurallarında `settings/{settingId}` dökümanı `allow read: if request.auth != null;` şeklinde kapalıydı. Sayfa yenilendiğinde (F5) veya henüz giriş yapmamış ziyaretçilerde `PERMISSION_DENIED` hatası alınıyor ve `DEFAULT_LANDING_CONFIG`'e düşülüyordu. Ayrıca admin yazma kuralında platform yönetici e-postaları (`isPlatformAdminEmail()`) eksikti.
-- **Firestore Güvenlik Kuralı Ayırımı:** `firestore.rules` güncellenerek `match /settings/landingPage` için kamuya açık okuma (`allow read: if true;`) ve hem admin rolü hem de platform adminleri için yazma izni (`allow write: if isAdmin() || isPlatformAdminEmail();`) tanımlandı.
-- **Çift Kademeli Önbellek & Force Refresh (`landingCmsService.ts`):** `fetchConfig(forceRefresh)` desteği eklendi. Yapılan değişikliklerin anında `localStorage` (`sentience_landing_cms_cache`) üzerine de yazılması sağlandı.
-- **Canlı Olay Dinleme (`sentience_cms_updated`):** Yönetim panelinde "Kaydet" yapıldığında `window.dispatchEvent` ile `LandingPage.tsx` ve `Footer.tsx` bileşenlerinin sayfayı yenilemeye gerek kalmadan anlık güncellenmesi sağlandı.
-- **Üretim Dağıtımı:** Güncellenen kurallar ve derlenmiş dosyalar `https://sentience-ai-free-2026.web.app` adresine deploy edildi.
+### 4.7 Öncelik 7: Faz 3.5 & Harici Program Adli Bilişimi ve Word Add-in / Setup Mimarisi (Docx Forensics & Office Ecosystem Integration)
 
-### 1.14 Demo Yükleme Butonu Admin İzolasyonu ve Kök Yönetici Yetkilendirmesi (25 Ekim 2026)
-- **Demo Sıfırlama Butonu İzolasyonu:** `ProjectSidebar.tsx` ve `App.tsx` bileşenlerinde `onSeedDemoProjects` prop'u ve görünürlüğü yalnızca `isAdmin === true` şartına bağlandı; normal kullanıcıların kenar çubuğunda "Örnekleri Sıfırla & Yükle" butonunu görmesi tamamen engellendi.
-- **Firestore Kurallarında Kök Admin Fonksiyonu:** `firestore.rules` içerisindeki `isAdmin()` yardımcı fonksiyonu, `isPlatformAdminEmail()` e-postalarını doğrudan kapsayacak şekilde güncellendi. Böylece kullanıcı belgesindeki rol alanı gecikse bile adminler ayarlar, kullanıcılar, loglar ve modeller üzerinde kesintisiz yetkilendirildi.
-- **Sistem Ayarları Halka Açık Okuma:** `settings/{settingId}` için `allow read: if true;` tanımlanarak bakım modu (`maintenanceMode`), modeller ve genel parametrelerin giriş yapmamış ziyaretçiler dahil tüm sekmelerde hatasız okunması sağlandı.
-- **Canlı Dağıtım (Production):** Yapılan değişiklikler derlenip `https://sentience-ai-free-2026.web.app` adresine deploy edildi.
+Öğrencinin kişisel hesapla Sentience AI üzerinden metni insanlaştırıp Word/Google Docs gibi harici uygulamalara yapıştırması ve ardından Word dosyası olarak teslim etmesi senaryosuna karşı derinleştirilmiş adli bilişim ve masaüstü entegrasyonu:
+
+- **1. Word (.docx) Adli Bilişim Analizi (Docx Forensic Metadata):**
+  - `.docx` ZIP yapısındaki `docProps/app.xml` ve `docProps/core.xml` dosyalarından `TotalEditingTime` (toplam düzenleme süresi), `Revision` (revizyon sayısı) ve zaman damgalarının okunması.
+  - **WPM Hız Anomalisi:** $\frac{\text{Toplam Kelime}}{\text{Düzenleme Süresi}}$ hesabı yapılarak (örn. 2 dakikada 3.000 kelime = >1.000 WPM) Word içi doğrudan harici yapıştırmanın yakalanması.
+  - **Stil & Font Kalıntıları:** Web tarayıcısından kopyalanıp Word'e yapıştırılan metinlerdeki HTML stil kalıntıları (`Inter/system-ui` fontları, satır yükseklikleri).
+- **2. Pano Köken Damgası (Rich-Text Origin Token):**
+  - Sentience AI üzerinde "Kopyala" yapıldığında HTML pano katmanına Word'ün içine gömülecek kriptografik köken damgasının eklenmesi.
+- **3. Word Eklentisi & Sessiz Adli Mühür (C Seçeneği: Butonsuz Doğal Yükleme):**
+  - Word eklentisi öğrenciye görünür hiçbir buton veya metin manipülasyon aracı (İnsanlaştırma, StyleMaster, Sokratik öneri kapalı) sunmaz; tamamen sessiz bir adli mühürleyici olarak çalışır.
+  - Öğrenci ödevini Word'de yazıp normal şekilde kaydeder (`Ctrl+S`); web sitemize gelip `.docx` dosyasını sürükleyip bıraktığında, web ayrıştırıcısı dosya içindeki mühürlü adli telemetriyi otomatik çözer.
+  - Böylece platform trafiği, zengin QuickMarks/Heatmap deneyimi, resmi YÖK Beyan Matrisi ve SHA-256 dijital makbuz süreci %100 web üzerinde korunur.
 
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*
