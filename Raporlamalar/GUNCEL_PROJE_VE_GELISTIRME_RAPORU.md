@@ -243,6 +243,21 @@ Gelecekteki canlı sunumlar, testler ve pilot üniversite gösterimleri için ta
 - **Canlı Demo Entegrasyonu:** `classroomDemoService.ts` içindeki Mehmet Demir teslimi `%94` oranında iç sentetik havuz eşleşmesiyle tohumlanarak öğretmen senaryo sunumuna hazır hale getirildi.
 - **Güvenlik Kuralları & Testler:** `firestore.rules` güncellendi (`internalGeneratedVault` okuma/yazma kuralları). `internalGeneratorVault.test.ts` yazılarak toplam test sayısı 50'ye çıkarıldı (%100 başarı).
 
+### 1.32 Faz 3: Yapıştırma ve Yazım Hızı Telemetrisi (Authorship Provenance & Paste Telemetry) Dağıtımı (29 Ekim 2026)
+- **Veri Modeli ve Tipler (`src/types/classroom.ts`):** `WritingTelemetry` interface'i (`totalTypingTimeMs`, `pasteCount`, `pastedCharCount`, `typedCharCount`, `deleteCount`, `pasteRatio`, `processScore`, `authorshipStatus`, `legitimateQuotesCount`) ve `AuthorshipStatus` tipleri tanımlandı; `Submission.telemetry` alanına bağlandı.
+- **Telemetri ve Yazarlık Kanıt Motoru (`src/hooks/useWritingTelemetry.ts`):**
+  - Klavye vuruş dinamikleri, aktif yazma süresi, geri silme/düzeltme (backspace/delete) sayısı ve pano yapıştırma (paste) olayları anlık telemetriye kaydedildi.
+  - **Meşru Alıntı İstisnası (Academic Exemption):** Öğrencinin harici makaleden veya kaynaktan tırnak içinde (`"..."`), APA atıflı `(Yazar, Yıl)` veya <400 karakterlik meşru parça alıntıları tespit edilerek `legitimateQuotesCount` artırıldı; meşru alıntılar yapıştırma ceza puanından muaf tutuldu ve `mixed_with_citations` statüsü verildi.
+  - **Dosya Yükleme İstisnası (File Upload Exemption):** `.docx` / `.pdf` yükleme modunda yapıştırma cezası devre dışı bırakılarak `file_upload` statüsü ve %100 süreç puanı atandı.
+  - **Süreç Puanı Algoritması (`calculateProcessScore`):** 0-100 arası organik yazarlık güven puanı hesaplandı. %85 üzeri tek blok yapıştırma ve sıfır revizyon durumunda `unverified_bulk_paste` ve düşük süreç puanı tetiklendi.
+- **Öğrenci Teslim Arayüzü (`StudentSubmitView.tsx` & `classroomService.ts`):** Metin giriş alanı `handleKeyDown` ve `handlePaste` telemetri yakalayıcılarına bağlandı; `submitText` işleminde telemetri verisi `Submission` nesnesine mühürlendi.
+- **Öğretmen Değerlendirme & PDF Raporu (`SubmissionReportView.tsx`, `AssignmentDetailView.tsx`, `submissionExport.ts`):**
+  - Rapor ekranına "Yazım Süreci ve Telemetri (Provenance)" kartı eklendi; Süreç Puanı ilerleme çubuğu, yazma süresi, tuş vuruşu vs. yapıştırma oranı, silme/revizyon sayısı ve meşru alıntı göstergeleri yerleştirildi.
+  - Şüpheli blok yapıştırmalarda öğretmen arayüzünde turuncu uyarı rozeti görüntülendi.
+  - Resmi PDF teslim raporuna telemetri ve yazarlık kanıt tablosu entegre edildi.
+- **Canlı Demo Entegrasyonu (`classroomDemoService.ts`):** Ahmet Yılmaz için `verified_organic` (%94 Süreç Puanı, 47 dk yazım, 4.320 tuş vuruşu, 3 meşru alıntı); Mehmet Demir için `unverified_bulk_paste` (%24 Süreç Puanı, 1 dk yazım, %98 yapıştırma) verileri tohumlandı.
+- **Birim Test Kapsamı (`src/test/writingTelemetry.test.ts`):** 5 yeni birim testi yazılarak 7 test dosyasında toplam 55 test %100 başarıyla geçti. Derleme (`npm run build`) sıfır hata ile tamamlandı.
+
 ---
 
 ## 2. ÖNCEKİ OTURUMLARDA TAMAMLANAN GELİŞTİRMELER (EKİM 2026 ORTASI)
@@ -416,10 +431,11 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   - **Çapraz Teslim Denetimi:** Kurumsal (.edu.tr) hesapla sınıfa teslim edilen her ödevin, harici makalelerin yanı sıra bu iç sentetik havuzla taranması (`runSubmissionScoring`, `scoreSubmission`).
   - **Öğretmen Alarm Rozeti:** Eşleşme tespit edildiğinde raporda *"Sentetik Üretim İzi: Bu metin platformun İnsanlaştırma Motoru tarafından üretilmiş bir çıktıyla %90+ parmak izi eşleşmesi göstermektedir"* uyarısının verilmesi (`SubmissionReportView.tsx`, `AssignmentDetailView.tsx`, `submissionExport.ts`).
 
-- [ ] **Faz 3 (P3 - Yüksek): Yapıştırma ve Yazım Hızı Telemetrisi (Authorship Provenance & Paste Telemetry)**
-  - **Kapsam:** Editör bileşenine klavye vuruş ritmi (keystroke dynamics) ve blok yapıştırma (paste event) telemetrisinin eklenmesi.
-  - **Süreç Puanı (Process Score):** 3.000 kelimelik bir metin birkaç saniyede dışarıdan yapıştırılmışsa ve revizyon geçmişi sıfırsa "Doğrulanmamış Dış Yapıştırma (Unverified Paste)" bayrağının üretilmesi.
-  - **Revizyon Isı Haritası:** Öğretmenin teslim detayında öğrencinin taslak geçmişini, duraklama noktalarını ve kelime ekleme/silme aşamalarını inceleyebilmesi.
+- [x] **Faz 3 (P3 - Yüksek): Yapıştırma ve Yazım Hızı Telemetrisi (Authorship Provenance & Paste Telemetry)**
+  - **Kapsam:** Editör bileşenine klavye vuruş ritmi (keystroke dynamics) ve blok yapıştırma (paste event) telemetrisinin eklenmesi (`useWritingTelemetry.ts`).
+  - **Meşru Alıntı Muafiyeti:** Meşru alıntılar (`"..."`, APA atıflı) ve dosya yüklemelerinin yapıştırma ceza puanından muaf tutulması.
+  - **Süreç Puanı (Process Score):** 0-100 arası organik yazarlık güven puanı hesabı; %85+ dış blok yapıştırma durumunda "Doğrulanmamış Dış Yapıştırma (Unverified Paste)" alarmı üretilmesi.
+  - **Öğretmen Raporu & PDF:** Süreç puanı çubuğu, yazım/yapıştırma oranı, revizyon geçmişi kartı ve resmi PDF çıktısına telemetri tablosunun eklenmesi (`SubmissionReportView.tsx`, `submissionExport.ts`).
 
 - [ ] **Faz 4 (P4 - Orta): İstatistiksel Ritim Filigranı & Yapay Zeka Beyan Matrisi (Watermarking & AI Disclosure)**
   - **İstatistiksel Filigran:** İnsanlaştırma motorunun cümle dizilimlerinde bıraktığı özel n-gram ritim sapmasını Denetçi motorunun algılamasını sağlayan matematiksel imza mekanizması.

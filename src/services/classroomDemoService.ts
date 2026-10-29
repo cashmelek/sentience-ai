@@ -150,6 +150,17 @@ Araştırma karma yöntem (mixed-method) yaklaşımıyla tasarlanmış olup 120 
       isolationProtocol: 'Strict-Academic-Partitioning-v1'
     },
     academicIntegrityLocked: true,
+    telemetry: {
+      totalTypingTimeMs: 7200000,
+      pasteCount: 2,
+      pastedCharCount: 220,
+      typedCharCount: textAhmet.length - 220,
+      deleteCount: 142,
+      pasteRatio: 0.12,
+      processScore: 94,
+      authorshipStatus: 'verified_organic',
+      legitimateQuotesCount: 2
+    },
     createdAt: serverTimestamp(),
     scoredAt: serverTimestamp(),
     scoredBy: 'client'
@@ -187,6 +198,17 @@ Bu nedenle YÖK ve üniversite enstitüleri tarafından belirlenen %15 intihal t
       }
     ],
     draftCheckCount: 2,
+    telemetry: {
+      totalTypingTimeMs: 12000,
+      pasteCount: 1,
+      pastedCharCount: textMehmet.length,
+      typedCharCount: 0,
+      deleteCount: 0,
+      pasteRatio: 0.98,
+      processScore: 24,
+      authorshipStatus: 'unverified_bulk_paste',
+      legitimateQuotesCount: 0
+    },
     createdAt: serverTimestamp(),
     scoredAt: serverTimestamp(),
     scoredBy: 'client'

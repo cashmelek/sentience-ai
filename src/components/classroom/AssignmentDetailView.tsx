@@ -171,6 +171,11 @@ export function AssignmentDetailView({
                           ⚠️ Havuz İzi
                         </span>
                       )}
+                      {s.telemetry?.authorshipStatus === 'unverified_bulk_paste' && (
+                        <span className="block mt-0.5 text-[8px] font-bold text-amber-400">
+                          ⚠️ Dış Yapıştırma
+                        </span>
+                      )}
                     </div>
                     <div>
                       <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Not</span>
@@ -268,6 +273,11 @@ export function AssignmentDetailView({
                           {s.hasInternalGeneratorMatch && (
                             <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30" title="Sentetik Üretim İzi: Platform içi insanlaştırma havuzuyla eşleşti!">
                               HAVUZ İZİ
+                            </span>
+                          )}
+                          {s.telemetry?.authorshipStatus === 'unverified_bulk_paste' && (
+                            <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30" title="Doğrulanmamış Dış Yapıştırma: Metin tek seferde dışarıdan yapıştırılmış.">
+                              YAPIŞTIRMA
                             </span>
                           )}
                         </div>

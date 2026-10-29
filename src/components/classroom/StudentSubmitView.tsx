@@ -12,6 +12,7 @@ import {
 import { parseDocumentFile } from '../../services/fileParseService';
 import { fmtDate } from './format';
 import { SocraticCoachModal } from './SocraticCoachModal';
+import { useWritingTelemetry } from '../../hooks/useWritingTelemetry';
 
 interface StudentSubmitViewProps {
   cls: ClassRoom;
@@ -53,6 +54,7 @@ export function StudentSubmitView({
   );
   const [draftCount, setDraftCount] = useState<number>(existingSubmission?.draftCheckCount || 0);
   const [showSocraticCoach, setShowSocraticCoach] = useState(false);
+  const { handleKeyDown, handlePaste, getTelemetry } = useWritingTelemetry();
   const maxDrafts = assignment.maxDraftChecks ?? 2;
   const isDraftAllowed = assignment.allowDraftCheck !== false;
   const remainingDrafts = Math.max(0, maxDrafts - draftCount);
@@ -127,11 +129,13 @@ export function StudentSubmitView({
       if (mode === 'file' && file) {
         fileMeta = await uploadSubmissionFile(appUser.uid, cls.id, assignment.id, file);
       }
+      const telemetry = getTelemetry(text.trim().length, mode);
       const submission = await submitText(appUser, cls.id, assignment.id, {
         title,
         text: text.trim(),
         file: fileMeta,
-        noRepository: noRepositoryOverride
+        noRepository: noRepositoryOverride,
+        telemetry
       });
       setPhase('scoring');
       toast.success('Teslim alındı, skorlar hesaplanıyor...');
@@ -288,6 +292,8 @@ export function StudentSubmitView({
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             disabled={phase !== 'edit'}
             rows={14}
             placeholder={mode === 'file' ? 'Dosya seçildiğinde çıkarılan metin burada görünür; düzenleyebilirsiniz...' : 'Ödev metninizi buraya yapıştırın...'}

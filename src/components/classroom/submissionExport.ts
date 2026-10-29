@@ -217,6 +217,36 @@ export function exportSubmissionReportPDF(cls: ClassRoom, assignment: Assignment
       </div>
       ` : ''}
 
+      ${submission.telemetry ? `
+      <div class="section" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin: 20px 0;">
+        <h2 style="margin-top: 0; font-size: 13px; text-transform: uppercase; color: #1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px;">
+          Yazım Süreci ve Biyometrik Telemetri (Authorship Provenance)
+        </h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px;">
+          <tr>
+            <td style="width: 220px; font-weight: bold;">Yazım Durumu</td>
+            <td><strong>${submission.telemetry.authorshipStatus === 'unverified_bulk_paste' ? '⚠️ Doğrulanmamış Dış Yapıştırma (Toplu Kopyalama)' : submission.telemetry.authorshipStatus === 'mixed_with_citations' ? 'ℹ️ Meşru Alıntılı Karma Yazım' : submission.telemetry.authorshipStatus === 'file_upload' ? '📄 Dosya Yüklemesi' : '✓ Doğrulanmış Organik İnsan Yazımı'}</strong></td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Süreç Puanı (Process Score)</td>
+            <td><strong>%${submission.telemetry.processScore} / 100</strong></td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Aktif Yazım Süresi</td>
+            <td>${Math.max(1, Math.round(submission.telemetry.totalTypingTimeMs / 60000))} dakika</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Klavye / Yapıştırma Dağılımı</td>
+            <td>%${Math.round((1 - submission.telemetry.pasteRatio) * 100)} Tuşla Yazım · %${Math.round(submission.telemetry.pasteRatio * 100)} Yapıştırma (${submission.telemetry.pasteCount} blok)</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Geri Silme & Revizyon</td>
+            <td>${submission.telemetry.deleteCount} düzeltme hareketi</td>
+          </tr>
+        </table>
+      </div>
+      ` : ''}
+
       ${receiptHtml}
 
       ${sourcesHtml}

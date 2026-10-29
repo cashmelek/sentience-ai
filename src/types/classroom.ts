@@ -82,6 +82,20 @@ export interface SubmissionScores {
   internalGeneratorSimilarity?: number;
 }
 
+export type AuthorshipStatus = 'verified_organic' | 'mixed_with_citations' | 'unverified_bulk_paste' | 'file_upload';
+
+export interface WritingTelemetry {
+  totalTypingTimeMs: number;
+  pasteCount: number;
+  pastedCharCount: number;
+  typedCharCount: number;
+  deleteCount: number;
+  pasteRatio: number; // 0..1
+  processScore: number; // 0..100
+  authorshipStatus: AuthorshipStatus;
+  legitimateQuotesCount?: number;
+}
+
 export interface SubmissionAnnotation {
   id: string;
   startOffset: number;
@@ -132,6 +146,7 @@ export interface Submission {
   academicIntegrityLocked?: boolean;
   hasInternalGeneratorMatch?: boolean;
   internalGeneratorSimilarity?: number;
+  telemetry?: WritingTelemetry;
   // Ön teslim taslak sayacı
   draftCheckCount?: number;
   lastDraftScores?: {

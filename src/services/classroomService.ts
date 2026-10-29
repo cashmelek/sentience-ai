@@ -483,7 +483,13 @@ export async function submitText(
   student: AppUser,
   classId: string,
   assignmentId: string,
-  payload: { title: string; text: string; file?: { fileName: string; storagePath: string }; noRepository?: boolean }
+  payload: {
+    title: string;
+    text: string;
+    file?: { fileName: string; storagePath: string };
+    noRepository?: boolean;
+    telemetry?: any;
+  }
 ): Promise<Submission> {
   const title = payload.title.trim();
   const text = payload.text.trim();
@@ -536,7 +542,8 @@ export async function submitText(
     createdAt: serverTimestamp(),
     isLate,
     ...(isLate && typeof lateDurationMinutes === 'number' ? { lateDurationMinutes } : {}),
-    ...(payload.file ? { fileName: payload.file.fileName, storagePath: payload.file.storagePath } : {})
+    ...(payload.file ? { fileName: payload.file.fileName, storagePath: payload.file.storagePath } : {}),
+    ...(payload.telemetry ? { telemetry: payload.telemetry } : {})
   };
   await setDoc(submissionRef(classId, assignmentId, student.uid), data);
 
