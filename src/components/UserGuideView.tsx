@@ -89,6 +89,16 @@ const ACADEMIC_TEMPLATES: DownloadableTemplate[] = [
     badge: 'Resmi Başvuru Dilekçesi',
     description: 'Hatalı YZ tespiti (yanlış pozitif) durumlarında fakülte veya enstitüye sunulmak üzere hazırlanmış, versiyon geçmişi ve kanıt odaklı itiraz dilekçesi.',
     action: downloadAiAppealPetitionDocx
+  },
+  {
+    id: 'word-addin-setup',
+    title: 'Sentience Word Eklentisi Kurulum Paketi (Windows .exe)',
+    format: 'docx',
+    badge: 'Masaüstü Eklenti',
+    description: 'Microsoft Word (2016/2019/2021/365) için tek tıkla çalışan SentienceWordSetup.exe, manifest ve otomatik Office kayıt defteri kurulum paketi.',
+    action: () => {
+      window.open('/downloads/SentienceWordSetup.zip', '_blank');
+    }
   }
 ];
 

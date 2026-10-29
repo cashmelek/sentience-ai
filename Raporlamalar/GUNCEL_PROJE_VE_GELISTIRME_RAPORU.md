@@ -588,6 +588,18 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   - `src/test/clipboardOriginService.test.ts` eklendi; vitest suite 12 test dosyasında 73/73 test başarıyla geçti.
   - `npm run build` tamamlandı ve Firebase Hosting'e deploy edildi.
 
+### 1.41 Windows Masaüstü Word Setup Paketi (.exe & InnoSetup) ve İndirme Merkezi Dağıtımı (30 Ekim 2026)
+- **Masaüstü Kurulum Yöneticisi (`installer/SentienceWordSetup.exe`):**
+  - Windows yerel C# derleyicisi ile harici bağımlılık olmadan modern GUI sihirbazı (`SentienceWordSetup.exe`) derlendi.
+  - Microsoft Word (Office 2016/2019/2021/365) ortamını otomatik algılayarak manifestoyu yerel Wef dizinine kopyalar ve Windows Kayıt Defterinde (`HKCU\Software\Microsoft\Office\16.0\WEF\TrustedCatalogs`) Sentience AI güvenilen kataloğunu otomatik tescil eder.
+  - Tek tıkla "Eklentiyi Kur", "Eklentiyi Kaldır" ve sessiz mod (`/silent`, `/quiet`) yetenekleri entegre edildi.
+- **Inno Setup Scripti (`installer/SentienceWordSetup.iss`):**
+  - Standart kurumsal Windows kurulumları için Inno Setup scripti hazırlandı.
+- **İndirme Merkezi Entegrasyonu:**
+  - `public/downloads/SentienceWordSetup.zip` arşivi hazırlandı ve `UserGuideView.tsx` İndirilebilir Akademik Şablonlar listesine eklendi.
+- **Test ve Canlı Dağıtım:**
+  - 12 test dosyasında 73/73 test başarıyla geçti, `npm run build` tamamlandı ve Firebase Hosting'e deploy edildi.
+
 ### 5. AKTİF YAPILACAKLAR LİSTESİ VE ÖNCELİKLENDİRİLMİŞ ÇALIŞMA PLANI
 
 Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve idari yönetim gereksinimleri gözetilerek **Kritik (P1) -> Yüksek (P2) -> Orta (P3)** şeklinde önceliklendirilmiştir:
@@ -616,9 +628,10 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
   - Word'e veya Google Docs'a yapıştırılıp tekrar `.docx` yüklendiğinde `docxForensicService.ts` tarafından bu damganın çözülerek "Platform İçi Sentetik Üretim" olarak işaretlenmesi.
 
 ### 4. SIRA (ÖNCELİK 4 - P3 | Dağıtım & Paketleme): Windows Masaüstü Word Setup Paketi (.exe)
-- [ ] **Word Masaüstü Kurulum Paketi:**
-  - InnoSetup betiği (`installer/SentienceWordSetup.iss`) ile tek tıkla `.exe` installer hazırlanması.
-  - Windows kayıt defterinde (`HKCU\Software\Microsoft\Office\16.0\WEF\TrustedCatalogs`) Word için güvenilen eklenti kataloğu otomatik kaydı ve masaüstü kısayolu oluşturulması.
+- [x] **Word Masaüstü Kurulum Paketi:**
+  - Bağımsız yerel GUI sihirbazı (`installer/SentienceWordSetup.exe`) ve InnoSetup scripti (`installer/SentienceWordSetup.iss`) hazırlandı.
+  - Windows kayıt defterinde (`HKCU\Software\Microsoft\Office\16.0\WEF\TrustedCatalogs`) Word için güvenilen eklenti kataloğu otomatik kaydı ve kaldırma yeteneği sağlandı.
+  - İndirilebilir kurulum arşivi (`public/downloads/SentienceWordSetup.zip`) Rehber İndirme Merkezine bağlandı.
 
 ### 5. SIRA (ÖNCELİK 5 - Backlog | Bulut & Altyapı): İleri Düzey Genişletmeler
 - [ ] **Cloud Vector Search (Vertex AI):** Milyonluk kurumsal makale havuzu için istemci içi Transformers.js yerine Vertex AI Vector Search bulut entegrasyonu.
