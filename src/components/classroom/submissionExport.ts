@@ -128,6 +128,23 @@ export function exportSubmissionReportPDF(cls: ClassRoom, assignment: Assignment
         </div>
       </div>
 
+      <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(37, 99, 235, 0.08)); border: 1.5px solid #10b981; border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="background: #10b981; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold;">✓</div>
+          <div>
+            <div style="font-size: 10pt; font-weight: 800; color: #065f46; letter-spacing: -0.2px;">
+              SENTIENCE AKADEMİK BÜTÜNLÜK MODUNDA (İNSANLAŞTIRMA KİLİTLİ) TARANMIŞTIR
+            </div>
+            <div style="font-size: 8pt; color: #047857; margin-top: 1px;">
+              Strict Academic Partitioning Protocol — Bu ödev tesliminde platform içi yapay zeka insanlaştırma ve stil manipülasyonu araçları kilitlenmiştir.
+            </div>
+          </div>
+        </div>
+        <div style="border: 1px dashed #10b981; background: #fff; padding: 3px 8px; border-radius: 6px; font-size: 7.5pt; font-weight: 800; color: #065f46; text-transform: uppercase;">
+          AKADEMİK İZOLASYON
+        </div>
+      </div>
+
       <div class="section">
         <h2>Teslim Bilgileri</h2>
         <table>
@@ -442,6 +459,23 @@ export function exportDigitalReceiptPDF(cls: ClassRoom, assignment: Assignment, 
           </div>
           <div style="font-size: 9pt; text-align: right; color: #0369a1; font-weight: 700;">
             Turnitin Standardı Uyumlu
+          </div>
+        </div>
+
+        <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(2, 132, 199, 0.08)); border: 1.5px solid #10b981; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: #10b981; color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; flex-shrink: 0;">✓</div>
+            <div>
+              <div style="font-size: 10.5pt; font-weight: 800; color: #065f46; letter-spacing: -0.2px;">
+                SENTIENCE AKADEMİK BÜTÜNLÜK MODUNDA (İNSANLAŞTIRMA KİLİTLİ) TARANMIŞTIR
+              </div>
+              <div style="font-size: 8.5pt; color: #047857; margin-top: 2px;">
+                Strict Academic Integrity Protocol — Bu ödev teslim sürecinde sentetik YZ insanlaştırma ve stil manipülasyonu motorları kilitlenmiştir.
+              </div>
+            </div>
+          </div>
+          <div style="border: 1px dashed #10b981; background: #fff; padding: 4px 10px; border-radius: 6px; font-size: 7.5pt; font-weight: 800; color: #065f46; text-transform: uppercase; white-space: nowrap;">
+            AKADEMİK İZOLASYON
           </div>
         </div>
 

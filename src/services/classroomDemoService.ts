@@ -145,8 +145,11 @@ Araştırma karma yöntem (mixed-method) yaklaşımıyla tasarlanmış olup 120 
     digitalReceipt: {
       sha256: 'a7c93e4f8b2d1c5e6a9f0b3d5e7c1a2f4b6d8e0c2a4f6b8d0e2c4a6f8b0d2e4c',
       submittedAt: new Date().toISOString(),
-      textLength: textAhmet.length
+      textLength: textAhmet.length,
+      academicIntegrityLocked: true,
+      isolationProtocol: 'Strict-Academic-Partitioning-v1'
     },
+    academicIntegrityLocked: true,
     createdAt: serverTimestamp(),
     scoredAt: serverTimestamp(),
     scoredBy: 'client'
@@ -169,6 +172,7 @@ Bu nedenle YÖK ve üniversite enstitüleri tarafından belirlenen %15 intihal t
     status: 'scored',
     similarityScore: 42,
     aiScore: 35,
+    academicIntegrityLocked: true,
     draftCheckCount: 2,
     createdAt: serverTimestamp(),
     scoredAt: serverTimestamp(),

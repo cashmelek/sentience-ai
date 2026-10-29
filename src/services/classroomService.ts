@@ -516,7 +516,9 @@ export async function submitText(
   const receipt: DigitalReceipt = {
     sha256: await sha256Hex(text),
     submittedAt: new Date().toISOString(),
-    textLength: text.length
+    textLength: text.length,
+    academicIntegrityLocked: true,
+    isolationProtocol: 'Strict-Academic-Partitioning-v1'
   };
 
   const data = {
@@ -528,6 +530,7 @@ export async function submitText(
     status: 'received',
     excludedSourceUrls: [],
     digitalReceipt: receipt,
+    academicIntegrityLocked: true,
     noRepository: Boolean(payload.noRepository || (asgSnap.exists() && (asgSnap.data() as any)?.noRepository)),
     createdAt: serverTimestamp(),
     isLate,

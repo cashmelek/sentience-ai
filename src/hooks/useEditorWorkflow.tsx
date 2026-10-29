@@ -59,6 +59,7 @@ interface EditorWorkflowDeps {
   setIsSidebarOpen: Dispatch<SetStateAction<boolean>>;
   setActiveTab: Dispatch<SetStateAction<MainTab>>;
   fetchProjects: (limitCount?: number) => Promise<void>;
+  isAcademicIntegrityLocked?: boolean;
 }
 
 export function useEditorWorkflow(deps: EditorWorkflowDeps) {
@@ -91,7 +92,8 @@ export function useEditorWorkflow(deps: EditorWorkflowDeps) {
     setMobileTab,
     setIsSidebarOpen,
     setActiveTab,
-    fetchProjects
+    fetchProjects,
+    isAcademicIntegrityLocked
   } = deps;
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -119,6 +121,11 @@ export function useEditorWorkflow(deps: EditorWorkflowDeps) {
   }, [inputText, activeTab, localAuditorSensitivity, systemSettings.auditorModel]);
 
   const handleHumanize = async () => {
+    if (isAcademicIntegrityLocked) {
+      toast.error("🔒 Akademik Dürüstlük Koruması: Bu alanda sentetik metin insanlaştırma araçları kapalıdır. Yalnızca Denetçi ve Sentinel kullanılabilir.");
+      return;
+    }
+
     if (!inputText.trim() || !user || !appUser) {
       toast.error("Lütfen bir metin girin.");
       return;

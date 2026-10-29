@@ -230,6 +230,12 @@ Gelecekteki canlı sunumlar, testler ve pilot üniversite gösterimleri için ta
 - **Depo & Dal:** `https://github.com/cashmelek/sentience-ai.git` (`origin/main`)
 - **İçerik:** Turnitin QuickMarks, Rubrik Matrisi, Eş-Düzey (Peer) Kopya Matrisi, Toplu Doküman Yükleme (Batch Submit), Karekodlu SHA-256 Dijital Makbuz, Tip Güvenli Kılavuz Şeması ve Canlı Demo Tohumlayıcı bileşenlerinin tamamı başarıyla GitHub ana dalına aktarıldı.
 
+### 1.30 Faz 1: Sınıf ve Akademik Teslim İzolasyonu & Sokratik Koç Dağıtımı (29 Ekim 2026)
+- **Akademik Bütünlük Modu & İnsanlaştırma Kilidi:** `StyleMasterHeader.tsx`, `useEditorWorkflow.tsx` ve `App.tsx` bileşenlerinde `isAcademicIntegrityLocked` kuralı bağlandı. Öğrenci kurumsal (.edu.tr) oturum açtığında veya "Sınıflarım" ödev teslimindeyken "İnsanlaştır" ve "StyleMaster" ton kontrolü kilitlendi, kilit simgesi ve *"Akademik Dürüstlük Koruması: Bu alanda sentetik metin insanlaştırma araçları kapalıdır. Yalnızca Denetçi ve Sentinel kullanılabilir"* koruması getirildi.
+- **Pedagojik Mod (Socratic Academic Coach):** `socraticCoachService.ts` ve `SocraticCoachModal.tsx` geliştirildi. Öğrencinin yerine metin üretmeyen, doğrudan atıf hazırlığı, akademik tarafsızlık (hedging) ve metodolojik kurgu üzerine Sokratik sorular soran pedagojik danışman bağlandı.
+- **Resmi Sertifikasyon ve Dijital Makbuz:** `submissionExport.ts` içerisindeki `exportDigitalReceiptPDF` ve `exportSubmissionReportPDF` fonksiyonlarına *"SENTIENCE AKADEMİK BÜTÜNLÜK MODUNDA (İNSANLAŞTIRMA KİLİTLİ) TARANMIŞTIR"* resmi kaşesi ve güvenlik damgası eklendi.
+- **Test ve Tip Doğrulaması:** `src/test/academicIntegrityIsolation.test.ts` eklenerek toplam test sayısı 46'ya çıkarıldı (%100 başarı). `tsc --noEmit` ve `npm run build` ile sıfır hatayla derlendi.
+
 ---
 
 ## 2. ÖNCEKİ OTURUMLARDA TAMAMLANAN GELİŞTİRMELER (EKİM 2026 ORTASI)
@@ -393,10 +399,10 @@ Geçmiş raporlar ve yol haritaları incelendiğinde henüz uygulanmamış veya 
 
 Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındaki çıkar çatışmasını (öğrencinin kişisel Gmail hesabıyla metni insanlaştırıp kurumsal .edu.tr hesabıyla teslim etmesi açığını) kesin olarak önleyecek 4 aşamalı kurumsal çalışma planı:
 
-- [ ] **Faz 1 (P1 - Kritik & Acil): Sınıf ve Akademik Teslim İzolasyonu (Strict Academic Partitioning)**
+- [x] **Faz 1 (P1 - Kritik & Acil): Sınıf ve Akademik Teslim İzolasyonu (Strict Academic Partitioning)**
   - **Kapsam:** "Sınıflarım" modülüne bağlı veya kurumsal ödev teslimi yapan öğrencilerin çalışma alanında "İnsanlaştır" ve "StyleMaster" motorlarının kilitlenmesi ("Akademik Dürüstlük Koruması: Bu alanda sentetik metin insanlaştırma araçları kapalıdır").
-  - **Pedagojik Mod:** İnsanlaştırma yerine yalnızca akademik dilbilgisi, ifade açıklığı ve atıf formatı öneren "Socratic Academic Coach" kılavuzluğunun sunulması.
-  - **Resmi Sertifikasyon:** Üretilen SHA-256 karekodlu dijital makbuza *"Sentience Akademik Bütünlük Modunda (İnsanlaştırma Kilitli) Taranmıştır"* ibaresinin eklenmesi.
+  - **Pedagojik Mod:** İnsanlaştırma yerine yalnızca akademik dilbilgisi, ifade açıklığı ve atıf formatı öneren "Socratic Academic Coach" kılavuzluğunun sunulması (`socraticCoachService.ts`, `SocraticCoachModal.tsx`).
+  - **Resmi Sertifikasyon:** Üretilen SHA-256 karekodlu dijital makbuza ve PDF teslim raporuna *"Sentience Akademik Bütünlük Modunda (İnsanlaştırma Kilitli) Taranmıştır"* resmi kaşe ve damgasının eklenmesi.
 
 - [ ] **Faz 2 (P2 - Yüksek): Platform İçi Sentetik Üretim Parmak İzi Havuzu (Internal Generator Vault)**
   - **Kapsam:** Platform üzerinde ister kişisel (Gmail), ister anonim bir hesapla "İnsanlaştır" veya "StyleMaster" çalıştırılsın; üretilen tüm çıktıların gizlilik-dostu (Privacy-Preserving / Zero-Knowledge) 4-gram MinHash/Shingle parmak izinin `internalGeneratedVault` koleksiyonuna kaydedilmesi.

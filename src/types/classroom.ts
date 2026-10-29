@@ -68,6 +68,8 @@ export interface DigitalReceipt {
   sha256: string;
   submittedAt: string;
   textLength: number;
+  academicIntegrityLocked?: boolean;
+  isolationProtocol?: string;
 }
 
 export interface SubmissionScores {
@@ -125,6 +127,7 @@ export interface Submission {
   isLate?: boolean;
   lateDurationMinutes?: number;
   noRepository?: boolean;
+  academicIntegrityLocked?: boolean;
   // Ön teslim taslak sayacı
   draftCheckCount?: number;
   lastDraftScores?: {

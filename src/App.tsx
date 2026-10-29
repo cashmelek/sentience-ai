@@ -95,6 +95,28 @@ export default function App() {
   const [showExportPreviewModal, setShowExportPreviewModal] = useState(false);
   const [isToneDropdownOpen, setIsToneDropdownOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAcademicIntegrityLocked, setIsAcademicIntegrityLocked] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('sentience_academic_integrity_lock');
+      if (stored !== null) return stored === 'true';
+    }
+    return false;
+  });
+
+  const toggleAcademicIntegrity = () => {
+    setIsAcademicIntegrityLocked(prev => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sentience_academic_integrity_lock', String(next));
+      }
+      if (next) {
+        toast.success("🛡️ Akademik Bütünlük Modu devrede: İnsanlaştırma kilitlendi.");
+      } else {
+        toast("Akademik Bütünlük Modu kapatıldı.", { icon: 'ℹ️' });
+      }
+      return next;
+    });
+  };
 
   // Mobil Sidebar Scroll Kilidi
   useEffect(() => {
@@ -134,6 +156,15 @@ export default function App() {
   const { appUser, setAppUser, isAdmin } = useAppUser(user);
   const { systemSettings, localAuditorSensitivity, handleSensitivityChange } = useSystemSettings(!!isAdmin);
   const { projects, fetchProjects, projectsLimit, setProjectsLimit, hasMoreProjects } = useProjects(user);
+
+  useEffect(() => {
+    if (user?.email && (user.email.includes('.edu') || appUser?.academicProfile === 'student')) {
+      const stored = localStorage.getItem('sentience_academic_integrity_lock');
+      if (stored === null) {
+        setIsAcademicIntegrityLocked(true);
+      }
+    }
+  }, [user?.email, appUser?.academicProfile]);
 
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -215,7 +246,8 @@ export default function App() {
     setMobileTab,
     setIsSidebarOpen,
     setActiveTab,
-    fetchProjects
+    fetchProjects,
+    isAcademicIntegrityLocked: isAcademicIntegrityLocked || activeTab === 'classroom'
   });
 
   const exportCtx = { humanizedText, options, auditorResult, analysis, mlAnalysis };
@@ -471,6 +503,8 @@ export default function App() {
               isAdmin={!!isAdmin}
               isOverLimit={isOverLimit}
               userPlan={appUser?.plan}
+              isAcademicIntegrityLocked={isAcademicIntegrityLocked || activeTab === 'classroom'}
+              onToggleAcademicIntegrity={toggleAcademicIntegrity}
             />
 
             {/* Mobile Navigation Tabs (Segmented Switcher) */}

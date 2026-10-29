@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, FileText, FileUp, Loader2, ShieldCheck, UploadCloud, X, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, FileText, FileUp, Loader2, ShieldCheck, UploadCloud, X, Sparkles, CheckCircle2, Lock, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppUser } from '../../types';
 import type { ClassRoom, Assignment, Submission } from '../../types/classroom';
@@ -11,6 +11,7 @@ import {
 } from '../../services/classroomService';
 import { parseDocumentFile } from '../../services/fileParseService';
 import { fmtDate } from './format';
+import { SocraticCoachModal } from './SocraticCoachModal';
 
 interface StudentSubmitViewProps {
   cls: ClassRoom;
@@ -51,6 +52,7 @@ export function StudentSubmitView({
     } : null
   );
   const [draftCount, setDraftCount] = useState<number>(existingSubmission?.draftCheckCount || 0);
+  const [showSocraticCoach, setShowSocraticCoach] = useState(false);
   const maxDrafts = assignment.maxDraftChecks ?? 2;
   const isDraftAllowed = assignment.allowDraftCheck !== false;
   const remainingDrafts = Math.max(0, maxDrafts - draftCount);
@@ -163,6 +165,32 @@ export function StudentSubmitView({
           <h3 className="text-xl font-black text-white uppercase tracking-tight truncate">{assignment.title}</h3>
           <p className="text-xs text-gray-500">Son teslim: <span className="text-amber-500 font-bold">{fmtDate(assignment.dueDate)}</span></p>
         </div>
+      </div>
+
+      {/* Sıkı Akademik İzolasyon & Sokratik Koç Bandı */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-emerald-500/[0.08] border border-emerald-500/25 rounded-2xl shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+            <Lock className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black text-white uppercase tracking-tight">Akademik Bütünlük Modu Aktif</span>
+              <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20 uppercase tracking-widest">Kilitli</span>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              Bu teslimat alanında sentetik insanlaştırma araçları kapalıdır. Metin kaliteniz için Sokratik danışmanlığı kullanabilirsiniz.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowSocraticCoach(true)}
+          disabled={text.trim().length < 30}
+          className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-40 shadow-sm"
+        >
+          <BookOpen className="w-3.5 h-3.5" /> Sokratik Koç
+        </button>
       </div>
 
       <div className="flex items-center justify-between gap-3 p-4 bg-blue-500/[0.06] border border-blue-500/10 rounded-2xl">
@@ -360,6 +388,12 @@ export function StudentSubmitView({
           </motion.p>
         )}
       </div>
+
+      <SocraticCoachModal
+        isOpen={showSocraticCoach}
+        onClose={() => setShowSocraticCoach(false)}
+        text={text}
+      />
     </div>
   );
 }
