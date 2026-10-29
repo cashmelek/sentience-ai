@@ -176,6 +176,16 @@ export function AssignmentDetailView({
                           ⚠️ Dış Yapıştırma
                         </span>
                       )}
+                      {s.hasDisclosureDiscrepancy && (
+                        <span className="block mt-0.5 text-[8px] font-bold text-red-400">
+                          ⚠️ Beyan Uyuşmazlığı
+                        </span>
+                      )}
+                      {s.hasWatermarkSignature && (
+                        <span className="block mt-0.5 text-[8px] font-bold text-purple-400">
+                          ⚠️ YZ Filigranı
+                        </span>
+                      )}
                     </div>
                     <div>
                       <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Not</span>
@@ -278,6 +288,16 @@ export function AssignmentDetailView({
                           {s.telemetry?.authorshipStatus === 'unverified_bulk_paste' && (
                             <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30" title="Doğrulanmamış Dış Yapıştırma: Metin tek seferde dışarıdan yapıştırılmış.">
                               YAPIŞTIRMA
+                            </span>
+                          )}
+                          {s.hasDisclosureDiscrepancy && (
+                            <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30" title="Beyan Uyuşmazlığı: Beyan edilmeyen yapay zeka tespit edildi!">
+                              BEYAN UYUŞMAZLIĞI
+                            </span>
+                          )}
+                          {s.hasWatermarkSignature && (
+                            <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-purple-500/20 text-purple-300 border border-purple-500/30" title="İstatistiksel YZ Ritim Filigranı saptandı!">
+                              FİLİGRAN
                             </span>
                           )}
                         </div>

@@ -1,9 +1,9 @@
 import { useMemo, useState, type ChangeEvent } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, FileText, FileUp, Loader2, ShieldCheck, UploadCloud, X, Sparkles, CheckCircle2, Lock, BookOpen } from 'lucide-react';
+import { ArrowLeft, FileText, FileUp, Loader2, ShieldCheck, UploadCloud, X, Sparkles, CheckCircle2, Lock, BookOpen, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppUser } from '../../types';
-import type { ClassRoom, Assignment, Submission } from '../../types/classroom';
+import type { ClassRoom, Assignment, Submission, AIDisclosureMatrix, AIDisclosureLevel } from '../../types/classroom';
 import { SUBMISSION_LIMITS } from '../../types/classroom';
 import {
   submitText, scoreSubmission, markSubmissionFailed,
@@ -54,6 +54,18 @@ export function StudentSubmitView({
   );
   const [draftCount, setDraftCount] = useState<number>(existingSubmission?.draftCheckCount || 0);
   const [showSocraticCoach, setShowSocraticCoach] = useState(false);
+  const [showDisclosureDetails, setShowDisclosureDetails] = useState(false);
+  const [aiDisclosure, setAiDisclosure] = useState<AIDisclosureMatrix>({
+    literatureSearch: { level: 'none' },
+    proofreading: { level: 'none' },
+    ideation: { level: 'none' },
+    dataAnalysis: { level: 'none' },
+    textDrafting: { level: 'none' },
+    toolsUsed: [],
+    statementText: '',
+    isCertified: true,
+    certifiedAt: new Date().toISOString()
+  });
   const { handleKeyDown, handlePaste, getTelemetry } = useWritingTelemetry();
   const maxDrafts = assignment.maxDraftChecks ?? 2;
   const isDraftAllowed = assignment.allowDraftCheck !== false;
@@ -135,14 +147,15 @@ export function StudentSubmitView({
         text: text.trim(),
         file: fileMeta,
         noRepository: noRepositoryOverride,
-        telemetry
+        telemetry,
+        aiDisclosure
       });
       setPhase('scoring');
       toast.success('Teslim alındı, skorlar hesaplanıyor...');
       try {
         // B21 Faz 2: skor sunucuda hesaplanır (scoreSubmission CF); CF yoksa istemci yedeği devreye girer
         const scores = await scoreSubmission(
-          { text: text.trim(), ...scoringConfig },
+          { text: text.trim(), ...scoringConfig, aiDisclosure },
           { classId: cls.id, assignmentId: assignment.id, studentId: appUser.uid }
         );
         onDone({ ...submission, ...scores, status: 'scored' });
@@ -355,6 +368,121 @@ export function StudentSubmitView({
             )}
           </div>
         )}
+
+        <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-4">
+          <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowDisclosureDetails(!showDisclosureDetails)}>
+            <div className="space-y-0.5">
+              <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>Yapay Zeka Kullanım ve Katkı Beyanı (YÖK & COPE Standardı)</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
+                  {aiDisclosure.toolsUsed.length > 0 ? `${aiDisclosure.toolsUsed.length} Araç Beyanlı` : 'Sıfır YZ Beyanı'}
+                </span>
+              </div>
+              <p className="text-[10px] text-gray-500">
+                Akademik dürüstlük gereğince araştırmanızda yararlandığınız üretken YZ araçlarını ve kullanım kapsamını şeffafça belirtin.
+              </p>
+            </div>
+            <button type="button" className="p-1 text-gray-400 hover:text-white">
+              {showDisclosureDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {showDisclosureDetails && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-4 pt-3 border-t border-white/5">
+              <div className="grid grid-cols-1 gap-2.5">
+                {[
+                  { key: 'literatureSearch' as const, label: '1. Literatür & Kaynak Taraması', desc: 'Arama, makale özetleme ve kaynak tespiti' },
+                  { key: 'proofreading' as const, label: '2. Dilbilgisi, İmla & İfade Düzeltisi', desc: 'Yazım denetimi, akıcılık ve gramer iyileştirmesi' },
+                  { key: 'ideation' as const, label: '3. Fikir Geliştirme & Beyin Fırtınası', desc: 'Araştırma hipotezi ve başlık önerileri' },
+                  { key: 'dataAnalysis' as const, label: '4. Veri Analizi & Kodlama', desc: 'Hesaplamalar, grafik ve istatistiksel kodlar' },
+                  { key: 'textDrafting' as const, label: '5. Metin & Taslak Paragraf Yazımı', desc: 'Doğrudan cümle/paragraf üretimi veya sentetik içerik' },
+                ].map(cat => {
+                  const currentLevel = aiDisclosure[cat.key].level;
+                  return (
+                    <div key={cat.key} className="p-2.5 bg-black/30 border border-white/5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <span className="text-[11px] font-semibold text-gray-200 block">{cat.label}</span>
+                        <span className="text-[9px] text-gray-500 block">{cat.desc}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {(['none', 'assisted', 'generated'] as AIDisclosureLevel[]).map(lvl => (
+                          <button
+                            key={lvl}
+                            type="button"
+                            onClick={() => setAiDisclosure(prev => ({ ...prev, [cat.key]: { ...prev[cat.key], level: lvl } }))}
+                            className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${
+                              currentLevel === lvl
+                                ? lvl === 'none'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : lvl === 'assisted'
+                                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-white/5 text-gray-400 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            {lvl === 'none' ? 'Kullanılmadı' : lvl === 'assisted' ? 'Yardımcı Destek' : 'Üretildi'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400 block">Kullanılan Araçlar:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {['ChatGPT', 'Claude', 'Gemini', 'Sentience AI', 'Copilot', 'Perplexity', 'Grammarly/DeepL'].map(tool => {
+                    const isSelected = aiDisclosure.toolsUsed.includes(tool);
+                    return (
+                      <button
+                        key={tool}
+                        type="button"
+                        onClick={() => {
+                          setAiDisclosure(prev => ({
+                            ...prev,
+                            toolsUsed: isSelected ? prev.toolsUsed.filter(t => t !== tool) : [...prev.toolsUsed, tool]
+                          }));
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all ${
+                          isSelected
+                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm'
+                            : 'bg-white/5 text-gray-400 hover:text-white border border-white/5'
+                        }`}
+                      >
+                        {isSelected ? `✓ ${tool}` : `+ ${tool}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400 block">Serbest Açıklama Notu (İsteğe Bağlı):</span>
+                <textarea
+                  value={aiDisclosure.statementText || ''}
+                  onChange={e => setAiDisclosure(prev => ({ ...prev, statementText: e.target.value }))}
+                  placeholder="Hangi bölümlerde ne amaçla yapay zeka aracı kullanıldığını kısaca belirtin..."
+                  rows={2}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-[11px] text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500/50 resize-none"
+                />
+              </div>
+
+              <label className="flex items-start gap-2 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={aiDisclosure.isCertified}
+                  onChange={e => setAiDisclosure(prev => ({ ...prev, isCertified: e.target.checked }))}
+                  className="w-4 h-4 mt-0.5 rounded accent-purple-500 cursor-pointer"
+                />
+                <span className="text-[10px] text-gray-400 leading-tight">
+                  Bu çalışmada yapay zeka araçlarının kullanımını yukarıdaki kategorilerde eksiksiz ve dürüstçe beyan ettiğimi, beyan dışı yapay zeka kullanımının akademik dürüstlük ihlali sayılacağını kabul ederim.
+                </span>
+              </label>
+            </motion.div>
+          )}
+        </div>
 
         <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center justify-between gap-4">
           <div className="space-y-0.5">

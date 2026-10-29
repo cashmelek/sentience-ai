@@ -80,6 +80,11 @@ export interface SubmissionScores {
   metrics?: any;
   hasInternalGeneratorMatch?: boolean;
   internalGeneratorSimilarity?: number;
+  watermarkResult?: WatermarkAnalysisResult;
+  hasWatermarkSignature?: boolean;
+  watermarkScore?: number;
+  hasDisclosureDiscrepancy?: boolean;
+  disclosureDiscrepancyReason?: string;
 }
 
 export type AuthorshipStatus = 'verified_organic' | 'mixed_with_citations' | 'unverified_bulk_paste' | 'file_upload';
@@ -94,6 +99,36 @@ export interface WritingTelemetry {
   processScore: number; // 0..100
   authorshipStatus: AuthorshipStatus;
   legitimateQuotesCount?: number;
+}
+
+export type AIDisclosureLevel = 'none' | 'assisted' | 'generated';
+
+export interface AICategoryDisclosure {
+  level: AIDisclosureLevel;
+  tools?: string[];
+  notes?: string;
+}
+
+export interface AIDisclosureMatrix {
+  literatureSearch: AICategoryDisclosure;
+  proofreading: AICategoryDisclosure;
+  ideation: AICategoryDisclosure;
+  dataAnalysis: AICategoryDisclosure;
+  textDrafting: AICategoryDisclosure;
+  toolsUsed: string[];
+  statementText?: string;
+  isCertified: boolean;
+  certifiedAt: string;
+}
+
+export interface WatermarkAnalysisResult {
+  watermarkScore: number; // 0..100
+  hasWatermarkSignature: boolean;
+  confidence: 'none' | 'low' | 'moderate' | 'high' | 'definitive';
+  greenTokenRatio: number; // 0..1
+  entropyVariance: number;
+  detectedPatternCount: number;
+  details: string;
 }
 
 export interface SubmissionAnnotation {
@@ -147,6 +182,12 @@ export interface Submission {
   hasInternalGeneratorMatch?: boolean;
   internalGeneratorSimilarity?: number;
   telemetry?: WritingTelemetry;
+  aiDisclosure?: AIDisclosureMatrix;
+  watermarkResult?: WatermarkAnalysisResult;
+  hasWatermarkSignature?: boolean;
+  watermarkScore?: number;
+  hasDisclosureDiscrepancy?: boolean;
+  disclosureDiscrepancyReason?: string;
   // Ön teslim taslak sayacı
   draftCheckCount?: number;
   lastDraftScores?: {

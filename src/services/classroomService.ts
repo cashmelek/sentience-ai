@@ -8,12 +8,13 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '../lib/firebase';
 import type { AppUser, SubscriptionPlan } from '../types';
 import type {
-  ClassRoom, Assignment, Enrollment, Submission, SubmissionScores, DigitalReceipt, ClassroomTabData, SubmissionAnnotation
+  ClassRoom, Assignment, Enrollment, Submission, SubmissionScores, DigitalReceipt, ClassroomTabData, SubmissionAnnotation, AIDisclosureMatrix
 } from '../types/classroom';
 import { SUBMISSION_LIMITS } from '../types/classroom';
 import { verifyPlagiarism } from './sentinelService';
 import { detectAI } from './geminiService';
 import { queryInternalVaultMatches } from './internalVaultService';
+import { analyzeStatisticalWatermark, checkDisclosureDiscrepancy } from './watermarkService';
 
 // --- Saf yardımcılar (birim testi için dışa açık) ---
 
@@ -489,6 +490,7 @@ export async function submitText(
     file?: { fileName: string; storagePath: string };
     noRepository?: boolean;
     telemetry?: any;
+    aiDisclosure?: AIDisclosureMatrix;
   }
 ): Promise<Submission> {
   const title = payload.title.trim();
@@ -543,7 +545,8 @@ export async function submitText(
     isLate,
     ...(isLate && typeof lateDurationMinutes === 'number' ? { lateDurationMinutes } : {}),
     ...(payload.file ? { fileName: payload.file.fileName, storagePath: payload.file.storagePath } : {}),
-    ...(payload.telemetry ? { telemetry: payload.telemetry } : {})
+    ...(payload.telemetry ? { telemetry: payload.telemetry } : {}),
+    ...(payload.aiDisclosure ? { aiDisclosure: payload.aiDisclosure } : {})
   };
   await setDoc(submissionRef(classId, assignmentId, student.uid), data);
 
@@ -571,7 +574,12 @@ export async function updateSubmissionScores(
     scoredBy: scores.scoredBy || 'client',
     scoredAt: serverTimestamp(),
     ...(scores.hasInternalGeneratorMatch !== undefined ? { hasInternalGeneratorMatch: scores.hasInternalGeneratorMatch } : {}),
-    ...(scores.internalGeneratorSimilarity !== undefined ? { internalGeneratorSimilarity: scores.internalGeneratorSimilarity } : {})
+    ...(scores.internalGeneratorSimilarity !== undefined ? { internalGeneratorSimilarity: scores.internalGeneratorSimilarity } : {}),
+    ...(scores.watermarkResult !== undefined ? { watermarkResult: scores.watermarkResult } : {}),
+    ...(scores.hasWatermarkSignature !== undefined ? { hasWatermarkSignature: scores.hasWatermarkSignature } : {}),
+    ...(scores.watermarkScore !== undefined ? { watermarkScore: scores.watermarkScore } : {}),
+    ...(scores.hasDisclosureDiscrepancy !== undefined ? { hasDisclosureDiscrepancy: scores.hasDisclosureDiscrepancy } : {}),
+    ...(scores.disclosureDiscrepancyReason !== undefined ? { disclosureDiscrepancyReason: scores.disclosureDiscrepancyReason } : {})
   });
 }
 
@@ -745,6 +753,7 @@ export interface SubmissionScoringInput {
   sentinelEnabled: boolean;
   auditorModel: string;
   sensitivity: number;
+  aiDisclosure?: AIDisclosureMatrix;
 }
 
 export interface SubmissionScoringTarget {
@@ -829,6 +838,14 @@ export async function runSubmissionScoring(input: SubmissionScoringInput): Promi
     });
   }
 
+  const watermarkResult = analyzeStatisticalWatermark(input.text);
+  const discrepancy = checkDisclosureDiscrepancy(input.aiDisclosure, {
+    aiScore: ai.score,
+    internalGeneratorSimilarity,
+    hasWatermarkSignature: watermarkResult.hasWatermarkSignature,
+    watermarkScore: watermarkResult.watermarkScore
+  });
+
   return {
     similarityScore: plagiarism.similarityScore ?? 0,
     aiScore: ai.score ?? 0,
@@ -836,7 +853,12 @@ export async function runSubmissionScoring(input: SubmissionScoringInput): Promi
     sentenceScores: ai.sentenceScores ?? [],
     metrics: ai.metrics ?? {},
     hasInternalGeneratorMatch,
-    ...(hasInternalGeneratorMatch ? { internalGeneratorSimilarity } : {})
+    ...(hasInternalGeneratorMatch ? { internalGeneratorSimilarity } : {}),
+    watermarkResult,
+    hasWatermarkSignature: watermarkResult.hasWatermarkSignature,
+    watermarkScore: watermarkResult.watermarkScore,
+    hasDisclosureDiscrepancy: discrepancy.hasDiscrepancy,
+    ...(discrepancy.reason ? { disclosureDiscrepancyReason: discrepancy.reason } : {})
   };
 }
 

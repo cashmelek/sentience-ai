@@ -161,6 +161,29 @@ Araştırma karma yöntem (mixed-method) yaklaşımıyla tasarlanmış olup 120 
       authorshipStatus: 'verified_organic',
       legitimateQuotesCount: 2
     },
+    aiDisclosure: {
+      literatureSearch: { level: 'assisted', tools: ['Google Scholar', 'Connected Papers'] },
+      proofreading: { level: 'assisted', tools: ['Grammarly'] },
+      ideation: { level: 'none' },
+      dataAnalysis: { level: 'none' },
+      textDrafting: { level: 'none' },
+      toolsUsed: ['Google Scholar', 'Grammarly'],
+      statementText: 'Metin taslağı bağımsız yazılmış, yalnızca imla ve akademik literatür taramasında yardımcı araçlardan faydalanılmıştır.',
+      isCertified: true,
+      certifiedAt: new Date().toISOString()
+    },
+    watermarkResult: {
+      watermarkScore: 12,
+      hasWatermarkSignature: false,
+      confidence: 'none',
+      greenTokenRatio: 0.49,
+      entropyVariance: 18.4,
+      detectedPatternCount: 42,
+      details: 'İstatistiksel ritim profili doğal insan yazımı normlarında.'
+    },
+    hasWatermarkSignature: false,
+    watermarkScore: 12,
+    hasDisclosureDiscrepancy: false,
     createdAt: serverTimestamp(),
     scoredAt: serverTimestamp(),
     scoredBy: 'client'
@@ -209,6 +232,30 @@ Bu nedenle YÖK ve üniversite enstitüleri tarafından belirlenen %15 intihal t
       authorshipStatus: 'unverified_bulk_paste',
       legitimateQuotesCount: 0
     },
+    aiDisclosure: {
+      literatureSearch: { level: 'none' },
+      proofreading: { level: 'none' },
+      ideation: { level: 'none' },
+      dataAnalysis: { level: 'none' },
+      textDrafting: { level: 'none' },
+      toolsUsed: [],
+      statementText: 'Çalışmamda hiçbir yapay zeka aracı kullanılmamıştır.',
+      isCertified: true,
+      certifiedAt: new Date().toISOString()
+    },
+    watermarkResult: {
+      watermarkScore: 88,
+      hasWatermarkSignature: true,
+      confidence: 'definitive',
+      greenTokenRatio: 0.81,
+      entropyVariance: 2.1,
+      detectedPatternCount: 78,
+      details: 'İstatistiksel Sentience ritim imzası tespit edildi (Yeşil Token Oranı: %81, Z-Skor: 3.42).'
+    },
+    hasWatermarkSignature: true,
+    watermarkScore: 88,
+    hasDisclosureDiscrepancy: true,
+    disclosureDiscrepancyReason: 'Öğrenci YZ ile metin üretimi yapılmadığını beyan etmiştir; ancak platform içi sentetik havuzla %94 eşleşme ve %88 YZ ritim filigranı tespit edilmiştir.',
     createdAt: serverTimestamp(),
     scoredAt: serverTimestamp(),
     scoredBy: 'client'

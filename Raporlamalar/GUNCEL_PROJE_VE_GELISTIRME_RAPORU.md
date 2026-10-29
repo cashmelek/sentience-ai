@@ -258,6 +258,20 @@ Gelecekteki canlı sunumlar, testler ve pilot üniversite gösterimleri için ta
 - **Canlı Demo Entegrasyonu (`classroomDemoService.ts`):** Ahmet Yılmaz için `verified_organic` (%94 Süreç Puanı, 47 dk yazım, 4.320 tuş vuruşu, 3 meşru alıntı); Mehmet Demir için `unverified_bulk_paste` (%24 Süreç Puanı, 1 dk yazım, %98 yapıştırma) verileri tohumlandı.
 - **Birim Test Kapsamı (`src/test/writingTelemetry.test.ts`):** 5 yeni birim testi yazılarak 7 test dosyasında toplam 55 test %100 başarıyla geçti. Derleme (`npm run build`) sıfır hata ile tamamlandı.
 
+### 1.33 Faz 4: İstatistiksel Ritim Filigranı & Yapay Zeka Beyan Matrisi (Watermarking & AI Disclosure) Dağıtımı (29 Ekim 2026)
+- **İstatistiksel Ritim Filigranı Motoru (`src/services/watermarkService.ts`):**
+  - Görünmez karakter veya hileli manipülasyon olmaksızın, n-gram sözdizimi ve periyodik varyans entropisi üzerinden matematiksel ritmik imza profili (`analyzeStatisticalWatermark`) kuruldu.
+  - Yeşil token oranı (greenTokenRatio), z-skoru ve cümle boyutu varyansı ile 0-100 arası `watermarkScore` ve güvenilirlik (`confidence`) sınıflandırması üretildi.
+- **YÖK & COPE Standardında AI Beyan Matrisi (`AIDisclosureMatrix`):**
+  - Öğrenci teslim arayüzüne (`StudentSubmitView.tsx`) 5 temel akademik kategori (Literatür Taraması, Dilbilgisi & Düzelti, Fikir Üretimi, Veri Analizi, Metin / Taslak Yazımı) için 3 seviyeli beyan denetimi (`none` / `assisted` / `generated`), araç etiketleri seçimi ve resmi akademik taahhütname kutusu entegre edildi.
+- **Beyan Uyuşmazlık Dedektörü (`checkDisclosureDiscrepancy`):**
+  - Öğrenci "Metin / Taslak Yazımı: Kullanılmadı" beyan etmiş ancak iç sentetik havuz eşleşmesi (≥%70), istatistiksel ritim filigranı (≥%75) veya yüksek YZ tespiti saptanmışsa anında *"⚠️ Yapay Zeka Beyan Uyuşmazlığı"* alarmı üretildi.
+- **Öğretmen Raporu, Sınıf Paneli ve PDF Çıktıları:**
+  - `SubmissionReportView.tsx` ve `AssignmentDetailView.tsx` bileşenlerine "İstatistiksel YZ Ritim Filigranı", "Yapay Zeka Beyan Matrisi" ve "Beyan Uyuşmazlığı" rozetleri eklendi.
+  - `submissionExport.ts` içinde A4 dijital makbuz ve tam teslim PDF raporuna YÖK & COPE standartlarında beyan tablosu ve filigran özeti yerleştirildi.
+- **Canlı Demo Tohumu:** Ahmet Yılmaz için dürüst beyan (%12 filigran, uyuşmazlık yok); Mehmet Demir için beyan uyuşmazlığı (%88 ritim filigranı, %94 sentetik havuz izi, kırmızı alarm) tanımlandı.
+- **Test ve Derleme:** `watermarkAndDisclosure.test.ts` eklenerek 8 test dosyasında toplam 60 test %100 başarıyla geçti; `tsc --noEmit` ve `npm run build` hatasız tamamlandı.
+
 ---
 
 ## 2. ÖNCEKİ OTURUMLARDA TAMAMLANAN GELİŞTİRMELER (EKİM 2026 ORTASI)
@@ -437,9 +451,10 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   - **Süreç Puanı (Process Score):** 0-100 arası organik yazarlık güven puanı hesabı; %85+ dış blok yapıştırma durumunda "Doğrulanmamış Dış Yapıştırma (Unverified Paste)" alarmı üretilmesi.
   - **Öğretmen Raporu & PDF:** Süreç puanı çubuğu, yazım/yapıştırma oranı, revizyon geçmişi kartı ve resmi PDF çıktısına telemetri tablosunun eklenmesi (`SubmissionReportView.tsx`, `submissionExport.ts`).
 
-- [ ] **Faz 4 (P4 - Orta): İstatistiksel Ritim Filigranı & Yapay Zeka Beyan Matrisi (Watermarking & AI Disclosure)**
-  - **İstatistiksel Filigran:** İnsanlaştırma motorunun cümle dizilimlerinde bıraktığı özel n-gram ritim sapmasını Denetçi motorunun algılamasını sağlayan matematiksel imza mekanizması.
-  - **AI Kullanım Beyanı (Disclosure Statement):** Elsevier, Nature ve YÖK standartlarında teslim formuna "Yapay Zeka Katkı Matrisi" entegrasyonu (Literatür tarama, dil düzeltisi, veri analizi vb. alanlarda şeffaf beyan).
+- [x] **Faz 4 (P4 - Orta): İstatistiksel Ritim Filigranı & Yapay Zeka Beyan Matrisi (Watermarking & AI Disclosure)**
+  - **İstatistiksel Filigran:** İnsanlaştırma ve sentetik üretim n-gram varyans sapmasını tespit eden matematiksel ritim analizi (`watermarkService.ts`).
+  - **AI Kullanım Beyanı (Disclosure Statement):** Elsevier, Nature, COPE ve YÖK standartlarında 5 kategorili Yapay Zeka Katkı Matrisi, popüler araç seçimi ve resmi taahhütname onayı (`StudentSubmitView.tsx`).
+  - **Uyuşmazlık Tespiti:** Beyan edilmeyen sentetik üretim ve filigran varlığında öğretmen paneli ve PDF raporunda kırmızı uyuşmazlık alarmı (`SubmissionReportView.tsx`, `AssignmentDetailView.tsx`, `submissionExport.ts`).
 
 ### 1.13 Landing Page & Footer CMS Kalıcı Senkronizasyon Onarımı (25 Ekim 2026)
 - **Kök Neden Tespiti:** Firestore güvenlik kurallarında `settings/{settingId}` dökümanı `allow read: if request.auth != null;` şeklinde kapalıydı. Sayfa yenilendiğinde (F5) veya henüz giriş yapmamış ziyaretçilerde `PERMISSION_DENIED` hatası alınıyor ve `DEFAULT_LANDING_CONFIG`'e düşülüyordu. Ayrıca admin yazma kuralında platform yönetici e-postaları (`isPlatformAdminEmail()`) eksikti.

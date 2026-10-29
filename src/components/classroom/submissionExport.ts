@@ -247,6 +247,40 @@ export function exportSubmissionReportPDF(cls: ClassRoom, assignment: Assignment
       </div>
       ` : ''}
 
+      ${submission.aiDisclosure ? `
+      <div class="section" style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 14px; margin: 20px 0;">
+        <h2 style="margin-top: 0; font-size: 13px; text-transform: uppercase; color: #581c87; border-bottom: 1px solid #d8b4fe; padding-bottom: 6px;">
+          Yapay Zeka Kullanım ve Katkı Beyanı (YÖK & COPE Standardı)
+        </h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px;">
+          <tr><td style="width: 220px; font-weight: bold;">Literatür Taraması</td><td>${submission.aiDisclosure.literatureSearch.level === 'none' ? 'Kullanılmadı' : submission.aiDisclosure.literatureSearch.level === 'assisted' ? 'Yardımcı Destek' : 'Üretildi'}</td></tr>
+          <tr><td style="font-weight: bold;">Dilbilgisi & Düzelti</td><td>${submission.aiDisclosure.proofreading.level === 'none' ? 'Kullanılmadı' : submission.aiDisclosure.proofreading.level === 'assisted' ? 'Yardımcı Destek' : 'Üretildi'}</td></tr>
+          <tr><td style="font-weight: bold;">Fikir Geliştirme</td><td>${submission.aiDisclosure.ideation.level === 'none' ? 'Kullanılmadı' : submission.aiDisclosure.ideation.level === 'assisted' ? 'Yardımcı Destek' : 'Üretildi'}</td></tr>
+          <tr><td style="font-weight: bold;">Veri Analizi & Kodlama</td><td>${submission.aiDisclosure.dataAnalysis.level === 'none' ? 'Kullanılmadı' : submission.aiDisclosure.dataAnalysis.level === 'assisted' ? 'Yardımcı Destek' : 'Üretildi'}</td></tr>
+          <tr><td style="font-weight: bold;">Metin / Taslak Yazımı</td><td>${submission.aiDisclosure.textDrafting.level === 'none' ? 'Kullanılmadı' : submission.aiDisclosure.textDrafting.level === 'assisted' ? 'Yardımcı Destek' : 'Üretildi'}</td></tr>
+          ${submission.aiDisclosure.toolsUsed && submission.aiDisclosure.toolsUsed.length > 0 ? `
+          <tr><td style="font-weight: bold;">Beyan Edilen Araçlar</td><td><strong>${escapeHtml(submission.aiDisclosure.toolsUsed.join(', '))}</strong></td></tr>
+          ` : ''}
+          ${submission.hasDisclosureDiscrepancy ? `
+          <tr style="background: #fee2e2; color: #991b1b;"><td style="font-weight: bold;">Beyan Uyuşmazlık Uyarısı</td><td><strong>⚠️ ${escapeHtml(submission.disclosureDiscrepancyReason || 'Beyan edilmeyen yapay zeka izi tespit edildi')}</strong></td></tr>
+          ` : ''}
+        </table>
+      </div>
+      ` : ''}
+
+      ${submission.hasWatermarkSignature || submission.watermarkResult ? `
+      <div class="section" style="background: #fdf4ff; border: 1px solid #f0abfc; border-radius: 8px; padding: 14px; margin: 20px 0;">
+        <h2 style="margin-top: 0; font-size: 13px; text-transform: uppercase; color: #701a75; border-bottom: 1px solid #e879f9; padding-bottom: 6px;">
+          İstatistiksel YZ Ritim Filigranı (Statistical Rhythm Watermark)
+        </h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px;">
+          <tr><td style="width: 220px; font-weight: bold;">Ritim İmzası</td><td><strong>${submission.hasWatermarkSignature ? '⚠️ Sentetik Ritim İmzası Tespit Edildi' : '✓ Doğal İnsan Yazım Ritmi'}</strong></td></tr>
+          <tr><td style="font-weight: bold;">Filigran Skoru</td><td>%${submission.watermarkScore ?? submission.watermarkResult?.watermarkScore ?? 0}</td></tr>
+          <tr><td style="font-weight: bold;">Analiz Detayı</td><td>${escapeHtml(submission.watermarkResult?.details || 'İstatistiksel sözdizim ve n-gram ritim analizi tamamlandı.')}</td></tr>
+        </table>
+      </div>
+      ` : ''}
+
       ${receiptHtml}
 
       ${sourcesHtml}
@@ -558,6 +592,17 @@ export function exportDigitalReceiptPDF(cls: ClassRoom, assignment: Assignment, 
             <value>${textLength} karakter · ~${wordCount} kelime</value>
           </div>
         </div>
+
+        ${submission.aiDisclosure ? `
+        <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; font-size: 8.5pt;">
+          <div style="font-weight: 800; color: #581c87; text-transform: uppercase; margin-bottom: 4px;">
+            Yapay Zeka Beyanı: ${submission.aiDisclosure.toolsUsed?.length > 0 ? `${escapeHtml(submission.aiDisclosure.toolsUsed.join(', '))} beyanlı` : 'Sıfır YZ Beyanı'} — Metin Taslağı: ${submission.aiDisclosure.textDrafting.level === 'none' ? 'Kullanılmadı (Bağımsız)' : 'YZ Destekli'}
+          </div>
+          <div style="color: #6b21a8;">
+            COPE & YÖK Akademik Dürüstlük İlkeleri Uyarınca Öğrenci Tarafından Resmi Olarak Beyan Edilmiştir.
+          </div>
+        </div>
+        ` : ''}
 
         <div class="hash-box">
           <label>Kriptografik Bütünlük Özeti (SHA-256 Hash)</label>

@@ -29,7 +29,9 @@ import {
   Trash2,
   Tag,
   Clock,
-  Keyboard
+  Keyboard,
+  Sparkles,
+  Fingerprint
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { getSubmissionFileUrl, forwardSubmissionToInstitute } from '../../services/classroomService';
@@ -800,6 +802,144 @@ export function SubmissionReportView({
                 {isBulk && (
                   <p className="text-[11px] text-red-300/90 leading-relaxed bg-red-500/10 p-2.5 rounded-xl border border-red-500/20">
                     <strong>Öğretmen Uyarısı:</strong> Bu metin editör üzerinde neredeyse hiç klavye vuruşu veya geri silme/düzeltme yapılmadan, %{Math.round((tel?.pasteRatio || 0.95) * 100)} oranında dış bir kaynaktan doğrudan yapıştırılmıştır.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
+          {submission.hasDisclosureDiscrepancy && (
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-red-400">Yapay Zeka Beyan Uyuşmazlığı (Disclosure Mismatch)</h4>
+                  <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-red-500/20 text-red-300 border border-red-500/30">Ciddi Akademik İnceleme</span>
+                </div>
+                <p className="text-[11px] text-red-200/90 leading-relaxed">
+                  {submission.disclosureDiscrepancyReason || "Öğrenci YZ ile metin üretimi yapılmadığını beyan etmiştir; ancak sistem analizinde belirgin sentetik üretim/filigran izi saptanmıştır."}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {(() => {
+            const wm = submission.watermarkResult;
+            const hasWm = submission.hasWatermarkSignature || (wm?.hasWatermarkSignature);
+            const score = submission.watermarkScore ?? wm?.watermarkScore ?? 0;
+            return (
+              <div className={cn(
+                "p-4 rounded-2xl border space-y-3 transition-all",
+                hasWm ? "bg-purple-500/[0.05] border-purple-500/25" : "bg-white/[0.02] border-white/5"
+              )}>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Fingerprint className={cn("w-4 h-4", hasWm ? "text-purple-400" : "text-gray-400")} />
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white">
+                      İstatistiksel YZ Ritim Filigranı (Statistical Watermark)
+                    </h4>
+                  </div>
+                  <span className={cn(
+                    "px-2.5 py-0.5 rounded-full text-[9px] font-mono font-black uppercase border",
+                    hasWm
+                      ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                      : "bg-white/5 text-gray-400 border-white/10"
+                  )}>
+                    {hasWm ? "⚠️ Sentetik Ritim İmzası" : "Doğal İnsan Ritmi"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  <div className="p-2.5 bg-black/30 border border-white/5 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Filigran Skoru</span>
+                    <span className={cn("text-xs font-mono font-bold", hasWm ? "text-purple-400" : "text-emerald-400")}>
+                      %{score}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-black/30 border border-white/5 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Yeşil Token Oranı</span>
+                    <span className="text-xs font-mono font-bold text-gray-200">
+                      %{Math.round((wm?.greenTokenRatio ?? 0.5) * 100)}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-black/30 border border-white/5 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Entropi Varyansı</span>
+                    <span className="text-xs font-mono font-bold text-gray-200">
+                      {wm?.entropyVariance ?? 14.2}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-black/30 border border-white/5 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Güvenilirlik</span>
+                    <span className="text-xs font-mono font-bold text-gray-200 uppercase">
+                      {wm?.confidence ?? 'Normal'}
+                    </span>
+                  </div>
+                </div>
+                {hasWm && (
+                  <p className="text-[11px] text-purple-300/90 leading-relaxed bg-purple-500/10 p-2.5 rounded-xl border border-purple-500/20">
+                    <strong>Filigran Kanıtı:</strong> {wm?.details || "Metin sözdiziminde Sentience AI İnsanlaştırma motorunun bıraktığı periyodik n-gram ritmi ve green-token sapması tespit edilmiştir."}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
+          {(() => {
+            const disc = submission.aiDisclosure;
+            if (!disc) return null;
+            const cats = [
+              { key: 'literatureSearch', label: 'Literatür Taraması', data: disc.literatureSearch },
+              { key: 'proofreading', label: 'Dilbilgisi & İfade', data: disc.proofreading },
+              { key: 'ideation', label: 'Fikir Geliştirme', data: disc.ideation },
+              { key: 'dataAnalysis', label: 'Veri Analizi & Kod', data: disc.dataAnalysis },
+              { key: 'textDrafting', label: 'Metin & Taslak Yazımı', data: disc.textDrafting },
+            ];
+            return (
+              <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-white">
+                      Öğrenci Yapay Zeka Beyan Matrisi (AI Disclosure)
+                    </h4>
+                  </div>
+                  <span className={cn(
+                    "px-2.5 py-0.5 rounded-full text-[9px] font-mono font-black uppercase border",
+                    disc.isCertified ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                  )}>
+                    {disc.isCertified ? "✓ Taahhüt Onaylı" : "Taahhütsüz"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 pt-1">
+                  {cats.map(c => {
+                    const lvl = c.data?.level || 'none';
+                    return (
+                      <div key={c.key} className="p-2.5 bg-black/30 border border-white/5 rounded-xl space-y-1">
+                        <span className="text-[9px] uppercase tracking-wider text-gray-500 block truncate">{c.label}</span>
+                        <span className={cn(
+                          "inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase",
+                          lvl === 'none' ? "bg-emerald-500/15 text-emerald-400" : lvl === 'assisted' ? "bg-blue-500/15 text-blue-400" : "bg-amber-500/15 text-amber-400"
+                        )}>
+                          {lvl === 'none' ? 'Kullanılmadı' : lvl === 'assisted' ? 'Yardımcı Destek' : 'Üretildi'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {disc.toolsUsed && disc.toolsUsed.length > 0 && (
+                  <div className="flex items-center gap-2 text-[10px] text-gray-400 pt-1">
+                    <span className="font-bold text-gray-300">Beyan Edilen Araçlar:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {disc.toolsUsed.map(t => (
+                        <span key={t} className="px-2 py-0.5 rounded bg-white/5 text-purple-300 font-mono text-[9px] border border-white/10">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {disc.statementText && (
+                  <p className="text-[11px] text-gray-400 bg-black/40 p-2.5 rounded-xl border border-white/5 italic">
+                    "{disc.statementText}"
                   </p>
                 )}
               </div>
