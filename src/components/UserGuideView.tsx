@@ -655,6 +655,43 @@ export const GUIDE_SECTIONS: GuideSectionItem[] = [
     ]
   },
   {
+    id: 'zengin-icerik-ayristirma',
+    category: 'document-standards',
+    roles: ['student', 'instructor', 'author', 'institute'],
+    title: 'Akademik Zengin İçerik Ayrıştırma (Formül, Tablo, Görsel, Dipnot)',
+    badge: 'Zengin İçerik & Formül',
+    description: 'Tez, makale ve teknik ödevlerdeki matematiksel formüllerin (OMML/LaTeX), veri tablolarının, dipnotların ve görsellerin metin gövdesinden ayrıştırılması ve intihal skoruna adil yansıtılması ilkeleri.',
+    steps: [
+      'Matematiksel Formül Ayrıştırma (OMML & LaTeX): .docx içindeki <m:oMath> ve <m:oMathPara> etiketli matematiksel denklemler metin intihalinden hariç tutulur; formüllerin standart doğası nedeniyle haksız intihal eşleşmesi engellenir.',
+      'Veri Tabloları İzolasyonu (<w:tbl>): İstatistiki veri tabloları ve sayısal matrisler metin analizi dışına alınarak benzerlik puanını yapay olarak şişirmesi önlenir.',
+      'Dipnot ve Kaynakça Taraması (word/footnotes.xml): Sayfa altı dipnotları ve APA/IEEE atıfları, gövde metninden bağımsız olarak kaynak doğruluk analizine tabi tutulur.',
+      'Görsel ve Şema Envanteri (word/media/*): Belgedeki şekil, grafik ve infografikler tespit edilerek adli raporda görsel sayısı ve dosya formatlarıyla envanterlenir.',
+      'Öğrenci ve Eğitmen Raporu: Dosya yüklendiğinde anlık olarak "X Formül, Y Tablo, Z Görsel, W Dipnot" rozetleri oluşturulur ve resmi PDF Enstitü Onay Belgesine işlenir.'
+    ],
+    tips: [
+      'Formüllerinizi resim olarak yapıştırmak yerine Word yerleşik denklem düzenleyicisiyle (Alt+=) eklemeniz, sistemin formülü tanımasını ve metin intihaline dahil etmemesini garanti eder.'
+    ],
+    warning: 'Veri tablolarını ekran görüntüsü (resim) olarak eklemek sayfa düzenini bozabileceği gibi adli envanterde tablosal veri olarak değil medya nesnesi olarak listelenir.'
+  },
+  {
+    id: 'rol-ve-arayuz-izolasyonu',
+    category: 'getting-started',
+    roles: ['student', 'instructor', 'institute'],
+    title: 'Kullanıcı Rolleri ve Akademik Arayüz İzolasyonu',
+    badge: 'Rol Standartları',
+    description: 'Standart bireysel hesaplar ile Öğrenci (.edu/.edu.tr) ve Akademisyen/Eğitmen hesapları arasındaki arayüz, yetki ve güvenlik ayrımı kuralları.',
+    steps: [
+      'Standart Bireysel Hesaplar (role: user): Bireysel yazarlar ve editörler için optimize edilmiştir; sol menüde ve ayarlarda kurumsal sınıf/ödev ve Word Eklentisi sekmeleri görünmez.',
+      'Öğrenci Hesapları (role: student): .edu/.edu.tr e-postasıyla kayıt olan veya öğrenci seçen kullanıcılarda Öğrenci Çalışma Masası kilitlenir; burada Turnitin Draft Coach ön taraması, ödev teslimi ve Word Eklentisi hazır gelir.',
+      'Akademisyen / Eğitmen Hesapları (role: instructor): Sınıf açma, rubrik oluşturma, ödev notlandırma ve Turnitin bütünlük raporlarına tam erişim sağlar. Öğrencilerin sahte eğitmen hesabı açmasını önlemek için kurumsal lisans anahtarı (INST-...) ile aktive edilir.',
+      'Ayarlar Modalı İzolasyonu: "Akademik & Kurum" ve "Word Eklentisi" ayarları yalnızca öğrenci ve akademisyen hesaplarında listelenir; genel kullanıcıları gereksiz kurumsal yapılandırmalardan korur.'
+    ],
+    tips: [
+      'Bireysel hesabınızı daha sonra kurumsal lisans koduyla (INST-...) öğrenci veya eğitmen hesabına dilediğiniz an yükseltebilirsiniz.'
+    ],
+    warning: 'Öğrencilerin eğitmen yetkisi alması veya sahte lisans girmesi sistem tarafından otomatik denetlenir ve ihlal loglanır.'
+  },
+  {
     id: 'dokumanlar-ve-indirilebilirler',
     category: 'templates-downloads',
     roles: ['student', 'instructor', 'author', 'institute'],

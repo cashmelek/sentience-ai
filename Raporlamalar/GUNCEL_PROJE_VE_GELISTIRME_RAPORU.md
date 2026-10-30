@@ -723,5 +723,11 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
 - **Canlı Dağıtım & Doğrulama:**
   - 13 test dosyasında 81/81 test geçti, `npm run build` hatasız tamamlandı ve `https://sentience-ai-free-2026.web.app` adresine deploy edildi.
 
+### 7.9 Kullanıcı Rehberine Zengin İçerik Ayrıştırma ve Rol İzolasyonu Kurallarının Eklenmesi (30 Ekim 2026)
+- **Eklenen 2 Yeni Rehber Konusu (`UserGuideView.tsx`):**
+  1. *Akademik Zengin İçerik Ayrıştırma (Formül, Tablo, Görsel, Dipnot):* Word içindeki `<m:oMath>` / `<m:oMathPara>` matematiksel denklemlerin, `<w:tbl>` veri tablolarının ve dipnotların intihal taramasından ayrıştırılma prensipleri; haksız benzerlik puanı oluşmasının engellenmesi ve adli rapordaki rozet dökümü.
+  2. *Kullanıcı Rolleri ve Akademik Arayüz İzolasyonu:* Bireysel standart hesaplar ile `.edu/.edu.tr` öğrenci ve akademisyen/eğitmen hesaplarının arayüz, menü ve Word Eklentisi erişim sınırları; yetki ve kurumsal lisans (`INST-...`) doğrulama protokolü.
+- **Canlı Dağıtım:** 13 test dosyasında 81/81 test başarıyla geçti, `npm run build` tamamlandı ve Firebase Hosting üzerine canlıya alındı.
+
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*
