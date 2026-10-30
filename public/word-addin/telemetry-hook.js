@@ -14,6 +14,14 @@
     }
   }
 
+  function padZero(str, len) {
+    var s = String(str);
+    while (s.length < len) {
+      s = "0" + s;
+    }
+    return s;
+  }
+
   function generateHash(str) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -21,7 +29,7 @@
       hash = (hash << 5) - hash + char;
       hash |= 0;
     }
-    return Math.abs(hash).toString(16).padStart(8, "0");
+    return padZero(Math.abs(hash).toString(16), 8);
   }
 
   function autoFillCredentials() {
