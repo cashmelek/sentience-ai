@@ -694,5 +694,21 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
     - **Öğretmen / Jüri Tarafı:** Ödev Classroom veya dosya yükleme üzerinden teslim edildiğinde, sistem Word dosyasının (`docProps/custom.xml` ve Office Settings) içindeki mührü ve telemetriyi okur. Öğretmen raporunda yeşil "Doğrulanmış Organik Mühür" rozeti, yazım süresi ve yapıştırma anomalisi olmadığı şeffafça sunulur.
     - Her iki taraf da aynı kriptografik SHA-256 hash'i üzerinden belgenin bütünlüğünü doğrular.
 
+### 7.7 21st.dev Temaları Renk Paleti Sistemi ve Standart Kullanıcı Rol İzolasyonu (30 Ekim 2026)
+- **Standart Kullanıcı Rol İzolasyonu:**
+  - `AccountSettingsModal.tsx` içerisinde `isAcademicOrAdmin` (`student`, `instructor` ve `admin`) kontrolü eklendi.
+  - Normal/standart kullanıcıların (`role: 'user'`) sol menüsünden `Akademik & Kurum` ve `Word Eklentisi` sekmeleri tamamen gizlendi; sadece öğrenci ve akademisyen/eğitmen hesaplarının bu modülleri görmesi sağlandı.
+- **21st.dev İlhamlı Açıktan Koyu Renk Paleti Sistemi (`themeService.ts`):**
+  - Kullanıcıların arayüz renklerini zevklerine göre değiştirebilmesi için 21st.dev topluluk temalarından türetilen 6 renk paleti açıktan koyuya sıralı olarak entegre edildi:
+    1. *21st Minimal Beyaz (En Açık / Light):* Saf beyaz zemin (`#f8fafc` / `#ffffff`), net siyah tipografi, zümrüt aksan.
+    2. *21st Parşömen & Kağıt (Sıcak Açık / Warm):* Sıcak krem kağıt zemin (`#fbf8f3`), editoryal okuma ve uzun tez yazımları için amber aksan.
+    3. *21st Nordik Arduvaz (Yumuşak Koyu / Slate):* Loş ışık uyumlu kurumsal koyu arduvaz mavisi (`#1e293b`), gök mavisi aksan.
+    4. *Sentience Zümrüt (Derin Koyu / Varsayılan):* Orijinal Sentience karbon siyahı zemin (`#050505` / `#0a0a0a`), neon zümrüt ışığı.
+    5. *21st Gece Okyanusu (Gece Mavisi / Cyber Navy):* Siber lacivert siyah zemin (`#030712`), elektrik mavisi neon.
+    6. *21st Obsidyen Ametist (En Koyu / OLED Black):* Tam zifiri siyah zemin (`#000000`), canlı ametist moru neon.
+  - Ayarlar modalına **"🎨 Görünüm & Tema"** sekmesi eklendi; her temanın renk damlaları, ton sırası ve anlık DOM CSS değişkenleri (`--brand-bg`, `--brand-card`, `--brand-accent`, `--brand-text`) ile `localStorage` kalıcı kaydı bağlandı.
+- **Test ve Canlı Dağıtım:**
+  - 13 test dosyasında 81/81 birim testi başarıyla geçti, `npm run build` tamamlandı ve Firebase Hosting (`https://sentience-ai-free-2026.web.app`) üzerine canlıya alındı.
+
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*

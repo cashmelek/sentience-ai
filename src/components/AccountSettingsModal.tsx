@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -24,7 +24,8 @@ import {
   FileText,
   Clock,
   Sparkles,
-  Award
+  Award,
+  Palette
 } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
 import { updateDoc, doc, deleteDoc } from 'firebase/firestore';
@@ -33,6 +34,7 @@ import toast from 'react-hot-toast';
 import { AppUser, PLAN_LIMITS } from '../types';
 import { requestNotificationPermission, getNotificationPermission, isNotificationSupported } from '../utils/browserNotification';
 import { validateInstitutionCode } from '../services/institutionLicenseService';
+import { ORDERED_THEMES, getCurrentTheme, applyTheme } from '../services/themeService';
 
 interface AccountSettingsModalProps {
   user: AppUser;
@@ -40,13 +42,28 @@ interface AccountSettingsModalProps {
 }
 
 export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ user, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'academic' | 'word' | 'subscription' | 'danger'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'academic' | 'word' | 'theme' | 'subscription' | 'danger'>('profile');
   const [isProcessing, setIsProcessing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState('');
   const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
   const [copiedUid, setCopiedUid] = useState(false);
   const [institutionCodeInput, setInstitutionCodeInput] = useState('');
   const [isActivatingCode, setIsActivatingCode] = useState(false);
+  const [currentThemeId, setCurrentThemeId] = useState<string>(() => getCurrentTheme().id);
+
+  const isAcademicOrAdmin = user.role === 'student' || user.role === 'instructor' || user.role === 'admin';
+
+  useEffect(() => {
+    if (!isAcademicOrAdmin && (activeTab === 'academic' || activeTab === 'word')) {
+      setActiveTab('profile');
+    }
+  }, [isAcademicOrAdmin, activeTab]);
+
+  const handleSelectTheme = (themeId: string) => {
+    const updated = applyTheme(themeId);
+    setCurrentThemeId(updated.id);
+    toast.success(`${updated.name} teması uygulandı.`);
+  };
 
   const handleCopyUid = () => {
     if (user?.uid) {
@@ -153,8 +170,11 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ user
 
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
-    { id: 'academic', label: 'Akademik & Kurum', icon: GraduationCap },
-    { id: 'word', label: 'Word Eklentisi', icon: FileText },
+    ...(isAcademicOrAdmin ? [
+      { id: 'academic', label: 'Akademik & Kurum', icon: GraduationCap },
+      { id: 'word', label: 'Word Eklentisi', icon: FileText },
+    ] : []),
+    { id: 'theme', label: 'Görünüm & Tema', icon: Palette },
     { id: 'subscription', label: 'Abonelik & Kotalar', icon: CreditCard },
     { id: 'danger', label: 'Hesabı Kapat', icon: ShieldAlert },
   ];
@@ -497,6 +517,91 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ user
               </motion.div>
             )}
 
+            {activeTab === 'theme' && (
+              <motion.div
+                key="theme"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="space-y-6"
+              >
+                <div>
+                  <h3 className="text-2xl font-black text-white tracking-tight mb-2">Arayüz Renkleri & Tema</h3>
+                  <p className="text-gray-500 text-sm">21st.dev topluluk temalarından ilham alan, açıktan koyuya sıralanmış renk paletlerinden dilediğinizi seçin.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {ORDERED_THEMES.map((theme) => {
+                    const isSelected = currentThemeId === theme.id;
+                    return (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => handleSelectTheme(theme.id)}
+                        className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between gap-3 ${
+                          isSelected
+                            ? 'bg-white/[0.07] border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500'
+                            : 'bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+                            {theme.toneLabel}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                            style={{
+                              backgroundColor: `${theme.colors.accent}15`,
+                              borderColor: `${theme.colors.accent}40`,
+                              color: theme.colors.accent
+                            }}
+                          >
+                            {theme.badge}
+                          </span>
+                        </div>
+
+                        <div>
+                          <div className="text-sm font-bold text-white flex items-center justify-between">
+                            <span>{theme.name}</span>
+                            {isSelected && <Check className="w-4 h-4 text-emerald-400 shrink-0" />}
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">
+                            {theme.description}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5 mt-auto">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
+                              style={{ backgroundColor: theme.colors.bg }}
+                              title="Arka Plan"
+                            />
+                            <span
+                              className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
+                              style={{ backgroundColor: theme.colors.card }}
+                              title="Kart & Panel"
+                            />
+                            <span
+                              className="w-5 h-5 rounded-full shadow-sm"
+                              style={{
+                                backgroundColor: theme.colors.accent,
+                                boxShadow: `0 0 8px ${theme.colors.accent}`
+                              }}
+                              title="Aksan & Vurgu"
+                            />
+                          </div>
+                          <span className="text-[10px] font-mono font-medium text-gray-500">
+                            {theme.colors.accent}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+
             {activeTab === 'subscription' && (
               <motion.div
                 key="subscription"
@@ -543,12 +648,14 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ user
                         <p className="text-gray-400 text-xs leading-relaxed max-w-md">
                           Ücretsiz planda günlük {(planLimit.dailyChars / 1000).toLocaleString('tr-TR')}k karakter kotası ve standart analiz özellikleri yer alır. Akademik veya Pro plana geçerek limitlerinizi 10 katına çıkarabilirsiniz.
                         </p>
-                        <button 
-                          onClick={() => setActiveTab('academic')}
-                          className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-500 transition-all"
-                        >
-                          Üniversite Kodunu Girin <ChevronRight className="w-4 h-4" />
-                        </button>
+                        {isAcademicOrAdmin && (
+                          <button 
+                            onClick={() => setActiveTab('academic')}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-500 transition-all"
+                          >
+                            Üniversite Kodunu Girin <ChevronRight className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-4">
