@@ -735,5 +735,15 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
 - **Birim Testi:** `src/test/themeAndRoleIsolation.test.ts` içerisine rol bazlı masaüstü token kartı görünürlük doğrulaması eklendi (82/82 test başarılı).
 - **Canlı Dağıtım:** `npm run build` tamamlandı ve Firebase Hosting (`https://sentience-ai-free-2026.web.app`) üzerine canlıya aktarıldı.
 
+### 7.11 Kullanıcı Rehberine Word Eklentisi Görev Tanımı ve Akademik Kalkan Prensiplerinin Eklenmesi (30 Ekim 2026)
+- **Rehber Genişletmesi (`UserGuideView.tsx`):**
+  - `word-eklentisi-masaustu-kurulumu` bölümü salt teknik kurulum adımlarından çıkarılarak "Görev Tanımı, Adli Mühürleme ve Kurulum Kılavuzu" başlığı altında baştan uyarlandı:
+    1. *Adli Yazarlık ve Süreç Kanıtı:* Klavye temposu, revizyon sıklığı ve düzenleme süresinin organik yazım kanıtı olarak kaydı.
+    2. *Haksız YZ Suçlamalarına Karşı Kalkan:* Turnitin/Copyleaks yanlış pozitiflerine karşı resmi savunma belgesi niteliği.
+    3. *Kriptografik SHA-256 Belge Mührü:* Belgenin `docProps/custom.xml` katmanına öğrenci kimliği ve hash ile vurulan değiştirilemez dijital kaşe.
+    4. *Dış Yapıştırma ve Kaçak İnsanlaştırma Koruması:* Tek seferde yapıştırılan büyük metin bloklarının telemetriyle tespiti ve raporlanması.
+    5. *Çift Taraflı Şeffaflık:* Öğrenci tarafında yeşil mühür onayı, eğitmen tarafında "Doğrulanmış Organik Mühür" adli tablosu.
+- **Canlı Dağıtım:** 13 test dosyasında 82/82 test geçti, `npm run build` tamamlandı ve `https://sentience-ai-free-2026.web.app` adresine deploy edildi.
+
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*

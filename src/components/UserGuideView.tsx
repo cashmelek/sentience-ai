@@ -639,20 +639,25 @@ export const GUIDE_SECTIONS: GuideSectionItem[] = [
     id: 'word-eklentisi-masaustu-kurulumu',
     category: 'enterprise-integration',
     roles: ['student', 'instructor', 'author'],
-    title: 'Word Eklentisi (.exe Setup Sihirbazı) Masaüstü Kurulumu ve Kullanımı',
-    badge: 'Word Eklentisi',
-    description: 'Microsoft Word (2016/2019/2021/365) için tek tıkla çalışan SentienceWordSetup.exe kurulum paketi ve adli telemetri mühürleme adımları.',
+    title: 'Word Eklentisi: Görev Tanımı, Adli Mühürleme ve Kurulum Kılavuzu',
+    badge: 'Word Eklentisi & Telemetri',
+    description: 'Microsoft Word (2016/2019/2021/365) için adli yazarlık süreç kanıtı, SHA-256 dijital mührü ve tek tıkla çalışan SentienceWordSetup.exe kurulum paketi kılavuzu.',
     steps: [
-      'Kurulum Paketini İndirme: Kullanıcı Rehberi "Belgeler & İndirmeler" bölümünden SentienceWordSetup.zip dosyasını indirin ve zipten çıkarın.',
-      'Tek Tıkla Kurulum (SentienceWordSetup.exe): Programı çalıştırın; sihirbaz bilgisayarınızdaki Word sürümünü otomatik algılar ve Office Güvenilen Eklentiler Kataloğunu (TrustedCatalogs) yapılandırır.',
-      'Word İçinden Etkinleştirme: Microsoft Word uygulamasını açın; "Ekle (Insert)" menüsünden "Eklentilerim (My Add-ins)" seçeneğine girerek "Sentience AI" eklentisini seçin.',
-      'Sessiz Adli Mühürleme: Eklenti Word içinde çalışırken yazma oturumu sürelerini, revizyon sıklığını ve organik klavye temposunu belgenin adli meta katmanına kaydeder.',
-      'Webde Otomatik Doğrulama: Hazırladığınız .docx dosyasını Sentience Öğrenci Masasına yüklediğinizde, adli mühür çözülür ve ödevinizin %100 özgün emekle yazıldığı doğrulanır.',
+      'Görev Tanımı & Yazarlık Kanıtı: Eklenti; öğrencinin belgeyi dışarıdan hazır almadığını, doğrudan Word içinde yazarak ürettiğini doğrulamak için yazım süresini, düzenleme sıklığını ve organik klavye temposunu arka planda kayıt altına alır.',
+      'Haksız YZ Suçlamalarına Karşı Kalkan: Turnitin, GPTZero veya Copyleaks gibi motorların ürettiği yanlış pozitif (false-positive) iddialarına karşı öğrencinin eline hukuki ve akademik geçerliliği olan bir adli yazım kalkanı sunar.',
+      'Kriptografik SHA-256 Belge Mührü: Yazım tamamlandığında öğrenci UID si, adı-soyadı, oturum kodu ve metin karakter özeti Word belgesinin (docProps/custom.xml) içine değiştirilemez dijital kaşe olarak işlenir.',
+      'Dış Blok Yapıştırma ve Kaçak İnsanlaştırma Koruması: Webden veya platformdan tek hamlede yapıştırılan (Ctrl+V) büyük metin blokları telemetride tespit edilerek eğitmen raporunda anomalili yapıştırma uyarısı üretilir.',
+      'Kurulum Paketini İndirme: Rehber "Belgeler & İndirmeler" bölümünden veya Ayarlar modalından SentienceWordSetup.zip dosyasını indirin ve zipten çıkarın.',
+      'Tek Tıkla Kurulum (SentienceWordSetup.exe): Programı çalıştırın; sihirbaz Word sürümünü algılayıp kalıcı Office Güvenilen Eklentiler Kataloğunu (TrustedCatalogs) yapılandırır.',
+      'Word İçinden Mühürleme: Word de "Ekle > Eklentilerim > Paylaşılan Klasör" altından eklentiyi açın; öğrenci tokeninizi doğrulayarak "Belgeyi Sentience Kimliğiyle Mühürle" butonuna basın ve Ctrl+S ile kaydedin.',
+      'Çift Taraflı Şeffaflık (Öğrenci & Eğitmen): Mühürlenen .docx dosyası teslim edildiğinde eğitmen raporunda yeşil "Doğrulanmış Organik Mühür" rozeti, yazım oturumu süresi ve adli telemetri tablosu açılır.',
       'Kaldırma (Uninstaller): Dilediğiniz zaman SentienceWordSetup.exe uygulamasını tekrar açıp "Eklentiyi Kaldır" butonuyla eklentiyi tek tıkla sistemden temizleyebilirsiniz.'
     ],
     tips: [
-      'Kurulum sihirbazı ayrıca komut satırından sessiz kurulumu (SentienceWordSetup.exe /silent) destekler; üniversite laboratuvarları için toplu kuruluma uygundur.'
-    ]
+      'Word eklentisinin basmış olduğu SHA-256 dijital mührü, üniversite disiplin ve intihal komisyonlarında öğrencinin organik emeğini ispatlayan en güçlü kanıttır.',
+      'Kurulum sihirbazı komut satırından sessiz kurulumu (SentienceWordSetup.exe /silent) destekler; üniversite bilgisayar laboratuvarları için toplu kuruluma uygundur.'
+    ],
+    warning: 'Belgeyi mühürledikten sonra Word içinde yeni paragraflar eklerseniz belgenin SHA-256 özeti değişir. Teslim etmeden önce "Belgeyi Sentience Kimliğiyle Mühürle" butonuna tekrar basıp kaydettiğinizden emin olun.'
   },
   {
     id: 'zengin-icerik-ayristirma',
