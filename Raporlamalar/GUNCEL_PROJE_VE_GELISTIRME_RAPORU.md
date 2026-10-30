@@ -675,5 +675,10 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
 ### 7.4 Dinamik Modül Yükleme (`AccountSettingsModal`) Çözümü
 - Dağıtım sonrası eski chunk hash'ine (`AccountSettingsModal-ZDrvhnCX.js`) bağlı önbellek hatası `npm run build` ile taze chunk referansları üretilerek ve Firebase Hosting'e yeniden deploy edilerek giderildi.
 
+### 7.5 Word Masaüstü WebView (IE11/Trident) `padStart` Uyumluluk Onarımı
+- **Kök Neden:** Word masaüstü uygulamasının yerel tarayıcı motoru (Internet Explorer 11 / Trident) ES2017 `String.prototype.padStart` metodunu desteklemediği için SHA mühürleme aşamasında `HATA [161]: Nesne, 'padStart' özelliğini veya yöntemini desteklemez` hatası fırlatılıyor ve akış kesiliyordu.
+- **Çözüm:** `padStart` çağrısı, tüm tarayıcı ve eski WebView motorlarıyla %100 uyumlu yerel `padZero` döngü fonksiyonuna dönüştürüldü.
+- **Dağıtım:** Firebase Hosting'e dağıtıldı, sürüm canlıya alındı.
+
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*
