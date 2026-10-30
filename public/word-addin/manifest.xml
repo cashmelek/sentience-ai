@@ -1,16 +1,16 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <OfficeApp 
   xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" 
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
   xsi:type="TaskPaneApp">
-  <Id>b0d19123-c502-4387-875c-50ceb18e57fe</Id>
+  <Id>b720b571-081b-4e38-a7f7-9d6031a56ce2</Id>
   <Version>1.0.0.0</Version>
   <ProviderName>Sentience AI</ProviderName>
-  <DefaultLocale>tr-TR</DefaultLocale>
-  <DisplayName DefaultValue="Sentience AI Adli Mühür"/>
-  <Description DefaultValue="Word belgelerine Sentience AI akademik kimliğini ve yazım telemetrisini mühürler."/>
-  <IconUrl DefaultValue="https://sentience-ai-free-2026.web.app/icon.svg"/>
-  <HighResolutionIconUrl DefaultValue="https://sentience-ai-free-2026.web.app/icon.svg"/>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Sentience AI"/>
+  <Description DefaultValue="Sentience AI Academic Integrity and Forensics Add-in"/>
+  <IconUrl DefaultValue="https://sentience-ai-free-2026.web.app/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://sentience-ai-free-2026.web.app/icon-80.png"/>
   <SupportUrl DefaultValue="https://sentience-ai-free-2026.web.app"/>
   <AppDomains>
     <AppDomain>https://sentience-ai-free-2026.web.app</AppDomain>

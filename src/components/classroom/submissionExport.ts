@@ -380,12 +380,18 @@ export function exportInstituteApprovalPDF(
   const printWin = window.open('', '_blank');
   if (!printWin) return;
 
-  const rawSimPct = Math.round((submission.similarityScore ?? 0) * 100);
+  const normalizePctValue = (val?: number | null): number => {
+    if (val === undefined || val === null || isNaN(val)) return 0;
+    const num = val > 1 ? val : val * 100;
+    return Math.round(Math.min(100, Math.max(0, num)));
+  };
+
+  const rawSimPct = normalizePctValue(submission.similarityScore);
   const netSimPct = filters?.netSimilarity !== undefined
-    ? Math.round(filters.netSimilarity * 100)
+    ? normalizePctValue(filters.netSimilarity)
     : rawSimPct;
-  const aiPct = Math.round((submission.aiScore ?? 0) * 100);
-  const refPct = filters?.referenceScore !== undefined ? Math.round(filters.referenceScore) : 100;
+  const aiPct = normalizePctValue(submission.aiScore);
+  const refPct = filters?.referenceScore !== undefined ? normalizePctValue(filters.referenceScore) : 100;
   const receipt = submission.digitalReceipt;
   const verificationUrl = `https://sentience-ai.vercel.app/verify?id=${submission.id}&sha=${receipt?.sha256 || ''}`;
   const qrSvg = generateQRCodeSvg(verificationUrl, 84);

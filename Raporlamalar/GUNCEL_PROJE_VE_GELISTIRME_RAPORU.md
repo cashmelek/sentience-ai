@@ -607,6 +607,15 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
   3. *Word Eklentisi (.exe Setup Sihirbazı) Masaüstü Kurulumu ve Kullanımı:* `SentienceWordSetup.exe` kurulum adımları, Word içinden etkinleştirme, arka plan telemetri mühürleme ve kaldırma.
 - **Canlı Dağıtım:** 73/73 birim testi başarıyla geçti, `npm run build` tamamlandı ve Firebase Hosting'e deploy edildi.
 
+### 1.43 PDF Rapor Yüzde Skalası Düzeltmesi ve Canlı Önbellek Senkronizasyonu (30 Ekim 2026)
+- **PDF Enstitü Onay Belgesi Skala Düzeltmesi (`submissionExport.ts`):**
+  - İkinci resimdeki `%3500` ve `%4200` gibi aşırı değerlerin nedeni, 0-100 aralığında gelen değerlerin tekrar 100 ile çarpılmasıydı.
+  - `normalizePctValue` yardımcı fonksiyonu eklenerek hem 0-1 aralığındaki ondalık değerler hem de 0-100 aralığındaki tam sayı değerler `%0 - %100` sınırına normalize edildi.
+- **Dinamik Modül Yükleme Hatası Çözümü (`AccountSettingsModal`):**
+  - Üçüncü resimdeki `Failed to fetch dynamically imported module: .../AccountSettingsModal-ZDrvhnCX.js` hatası, yeni dağıtım sonrasında kullanıcının tarayıcısında kalan eski chunk referansından kaynaklanıyordu.
+  - Kodlar yeniden derlenip güncel chunk hash'leriyle Firebase Hosting'e deploy edildi.
+- **Canlı Dağıtım:** 73/73 test başarıyla geçti ve güncel sürüm canlıya aktarıldı.
+
 ### 5. AKTİF YAPILACAKLAR LİSTESİ VE ÖNCELİKLENDİRİLMİŞ ÇALIŞMA PLANI
 
 Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve idari yönetim gereksinimleri gözetilerek **Kritik (P1) -> Yüksek (P2) -> Orta (P3)** şeklinde önceliklendirilmiştir:
