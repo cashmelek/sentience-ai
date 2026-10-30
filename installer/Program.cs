@@ -263,14 +263,18 @@ namespace SentienceAI.WordSetup
             }
             catch { }
 
-            string devReg = @"Software\Microsoft\Office\16.0\WEF\Developer";
-            using (var devKey = Registry.CurrentUser.CreateSubKey(devReg))
+            try
             {
-                if (devKey != null)
+                string devReg = @"Software\Microsoft\Office\16.0\WEF\Developer";
+                using (var devKey = Registry.CurrentUser.OpenSubKey(devReg, true))
                 {
-                    devKey.SetValue(ManifestId, manifestPath, RegistryValueKind.String);
+                    if (devKey != null)
+                    {
+                        devKey.DeleteValue(ManifestId, false);
+                    }
                 }
             }
+            catch { }
         }
 
         public static void PerformUninstall()

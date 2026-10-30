@@ -23,10 +23,9 @@ Copy-Item -Path $manifestSource -Destination (Join-Path $wefDir "sentience-ai-ma
 Copy-Item -Path $manifestSource -Destination (Join-Path $wefDir "b720b571-081b-4e38-a7f7-9d6031a56ce2.xml") -Force
 
 $devKeyPath = "HKCU:\Software\Microsoft\Office\16.0\WEF\Developer"
-if (-not (Test-Path $devKeyPath)) {
-    New-Item -Path $devKeyPath -Force | Out-Null
+if (Test-Path $devKeyPath) {
+    Remove-ItemProperty -Path $devKeyPath -Name "{b720b571-081b-4e38-a7f7-9d6031a56ce2}" -ErrorAction SilentlyContinue
 }
-Set-ItemProperty -Path $devKeyPath -Name "{b720b571-081b-4e38-a7f7-9d6031a56ce2}" -Value $manifestDest -Force
 
 $drive = $appDataDir.Substring(0, 1).ToLower()
 $uncPath = "\\localhost\" + $drive + "$" + $appDataDir.Substring(2)
