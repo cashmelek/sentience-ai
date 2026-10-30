@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <OfficeApp 
   xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" 
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
@@ -11,7 +11,7 @@
   <Description DefaultValue="Sentience AI Academic Integrity and Forensics Add-in"/>
   <IconUrl DefaultValue="https://sentience-ai-free-2026.web.app/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://sentience-ai-free-2026.web.app/icon-80.png"/>
-  <SupportUrl DefaultValue="https://sentience-ai-free-2026.web.app"/>
+  <SupportUrl DefaultValue="https://sentience-ai-free-2026.web.app/guide#word-eklentisi-masaustu-kurulumu"/>
   <AppDomains>
     <AppDomain>https://sentience-ai-free-2026.web.app</AppDomain>
   </AppDomains>

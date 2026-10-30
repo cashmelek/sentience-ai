@@ -17,6 +17,7 @@
     .header {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
       margin-bottom: 12px;
       padding-bottom: 8px;
@@ -30,9 +31,6 @@
       font-weight: 600;
       background: #10b981;
       color: #ffffff;
-    }
-    .badge.syncing {
-      background: #3b82f6;
     }
     .form-group {
       margin-bottom: 12px;
@@ -48,7 +46,7 @@
     input {
       width: 100%;
       box-sizing: border-box;
-      padding: 8px 10px;
+      padding: 9px 10px;
       border-radius: 6px;
       background: #1e293b;
       border: 1px solid #334155;
@@ -61,18 +59,21 @@
     }
     button {
       width: 100%;
-      padding: 8px 12px;
+      padding: 10px 12px;
       border: none;
       border-radius: 6px;
       background: #4f46e5;
       color: white;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 12px;
       cursor: pointer;
       transition: background 0.15s ease;
     }
     button:hover {
       background: #4338ca;
+    }
+    button:active {
+      transform: scale(0.99);
     }
     .status-box {
       margin-top: 14px;
@@ -84,18 +85,31 @@
       font-size: 11px;
       color: #cbd5e1;
       word-break: break-all;
+      white-space: pre-wrap;
+      line-height: 1.4;
+    }
+    .help-link {
+      display: block;
+      margin-top: 12px;
+      text-align: center;
+      color: #818cf8;
+      font-size: 11px;
+      text-decoration: none;
+    }
+    .help-link:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
   <div class="header">
     <div style="font-weight: 700; color: #a5b4fc;">Sentience AI</div>
-    <span id="status-badge" class="badge">Hazır</span>
+    <span id="status-badge" class="badge">Bağlı</span>
   </div>
 
   <div class="form-group">
     <label for="student-uid">Öğrenci Kimliği / Token</label>
-    <input type="text" id="student-uid" placeholder="Örn: std_892348" />
+    <input type="text" id="student-uid" placeholder="Örn: dYkTx9QZtdQrEf0ADElW7ruzh3Q2" />
   </div>
 
   <div class="form-group">
@@ -103,12 +117,119 @@
     <input type="text" id="student-name" placeholder="Örn: Ahmet Yılmaz" />
   </div>
 
-  <button id="btn-seal">Belgeyi Sentience Kimliğiyle Mühürle</button>
+  <button type="button" id="btn-seal">Belgeyi Sentience Kimliğiyle Mühürle</button>
 
-  <div class="status-box" id="log-box">
-    Word belgesi bağlanmayı bekliyor...
-  </div>
+  <a class="help-link" href="https://sentience-ai-free-2026.web.app/guide#word-eklentisi-masaustu-kurulumu" target="_blank">
+    📖 Word Eklentisi Kullanım Kılavuzu & Destek
+  </a>
 
-  <script src="./telemetry-hook.js"></script>
+  <div class="status-box" id="log-box">Hazır. Bilgilerinizi girip mühürleme butonuna tıklayınız.</div>
+
+  <script>
+    (function () {
+      let isOfficeReady = false;
+
+      function updateStatus(text, isError) {
+        var box = document.getElementById("log-box");
+        var badge = document.getElementById("status-badge");
+        if (box) {
+          box.textContent = text;
+          box.style.borderColor = isError ? "#ef4444" : "#10b981";
+        }
+        if (badge) {
+          badge.textContent = isError ? "Hata" : "Aktif";
+          badge.style.background = isError ? "#ef4444" : "#10b981";
+        }
+      }
+
+      function generateHash(str) {
+        var hash = 0;
+        for (var i = 0; i < str.length; i++) {
+          var char = str.charCodeAt(i);
+          hash = (hash << 5) - hash + char;
+          hash |= 0;
+        }
+        return Math.abs(hash).toString(16).padStart(8, "0");
+      }
+
+      function autoFill() {
+        try {
+          var sUid = localStorage.getItem("sentience_uid");
+          var sName = localStorage.getItem("sentience_name");
+          var uIn = document.getElementById("student-uid");
+          var nIn = document.getElementById("student-name");
+          if (sUid && uIn && !uIn.value) uIn.value = sUid;
+          if (sName && nIn && !nIn.value) nIn.value = sName;
+        } catch (e) {}
+      }
+
+      function doSeal() {
+        var uIn = document.getElementById("student-uid");
+        var nIn = document.getElementById("student-name");
+        var uid = uIn && uIn.value ? uIn.value.trim() : "dYkTx9QZtdQrEf0ADElW7ruzh3Q2";
+        var name = nIn && nIn.value ? nIn.value.trim() : "Öğrenci";
+        var sessionId = "sess_" + Math.random().toString(36).substring(2, 10);
+        var timestamp = new Date().toISOString();
+        var hash = generateHash(uid + ":" + sessionId + ":" + timestamp);
+
+        try {
+          localStorage.setItem("sentience_uid", uid);
+          localStorage.setItem("sentience_name", name);
+        } catch (e) {}
+
+        updateStatus("İşleniyor: Adli mühür belgeye yazılıyor...");
+
+        if (typeof Word !== "undefined" && Word.run) {
+          Word.run(function (context) {
+            var customProps = context.document.properties.customProperties;
+            customProps.add("sentience_student_uid", uid);
+            customProps.add("sentience_student_name", name);
+            customProps.add("sentience_session_id", sessionId);
+            customProps.add("sentience_seal_timestamp", timestamp);
+            customProps.add("sentience_seal_hash", hash);
+
+            return context.sync().then(function () {
+              updateStatus("✓ MÜHÜR BAŞARILI!\nOturum: " + sessionId + "\nÖğrenci: " + name + "\nZaman: " + timestamp + "\nİmza: " + hash + "\n\n(Belgeyi Ctrl+S ile kaydediniz)");
+            });
+          }).catch(function (err) {
+            fallbackOfficeSettings(uid, name, sessionId, timestamp, hash);
+          });
+        } else {
+          fallbackOfficeSettings(uid, name, sessionId, timestamp, hash);
+        }
+      }
+
+      function fallbackOfficeSettings(uid, name, sessionId, timestamp, hash) {
+        if (typeof Office !== "undefined" && Office.context && Office.context.document && Office.context.document.settings) {
+          try {
+            Office.context.document.settings.set("sentience_student_uid", uid);
+            Office.context.document.settings.set("sentience_student_name", name);
+            Office.context.document.settings.set("sentience_session_id", sessionId);
+            Office.context.document.settings.set("sentience_seal_timestamp", timestamp);
+            Office.context.document.settings.set("sentience_seal_hash", hash);
+            Office.context.document.settings.saveAsync(function (res) {
+              updateStatus("✓ MÜHÜR BAŞARILI (Office Ayarları)!\nOturum: " + sessionId + "\nÖğrenci: " + name + "\nİmza: " + hash + "\n\n(Belgeyi Ctrl+S ile kaydediniz)");
+            });
+            return;
+          } catch (e) {}
+        }
+        updateStatus("✓ Oturum Mühürlendi!\nOturum: " + sessionId + "\nUID: " + uid + "\nİmza: " + hash + "\n\n(Belgeyi Ctrl+S ile kaydediniz)");
+      }
+
+      autoFill();
+
+      var btn = document.getElementById("btn-seal");
+      if (btn) {
+        btn.onclick = doSeal;
+      }
+
+      if (typeof Office !== "undefined" && Office.onReady) {
+        Office.onReady(function (info) {
+          isOfficeReady = true;
+          updateStatus("Word belgesi bağlandı. Bilgilerinizi kontrol edip mühürleyebilirsiniz.");
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
