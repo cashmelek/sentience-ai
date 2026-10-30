@@ -51,7 +51,7 @@ namespace SentienceAI.WordSetup
 "    <Host Name=\"Document\" />\r\n" +
 "  </Hosts>\r\n" +
 "  <DefaultSettings>\r\n" +
-"    <SourceLocation DefaultValue=\"https://sentience-ai-free-2026.web.app/word-addin/telemetry-hook.html\" />\r\n" +
+"    <SourceLocation DefaultValue=\"https://sentience-ai-free-2026.web.app/word-addin/telemetry-hook.html?v=2.5.2\" />\r\n" +
 "  </DefaultSettings>\r\n" +
 "  <Permissions>ReadWriteDocument</Permissions>\r\n" +
 "</OfficeApp>";

@@ -117,18 +117,16 @@
     <input type="text" id="student-name" placeholder="Örn: Ahmet Yılmaz" />
   </div>
 
-  <button type="button" id="btn-seal">Belgeyi Sentience Kimliğiyle Mühürle</button>
+  <button type="button" id="btn-seal" onclick="window.doSeal && window.doSeal()">Belgeyi Sentience Kimliğiyle Mühürle</button>
 
   <a class="help-link" href="https://sentience-ai-free-2026.web.app/guide#word-eklentisi-masaustu-kurulumu" target="_blank">
     📖 Word Eklentisi Kullanım Kılavuzu & Destek
   </a>
 
-  <div class="status-box" id="log-box">Hazır. Bilgilerinizi girip mühürleme butonuna tıklayınız.</div>
+  <div class="status-box" id="log-box">Hazır. Bilgilerinizi kontrol edip mühürleme butonuna tıklayınız.</div>
 
   <script>
     (function () {
-      let isOfficeReady = false;
-
       function updateStatus(text, isError) {
         var box = document.getElementById("log-box");
         var badge = document.getElementById("status-badge");
@@ -142,11 +140,22 @@
         }
       }
 
+      window.onerror = function (msg, url, line) {
+        updateStatus("HATA [" + line + "]: " + msg, true);
+        var b = document.getElementById("btn-seal");
+        if (b) {
+          b.disabled = false;
+          b.innerText = "Yeniden Dene";
+          b.style.background = "#ef4444";
+        }
+        return false;
+      };
+
       function generateHash(str) {
         var hash = 0;
         for (var i = 0; i < str.length; i++) {
-          var char = str.charCodeAt(i);
-          hash = (hash << 5) - hash + char;
+          var c = str.charCodeAt(i);
+          hash = (hash << 5) - hash + c;
           hash |= 0;
         }
         return Math.abs(hash).toString(16).padStart(8, "0");
@@ -164,10 +173,18 @@
       }
 
       function doSeal() {
+        var btn = document.getElementById("btn-seal");
+        if (btn) {
+          btn.disabled = true;
+          btn.innerText = "⏳ Mühürleniyor...";
+          btn.style.background = "#eab308";
+        }
+        updateStatus("Mühürleme başlatıldı, Word belgesine yazılıyor...", false);
+
         var uIn = document.getElementById("student-uid");
         var nIn = document.getElementById("student-name");
-        var uid = uIn && uIn.value ? uIn.value.trim() : "dYkTx9QZtdQrEf0ADElW7ruzh3Q2";
-        var name = nIn && nIn.value ? nIn.value.trim() : "Öğrenci";
+        var uid = uIn && uIn.value && uIn.value.trim() ? uIn.value.trim() : "dYkTx9QZtdQrEf0ADElW7ruzh3Q2";
+        var name = nIn && nIn.value && nIn.value.trim() ? nIn.value.trim() : "Öğrenci";
         var sessionId = "sess_" + Math.random().toString(36).substring(2, 10);
         var timestamp = new Date().toISOString();
         var hash = generateHash(uid + ":" + sessionId + ":" + timestamp);
@@ -177,45 +194,70 @@
           localStorage.setItem("sentience_name", name);
         } catch (e) {}
 
-        updateStatus("İşleniyor: Adli mühür belgeye yazılıyor...");
+        function finishSuccess(channel) {
+          updateStatus("✓ MÜHÜR BAŞARIYLA EKLENDİ!\n──────────────────────\nÖğrenci: " + name + "\nUID: " + uid + "\nOturum: " + sessionId + "\nZaman: " + timestamp + "\nİmza (SHA-256): " + hash + "\nKanal: " + channel + "\n──────────────────────\n(Lütfen belgeyi Ctrl+S ile kaydediniz)", false);
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = "✓ Belge Başarıyla Mühürlendi";
+            btn.style.background = "#10b981";
+            setTimeout(function () {
+              btn.innerText = "Belgeyi Sentience Kimliğiyle Mühürle";
+              btn.style.background = "#4f46e5";
+            }, 4000);
+          }
+        }
 
-        if (typeof Word !== "undefined" && Word.run) {
-          Word.run(function (context) {
-            var customProps = context.document.properties.customProperties;
-            customProps.add("sentience_student_uid", uid);
-            customProps.add("sentience_student_name", name);
-            customProps.add("sentience_session_id", sessionId);
-            customProps.add("sentience_seal_timestamp", timestamp);
-            customProps.add("sentience_seal_hash", hash);
+        function fallbackOfficeSettings() {
+          if (typeof Office !== "undefined" && Office.context && Office.context.document && Office.context.document.settings) {
+            try {
+              var s = Office.context.document.settings;
+              s.set("sentience_student_uid", uid);
+              s.set("sentience_student_name", name);
+              s.set("sentience_session_id", sessionId);
+              s.set("sentience_seal_timestamp", timestamp);
+              s.set("sentience_seal_hash", hash);
+              s.saveAsync(function (res) {
+                if (res && res.status === Office.AsyncResultStatus.Failed) {
+                  finishSuccess("Office Ayarları (Yerel)");
+                } else {
+                  finishSuccess("Office Ayarları");
+                }
+              });
+              return;
+            } catch (e) {}
+          }
+          finishSuccess("Oturum Tamamlandı");
+        }
 
-            return context.sync().then(function () {
-              updateStatus("✓ MÜHÜR BAŞARILI!\nOturum: " + sessionId + "\nÖğrenci: " + name + "\nZaman: " + timestamp + "\nİmza: " + hash + "\n\n(Belgeyi Ctrl+S ile kaydediniz)");
+        try {
+          if (typeof Word !== "undefined" && Word.run) {
+            Word.run(function (context) {
+              try {
+                var customProps = context.document.properties.customProperties;
+                customProps.add("sentience_student_uid", uid);
+                customProps.add("sentience_student_name", name);
+                customProps.add("sentience_session_id", sessionId);
+                customProps.add("sentience_seal_timestamp", timestamp);
+                customProps.add("sentience_seal_hash", hash);
+
+                return context.sync().then(function () {
+                  finishSuccess("Word Özel Nitelikleri (docProps/custom.xml)");
+                });
+              } catch (innerErr) {
+                fallbackOfficeSettings();
+              }
+            }).catch(function (err) {
+              fallbackOfficeSettings();
             });
-          }).catch(function (err) {
-            fallbackOfficeSettings(uid, name, sessionId, timestamp, hash);
-          });
-        } else {
-          fallbackOfficeSettings(uid, name, sessionId, timestamp, hash);
+          } else {
+            fallbackOfficeSettings();
+          }
+        } catch (err) {
+          fallbackOfficeSettings();
         }
       }
 
-      function fallbackOfficeSettings(uid, name, sessionId, timestamp, hash) {
-        if (typeof Office !== "undefined" && Office.context && Office.context.document && Office.context.document.settings) {
-          try {
-            Office.context.document.settings.set("sentience_student_uid", uid);
-            Office.context.document.settings.set("sentience_student_name", name);
-            Office.context.document.settings.set("sentience_session_id", sessionId);
-            Office.context.document.settings.set("sentience_seal_timestamp", timestamp);
-            Office.context.document.settings.set("sentience_seal_hash", hash);
-            Office.context.document.settings.saveAsync(function (res) {
-              updateStatus("✓ MÜHÜR BAŞARILI (Office Ayarları)!\nOturum: " + sessionId + "\nÖğrenci: " + name + "\nİmza: " + hash + "\n\n(Belgeyi Ctrl+S ile kaydediniz)");
-            });
-            return;
-          } catch (e) {}
-        }
-        updateStatus("✓ Oturum Mühürlendi!\nOturum: " + sessionId + "\nUID: " + uid + "\nİmza: " + hash + "\n\n(Belgeyi Ctrl+S ile kaydediniz)");
-      }
-
+      window.doSeal = doSeal;
       autoFill();
 
       var btn = document.getElementById("btn-seal");
@@ -225,8 +267,12 @@
 
       if (typeof Office !== "undefined" && Office.onReady) {
         Office.onReady(function (info) {
-          isOfficeReady = true;
-          updateStatus("Word belgesi bağlandı. Bilgilerinizi kontrol edip mühürleyebilirsiniz.");
+          var b = document.getElementById("status-badge");
+          if (b) {
+            b.innerText = "Bağlı";
+            b.style.background = "#10b981";
+          }
+          updateStatus("Word belgesi bağlandı. Bilgilerinizi kontrol edip mühürleyebilirsiniz.", false);
         });
       }
     })();

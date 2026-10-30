@@ -19,7 +19,7 @@
     <Host Name="Document"/>
   </Hosts>
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://sentience-ai-free-2026.web.app/word-addin/telemetry-hook.html"/>
+    <SourceLocation DefaultValue="https://sentience-ai-free-2026.web.app/word-addin/telemetry-hook.html?v=2.5.2"/>
   </DefaultSettings>
   <Permissions>ReadWriteDocument</Permissions>
 </OfficeApp>
