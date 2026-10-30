@@ -28,7 +28,7 @@ if (-not (Test-Path $devKeyPath)) {
 }
 Set-ItemProperty -Path $devKeyPath -Name "{b720b571-081b-4e38-a7f7-9d6031a56ce2}" -Value $manifestDest -Force
 
-$drive = $appDataDir.Substring(0, 1)
+$drive = $appDataDir.Substring(0, 1).ToLower()
 $uncPath = "\\localhost\" + $drive + "$" + $appDataDir.Substring(2)
 $catKeyPath = "HKCU:\Software\Microsoft\Office\16.0\WEF\TrustedCatalogs\{B720B571-081B-4E38-A7F7-9D6031A56CE2}"
 if (-not (Test-Path $catKeyPath)) {
@@ -37,6 +37,15 @@ if (-not (Test-Path $catKeyPath)) {
 Set-ItemProperty -Path $catKeyPath -Name "Id" -Value "{B720B571-081B-4E38-A7F7-9D6031A56CE2}" -Force
 Set-ItemProperty -Path $catKeyPath -Name "Url" -Value $uncPath -Force
 Set-ItemProperty -Path $catKeyPath -Name "Flags" -Value 1 -Type DWord -Force
+
+try {
+    $policyKeyPath = "HKCU:\Software\Policies\Microsoft\Office\16.0\WEF\TrustedCatalogs\Catalog01"
+    if (-not (Test-Path $policyKeyPath)) {
+        New-Item -Path $policyKeyPath -Force | Out-Null
+    }
+    Set-ItemProperty -Path $policyKeyPath -Name "url" -Value $uncPath -Force
+    Set-ItemProperty -Path $policyKeyPath -Name "flags" -Value 1 -Type DWord -Force
+} catch { }
 
 Write-Host "Sentience AI Word Eklentisi basariyla kuruldu!" -ForegroundColor Green
 Write-Host "Konum: $manifestDest" -ForegroundColor Cyan

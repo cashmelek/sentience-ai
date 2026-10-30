@@ -3,6 +3,7 @@ using System.IO;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
+using System.Diagnostics;
 using Microsoft.Win32;
 
 namespace SentienceAI.WordSetup
@@ -207,13 +208,14 @@ namespace SentienceAI.WordSetup
                         {
                             File.WriteAllText(Path.Combine(mDir, "manifest.xml"), ManifestXml, utf8WithoutBom);
                             File.WriteAllText(Path.Combine(mDir, "sentience-ai-manifest.xml"), ManifestXml, utf8WithoutBom);
+                            File.WriteAllText(Path.Combine(mDir, "b720b571-081b-4e38-a7f7-9d6031a56ce2_2.5.0.0"), ManifestXml, utf8WithoutBom);
                         }
                     }
                 }
                 catch { }
             }
 
-            char drive = AppDataDir[0];
+            char drive = char.ToLowerInvariant(AppDataDir[0]);
             string uncPath = @"\\localhost\" + drive + "$" + AppDataDir.Substring(2);
             string catReg = @"Software\Microsoft\Office\16.0\WEF\TrustedCatalogs\" + CatalogGuid;
             using (var regKey = Registry.CurrentUser.CreateSubKey(catReg))
@@ -225,6 +227,20 @@ namespace SentienceAI.WordSetup
                     regKey.SetValue("Flags", 1, RegistryValueKind.DWord);
                 }
             }
+
+            try
+            {
+                string policyCatReg = @"Software\Policies\Microsoft\Office\16.0\WEF\TrustedCatalogs\Catalog01";
+                using (var polKey = Registry.CurrentUser.CreateSubKey(policyCatReg))
+                {
+                    if (polKey != null)
+                    {
+                        polKey.SetValue("url", uncPath, RegistryValueKind.String);
+                        polKey.SetValue("flags", 1, RegistryValueKind.DWord);
+                    }
+                }
+            }
+            catch { }
 
             string devReg = @"Software\Microsoft\Office\16.0\WEF\Developer";
             using (var devKey = Registry.CurrentUser.CreateSubKey(devReg))
@@ -242,6 +258,13 @@ namespace SentienceAI.WordSetup
             {
                 string catReg = @"Software\Microsoft\Office\16.0\WEF\TrustedCatalogs\" + CatalogGuid;
                 Registry.CurrentUser.DeleteSubKeyTree(catReg, false);
+            }
+            catch { }
+
+            try
+            {
+                string policyCatReg = @"Software\Policies\Microsoft\Office\16.0\WEF\TrustedCatalogs\Catalog01";
+                Registry.CurrentUser.DeleteSubKeyTree(policyCatReg, false);
             }
             catch { }
 
@@ -283,6 +306,31 @@ namespace SentienceAI.WordSetup
         {
             try
             {
+                Process[] wordProcs = Process.GetProcessesByName("WINWORD");
+                if (wordProcs.Length > 0)
+                {
+                    DialogResult dr = MessageBox.Show(
+                        "Microsoft Word şu anda çalışıyor.\n\nKurulumun ve Güvenlik Merkezi katalog ayarlarının sorunsuz işlenebilmesi için Word'ün kapatılması gerekmektedir.\n\nAçık Word pencereleri otomatik olarak kapatılsın mı?",
+                        "Microsoft Word Açık",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning
+                    );
+                    if (dr == DialogResult.Yes)
+                    {
+                        foreach (var p in wordProcs)
+                        {
+                            try { p.CloseMainWindow(); p.WaitForExit(2000); } catch { }
+                            try { if (!p.HasExited) p.Kill(); } catch { }
+                        }
+                    }
+                    else
+                    {
+                        lblStatus.Text = "Bilgi: Lütfen Microsoft Word'ü kapatıp kuruluma devam ediniz.";
+                        lblStatus.ForeColor = Color.FromArgb(251, 191, 36);
+                        return;
+                    }
+                }
+
                 progressBar.Visible = true;
                 progressBar.Value = 30;
 
@@ -293,7 +341,7 @@ namespace SentienceAI.WordSetup
                 lblStatus.ForeColor = Color.FromArgb(52, 211, 153);
 
                 MessageBox.Show(
-                    "Sentience AI Word Eklentisi başarıyla kuruldu!\n\nMicrosoft Word uygulamasını açıp 'Ekle -> Eklentilerim -> Paylaşılan Klasör' bölümünden eklentiyi kullanabilirsiniz.",
+                    "Sentience AI Word Eklentisi başarıyla kuruldu!\n\nMicrosoft Word uygulamasını başlatıp 'Ekle -> Eklentilerim' (veya açılır ok -> Geliştirici Eklentileri / Paylaşılan Klasör) bölümünden eklentiyi kullanabilirsiniz.",
                     "Kurulum Tamamlandı",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information
