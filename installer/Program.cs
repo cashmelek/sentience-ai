@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Drawing;
+using System.Text;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -17,6 +18,8 @@ namespace SentienceAI.WordSetup
         private ProgressBar progressBar;
 
         private const string CatalogGuid = "{B720B571-081B-4E38-A7F7-9D6031A56CE2}";
+        private const string ManifestId = "{b720b571-081b-4e38-a7f7-9d6031a56ce2}";
+
         private static readonly string AppDataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "SentienceAI", "WordAddin"
@@ -26,26 +29,30 @@ namespace SentienceAI.WordSetup
             "Microsoft", "Office", "16.0", "Wef"
         );
 
-        private const string ManifestContent = @"<?xml version=""1.0"" encoding=""UTF-8""?>
-<OfficeApp xmlns=""http://schemas.microsoft.com/office/appforoffice/1.1""
-           xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""
-           xsi:type=""MailApp"">
-  <Id>b720b571-081b-4e38-a7f7-9d6031a56ce2</Id>
-  <Version>2.5.0.0</Version>
-  <ProviderName>Sentience AI</ProviderName>
-  <DefaultLocale>tr-TR</DefaultLocale>
-  <DisplayName DefaultValue=""Sentience AI"" />
-  <Description DefaultValue=""Akademik bütünlük ve adli bilişim telemetri mühürleme eklentisi"" />
-  <IconUrl DefaultValue=""https://sentience-ai-free-2026.web.app/icon-192.png"" />
-  <HighResolutionIconUrl DefaultValue=""https://sentience-ai-free-2026.web.app/icon-512.png"" />
-  <Hosts>
-    <Host Name=""Document"" />
-  </Hosts>
-  <DefaultSettings>
-    <SourceLocation DefaultValue=""https://sentience-ai-free-2026.web.app/word-addin/telemetry-hook.html"" />
-  </DefaultSettings>
-  <Permissions>ReadWriteDocument</Permissions>
-</OfficeApp>";
+        private const string ManifestXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n" +
+"<OfficeApp xmlns=\"http://schemas.microsoft.com/office/appforoffice/1.1\"\r\n" +
+"           xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n" +
+"           xsi:type=\"TaskPaneApp\">\r\n" +
+"  <Id>b720b571-081b-4e38-a7f7-9d6031a56ce2</Id>\r\n" +
+"  <Version>2.5.0.0</Version>\r\n" +
+"  <ProviderName>Sentience AI</ProviderName>\r\n" +
+"  <DefaultLocale>en-US</DefaultLocale>\r\n" +
+"  <DisplayName DefaultValue=\"Sentience AI\" />\r\n" +
+"  <Description DefaultValue=\"Sentience AI Academic Integrity and Forensics Add-in\" />\r\n" +
+"  <IconUrl DefaultValue=\"https://sentience-ai-free-2026.web.app/icon-32.png\" />\r\n" +
+"  <HighResolutionIconUrl DefaultValue=\"https://sentience-ai-free-2026.web.app/icon-80.png\" />\r\n" +
+"  <SupportUrl DefaultValue=\"https://sentience-ai-free-2026.web.app/guide#word-eklentisi-masaustu-kurulumu\" />\r\n" +
+"  <AppDomains>\r\n" +
+"    <AppDomain>https://sentience-ai-free-2026.web.app</AppDomain>\r\n" +
+"  </AppDomains>\r\n" +
+"  <Hosts>\r\n" +
+"    <Host Name=\"Document\" />\r\n" +
+"  </Hosts>\r\n" +
+"  <DefaultSettings>\r\n" +
+"    <SourceLocation DefaultValue=\"https://sentience-ai-free-2026.web.app/word-addin/telemetry-hook.html\" />\r\n" +
+"  </DefaultSettings>\r\n" +
+"  <Permissions>ReadWriteDocument</Permissions>\r\n" +
+"</OfficeApp>";
 
         public SetupForm()
         {
@@ -168,6 +175,110 @@ namespace SentienceAI.WordSetup
             }
         }
 
+        public static void PerformInstall()
+        {
+            if (!Directory.Exists(AppDataDir))
+            {
+                Directory.CreateDirectory(AppDataDir);
+            }
+
+            string manifestPath = Path.Combine(AppDataDir, "manifest.xml");
+            Encoding utf8WithoutBom = new UTF8Encoding(false);
+            File.WriteAllText(manifestPath, ManifestXml, utf8WithoutBom);
+
+            if (!Directory.Exists(WefDir))
+            {
+                Directory.CreateDirectory(WefDir);
+            }
+            File.WriteAllText(Path.Combine(WefDir, "manifest.xml"), ManifestXml, utf8WithoutBom);
+            File.WriteAllText(Path.Combine(WefDir, "sentience-ai-manifest.xml"), ManifestXml, utf8WithoutBom);
+            File.WriteAllText(Path.Combine(WefDir, "b720b571-081b-4e38-a7f7-9d6031a56ce2.xml"), ManifestXml, utf8WithoutBom);
+
+            string[] subDirs = Directory.GetDirectories(WefDir, "{*}");
+            foreach (string sd in subDirs)
+            {
+                try
+                {
+                    string[] innerDirs = Directory.GetDirectories(sd);
+                    foreach (string id in innerDirs)
+                    {
+                        string mDir = Path.Combine(id, "Manifests");
+                        if (Directory.Exists(mDir))
+                        {
+                            File.WriteAllText(Path.Combine(mDir, "manifest.xml"), ManifestXml, utf8WithoutBom);
+                            File.WriteAllText(Path.Combine(mDir, "sentience-ai-manifest.xml"), ManifestXml, utf8WithoutBom);
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            char drive = AppDataDir[0];
+            string uncPath = @"\\localhost\" + drive + "$" + AppDataDir.Substring(2);
+            string catReg = @"Software\Microsoft\Office\16.0\WEF\TrustedCatalogs\" + CatalogGuid;
+            using (var regKey = Registry.CurrentUser.CreateSubKey(catReg))
+            {
+                if (regKey != null)
+                {
+                    regKey.SetValue("Id", CatalogGuid, RegistryValueKind.String);
+                    regKey.SetValue("Url", uncPath, RegistryValueKind.String);
+                    regKey.SetValue("Flags", 1, RegistryValueKind.DWord);
+                }
+            }
+
+            string devReg = @"Software\Microsoft\Office\16.0\WEF\Developer";
+            using (var devKey = Registry.CurrentUser.CreateSubKey(devReg))
+            {
+                if (devKey != null)
+                {
+                    devKey.SetValue(ManifestId, manifestPath, RegistryValueKind.String);
+                }
+            }
+        }
+
+        public static void PerformUninstall()
+        {
+            try
+            {
+                string catReg = @"Software\Microsoft\Office\16.0\WEF\TrustedCatalogs\" + CatalogGuid;
+                Registry.CurrentUser.DeleteSubKeyTree(catReg, false);
+            }
+            catch { }
+
+            try
+            {
+                string devReg = @"Software\Microsoft\Office\16.0\WEF\Developer";
+                using (var devKey = Registry.CurrentUser.OpenSubKey(devReg, true))
+                {
+                    if (devKey != null)
+                    {
+                        devKey.DeleteValue(ManifestId, false);
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
+                if (Directory.Exists(AppDataDir))
+                {
+                    Directory.Delete(AppDataDir, true);
+                }
+            }
+            catch { }
+
+            try
+            {
+                string[] filesToRemove = { "manifest.xml", "sentience-ai-manifest.xml", "b720b571-081b-4e38-a7f7-9d6031a56ce2.xml" };
+                foreach (string file in filesToRemove)
+                {
+                    string p = Path.Combine(WefDir, file);
+                    if (File.Exists(p)) File.Delete(p);
+                }
+            }
+            catch { }
+        }
+
         private void BtnInstall_Click(object sender, EventArgs e)
         {
             try
@@ -175,40 +286,14 @@ namespace SentienceAI.WordSetup
                 progressBar.Visible = true;
                 progressBar.Value = 30;
 
-                if (!Directory.Exists(AppDataDir))
-                {
-                    Directory.CreateDirectory(AppDataDir);
-                }
-
-                string manifestFile = Path.Combine(AppDataDir, "manifest.xml");
-                File.WriteAllText(manifestFile, ManifestContent);
-
-                if (!Directory.Exists(WefDir))
-                {
-                    Directory.CreateDirectory(WefDir);
-                }
-                string wefManifest = Path.Combine(WefDir, "sentience-ai-manifest.xml");
-                File.WriteAllText(wefManifest, ManifestContent);
-
-                progressBar.Value = 70;
-
-                string regPath = @"Software\Microsoft\Office\16.0\WEF\TrustedCatalogs\" + CatalogGuid;
-                using (var regKey = Registry.CurrentUser.CreateSubKey(regPath))
-                {
-                    if (regKey != null)
-                    {
-                        regKey.SetValue("Id", CatalogGuid, RegistryValueKind.String);
-                        regKey.SetValue("Url", AppDataDir, RegistryValueKind.String);
-                        regKey.SetValue("Flags", 1, RegistryValueKind.DWord);
-                    }
-                }
+                PerformInstall();
 
                 progressBar.Value = 100;
                 lblStatus.Text = "Başarılı: Sentience AI Word eklentisi kuruldu!\nWord'ü açıp Ekle -> Eklentilerim kısmından kontrol edebilirsiniz.";
                 lblStatus.ForeColor = Color.FromArgb(52, 211, 153);
 
                 MessageBox.Show(
-                    "Sentience AI Word Eklentisi başarıyla kuruldu!\n\nMicrosoft Word uygulamasını açıp 'Ekle -> Eklentilerim' bölümünden eklentiyi kullanabilirsiniz.",
+                    "Sentience AI Word Eklentisi başarıyla kuruldu!\n\nMicrosoft Word uygulamasını açıp 'Ekle -> Eklentilerim -> Paylaşılan Klasör' bölümünden eklentiyi kullanabilirsiniz.",
                     "Kurulum Tamamlandı",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information
@@ -229,19 +314,7 @@ namespace SentienceAI.WordSetup
                 progressBar.Visible = true;
                 progressBar.Value = 50;
 
-                string regPath = @"Software\Microsoft\Office\16.0\WEF\TrustedCatalogs\" + CatalogGuid;
-                Registry.CurrentUser.DeleteSubKeyTree(regPath, false);
-
-                string wefManifest = Path.Combine(WefDir, "sentience-ai-manifest.xml");
-                if (File.Exists(wefManifest))
-                {
-                    File.Delete(wefManifest);
-                }
-
-                if (Directory.Exists(AppDataDir))
-                {
-                    Directory.Delete(AppDataDir, true);
-                }
+                PerformUninstall();
 
                 progressBar.Value = 100;
                 lblStatus.Text = "Eklenti bu bilgisayardan başarıyla kaldırıldı.";
@@ -268,20 +341,7 @@ namespace SentienceAI.WordSetup
             {
                 try
                 {
-                    if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
-                    File.WriteAllText(Path.Combine(AppDataDir, "manifest.xml"), ManifestContent);
-                    if (!Directory.Exists(WefDir)) Directory.CreateDirectory(WefDir);
-                    File.WriteAllText(Path.Combine(WefDir, "sentience-ai-manifest.xml"), ManifestContent);
-
-                    using (var regKey = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Office\16.0\WEF\TrustedCatalogs\" + CatalogGuid))
-                    {
-                        if (regKey != null)
-                        {
-                            regKey.SetValue("Id", CatalogGuid, RegistryValueKind.String);
-                            regKey.SetValue("Url", AppDataDir, RegistryValueKind.String);
-                            regKey.SetValue("Flags", 1, RegistryValueKind.DWord);
-                        }
-                    }
+                    PerformInstall();
                     Environment.Exit(0);
                 }
                 catch

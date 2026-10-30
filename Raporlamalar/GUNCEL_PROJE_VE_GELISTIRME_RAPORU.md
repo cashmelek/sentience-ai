@@ -654,4 +654,26 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
 - [ ] **GitHub Actions Otomasyonu:** PR'larda otomatik Lighthouse performans ve erişilebilirlik testleri.
 
 ---
+
+## 7. 30 EKİM 2026 WORD EKLENTİSİ KALICI KURULUM, DİNAMİK MODÜL VE ENSTİTÜ PDF DÜZELTMELERİ
+
+### 7.1 Word Eklentisi Setup Paketi (`SentienceWordSetup.exe`) Kalıcı Mimarisi
+- **Kök Neden:** Eski setup yürütülebilir dosyası kaldırılıp yeniden kurulduğunda Word'ün `xsi:type="MailApp"` ve `.svg` ikon kısıtı nedeniyle eklentiyi sessizce göz ardı etmesi; ayrıca Windows ağ paylaşımında `\\localhost\c$` erişim izinlerinin Office Geliştirici anahtarından bağımsız çalışabilmesi gerekliliği.
+- **Kalıcı Çözüm & C# Derleme:**
+  1. `installer/Program.cs` içerisindeki XML şablonu kesin olarak `xsi:type="TaskPaneApp"` ve geçerli `32x32` / `80x80` PNG ikon referanslarına geçirildi.
+  2. Windows Kayıt Defterinde hem `HKCU\Software\Microsoft\Office\16.0\WEF\Developer` (doğrudan Geliştirici Eklentileri sekmesi) hem de `TrustedCatalogs` (Paylaşılan Klasör sekmesi) çift yönlü garantiye alındı.
+  3. `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe` ile `installer/SentienceWordSetup.exe` yeniden derlendi ve `public/downloads/SentienceWordSetup.zip` arşivi güncellendi.
+  4. Yerel bilgisayarda `SentienceWordSetup.exe /silent` çalıştırılarak kayıt defteri ve WEF dosya dizinleri senkronize edildi.
+
+### 7.2 Mühürleme Betiği ve Destek Bağlantısı
+- **Inline Mühürleme Betiği:** WebView önbellek gecikmelerini aşmak adına `public/word-addin/telemetry-hook.html` içerisine mühürleme ve Office Settings API çağrıları doğrudan inline olarak entegre edildi.
+- **Doğrudan Destek Bağlantısı:** Word eklentisi üç nokta menüsündeki "Destek Alın" URL'si doğrudan rehberdeki Word bölümüne (`/guide#word-eklentisi-masaustu-kurulumu`) yönlendirildi.
+
+### 7.3 PDF Enstitü Onay Belgesi Yüzdelik Değer Skalası
+- **Normalizasyon Motoru:** `src/components/classroom/submissionExport.ts` içine `normalizePctValue` eklendi; 0-1 ile 0-100 arasındaki mükerrer çarpımlar giderilerek tüm intihal ve YZ üretim oranları `%0 - %100` sınırına normalize edildi (`%3500` ve `%4200` hataları çözüldü).
+
+### 7.4 Dinamik Modül Yükleme (`AccountSettingsModal`) Çözümü
+- Dağıtım sonrası eski chunk hash'ine (`AccountSettingsModal-ZDrvhnCX.js`) bağlı önbellek hatası `npm run build` ile taze chunk referansları üretilerek ve Firebase Hosting'e yeniden deploy edilerek giderildi.
+
+---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*
