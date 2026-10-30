@@ -290,29 +290,31 @@ export const AccountSettingsModal: React.FC<AccountSettingsModalProps> = ({ user
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-r from-emerald-500/10 via-white/[0.02] to-transparent border border-emerald-500/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-11 h-11 rounded-full bg-emerald-500/15 flex items-center justify-center border border-emerald-500/30 shrink-0">
-                        <Key className="w-5 h-5 text-emerald-400" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Öğrenci / Masaüstü Tokeni</span>
-                          <span className="text-[10px] text-gray-500">(Word Eklentisi İçin)</span>
+                  {isAcademicOrAdmin && (
+                    <div className="bg-gradient-to-r from-emerald-500/10 via-white/[0.02] to-transparent border border-emerald-500/20 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-11 h-11 rounded-full bg-emerald-500/15 flex items-center justify-center border border-emerald-500/30 shrink-0">
+                          <Key className="w-5 h-5 text-emerald-400" />
                         </div>
-                        <div className="text-white font-mono text-xs truncate max-w-[280px] sm:max-w-[320px]">
-                          {user.uid}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Öğrenci / Masaüstü Tokeni</span>
+                            <span className="text-[10px] text-gray-500">(Word Eklentisi İçin)</span>
+                          </div>
+                          <div className="text-white font-mono text-xs truncate max-w-[280px] sm:max-w-[320px]">
+                            {user.uid}
+                          </div>
                         </div>
                       </div>
+                      <button
+                        onClick={handleCopyUid}
+                        className="px-3.5 py-2 bg-emerald-500 text-black hover:bg-emerald-400 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shrink-0 self-start sm:self-auto"
+                      >
+                        {copiedUid ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedUid ? 'Kopyalandı' : 'Tokeni Kopyala'}
+                      </button>
                     </div>
-                    <button
-                      onClick={handleCopyUid}
-                      className="px-3.5 py-2 bg-emerald-500 text-black hover:bg-emerald-400 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shrink-0 self-start sm:self-auto"
-                    >
-                      {copiedUid ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      {copiedUid ? 'Kopyalandı' : 'Tokeni Kopyala'}
-                    </button>
-                  </div>
+                  )}
 
                   <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3.5">

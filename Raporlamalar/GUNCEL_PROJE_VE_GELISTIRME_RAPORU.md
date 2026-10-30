@@ -729,5 +729,11 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
   2. *Kullanıcı Rolleri ve Akademik Arayüz İzolasyonu:* Bireysel standart hesaplar ile `.edu/.edu.tr` öğrenci ve akademisyen/eğitmen hesaplarının arayüz, menü ve Word Eklentisi erişim sınırları; yetki ve kurumsal lisans (`INST-...`) doğrulama protokolü.
 - **Canlı Dağıtım:** 13 test dosyasında 81/81 test başarıyla geçti, `npm run build` tamamlandı ve Firebase Hosting üzerine canlıya alındı.
 
+### 7.10 Standart Kullanıcı Profil Ekranından Öğrenci/Masaüstü Token Kartı İzolasyonu (30 Ekim 2026)
+- **Kök Neden:** `AccountSettingsModal.tsx` içerisinde sol sekme menüsünden `Akademik & Kurum` ve `Word Eklentisi` gizlenmiş olmasına rağmen, ilk sekme olan `Profil & Kimlik` ekranındaki yeşil "Öğrenci / Masaüstü Tokeni (Word Eklentisi İçin)" UID kopyalama kartı standart kullanıcılara da (`role: user`) görünüyordu.
+- **Düzeltme & İzolasyon:** Bu kart doğrudan `isAcademicOrAdmin` (`student`, `instructor` ve `admin`) koşuluna bağlandı; standart kullanıcıların profilinde gereksiz Word eklentisi / masaüstü tokeni gösterimi tamamen engellendi.
+- **Birim Testi:** `src/test/themeAndRoleIsolation.test.ts` içerisine rol bazlı masaüstü token kartı görünürlük doğrulaması eklendi (82/82 test başarılı).
+- **Canlı Dağıtım:** `npm run build` tamamlandı ve Firebase Hosting (`https://sentience-ai-free-2026.web.app`) üzerine canlıya aktarıldı.
+
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*

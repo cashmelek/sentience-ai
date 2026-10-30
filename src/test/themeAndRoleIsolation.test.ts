@@ -97,4 +97,15 @@ describe('Settings Modal Academic & Word Addin Tab Isolation by Role', () => {
     expect(adminTabs).toContain('academic');
     expect(adminTabs).toContain('word');
   });
+
+  it('evaluates desktop token card visibility strictly for academic and admin roles only', () => {
+    const shouldShowDesktopToken = (role: 'admin' | 'user' | 'student' | 'instructor') => {
+      return role === 'student' || role === 'instructor' || role === 'admin';
+    };
+
+    expect(shouldShowDesktopToken('user')).toBe(false);
+    expect(shouldShowDesktopToken('student')).toBe(true);
+    expect(shouldShowDesktopToken('instructor')).toBe(true);
+    expect(shouldShowDesktopToken('admin')).toBe(true);
+  });
 });
