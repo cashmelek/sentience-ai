@@ -680,5 +680,19 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
 - **Çözüm:** `padStart` çağrısı, tüm tarayıcı ve eski WebView motorlarıyla %100 uyumlu yerel `padZero` döngü fonksiyonuna dönüştürüldü.
 - **Dağıtım:** Firebase Hosting'e dağıtıldı, sürüm canlıya alındı.
 
+### 7.6 Kullanıcı Ayarları Modalı Yenilemesi ve Çift Taraflı Adli Mühür Görünürlüğü (30 Ekim 2026)
+- **Kullanıcı Ayarları Modalı (`AccountSettingsModal.tsx`) UX/UI Genişletmesi:**
+  - Ayarlar modalı özellikle Öğrenci ve Akademisyen kullanıcı tipleri için 5 sekmeli modern bir kumanda merkezine dönüştürüldü:
+    1. *Profil:* Kullanıcı rol rozetleri (`Öğrenci`, `Akademisyen / Eğitmen`), tek tıkla kopyalanabilen Masaüstü / Word Öğrenci Kimliği (UID Token), anlık tarayıcı bildirimleri izin yönetimi.
+    2. *Akademik & Kurum:* Bağlı üniversite ve fakülte görünümü, kurumsal lisans (`INST-...`) anahtarı girme ve doğrulama motoru (`validateInstitutionCode`).
+    3. *Word Eklentisi:* Eklenti entegrasyon durumu, `SentienceWordSetup.zip` indirme butonu, UID eşleştirme ve 3 adımlı adli mühürleme kılavuzu.
+    4. *Abonelik & Kotalar:* Günlük karakter kullanım barı, kalan analiz kotası ve plan yükseltme yönlendirmesi.
+    5. *Hesabı Kapat:* Güvenli hesap silme ve oturum kapatma alanı.
+- **Adli Mühür Çift Taraflı Şeffaflık Mimarisi (Öğrenci & Öğretmen):**
+  - Word eklentisiyle basılan SHA-256 dijital mührün ve telemetri verisinin kimler tarafından görüleceği kuralı standartlaştırıldı:
+    - **Öğrenci Tarafı:** Öğrenci kendi Word belgesinde mühür vurduğunda belgenin değiştirilmez hash'ini, oturum kodunu ve organik yazarlık kaydını görür. Bu kayıt, haksız "Yapay Zekayla Yazılmıştır" ithamlarına karşı öğrencinin hukuki ve akademik kanıtıdır.
+    - **Öğretmen / Jüri Tarafı:** Ödev Classroom veya dosya yükleme üzerinden teslim edildiğinde, sistem Word dosyasının (`docProps/custom.xml` ve Office Settings) içindeki mührü ve telemetriyi okur. Öğretmen raporunda yeşil "Doğrulanmış Organik Mühür" rozeti, yazım süresi ve yapıştırma anomalisi olmadığı şeffafça sunulur.
+    - Her iki taraf da aynı kriptografik SHA-256 hash'i üzerinden belgenin bütünlüğünü doğrular.
+
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*
