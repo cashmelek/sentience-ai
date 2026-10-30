@@ -82,7 +82,7 @@ export function CitationGenealogyModal({
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="relative w-full max-w-2xl bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden z-10 space-y-6"
+          className="relative w-full max-w-2xl bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl max-h-[90dvh] overflow-y-auto custom-scrollbar z-10 space-y-6"
         >
           {/* Header */}
           <div className="flex items-start justify-between border-b border-white/10 pb-4">

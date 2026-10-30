@@ -28,7 +28,7 @@ export function ClassFormModal({ initial, onClose, onSubmit }: ClassFormModalPro
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 shadow-2xl"
+        className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 shadow-2xl max-h-[90dvh] overflow-y-auto custom-scrollbar"
       >
         <button onClick={onClose} className="absolute right-4 top-4 p-2 text-gray-500 hover:text-white bg-white/5 rounded-full hover:bg-white/10 transition-all">
           <X className="w-4 h-4" />

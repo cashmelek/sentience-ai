@@ -52,7 +52,7 @@ export function PlansModal({ user, onClose }: PlansModalProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="relative w-full max-w-5xl bg-brand-card border border-brand-border rounded-3xl p-8 shadow-2xl overflow-hidden">
+      <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="relative w-full max-w-5xl bg-brand-card border border-brand-border rounded-3xl p-6 sm:p-8 shadow-2xl max-h-[90dvh] overflow-y-auto custom-scrollbar">
         
         {/* Dekoratif Arka Plan */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-64 bg-emerald-500/10 blur-[100px] pointer-events-none" />

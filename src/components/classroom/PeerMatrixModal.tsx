@@ -106,7 +106,7 @@ export function PeerMatrixModal({
         </div>
 
         {/* Özet Kartları */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <div className="p-3 bg-white/[0.02] border border-white/5 rounded-xl text-center">
             <span className="text-[9px] uppercase tracking-wider text-gray-500 block">Taranan Teslim</span>
             <span className="text-lg font-black text-white">{matrixData.list.length}</span>

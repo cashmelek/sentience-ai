@@ -1530,7 +1530,7 @@ export function AdminPanel() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Eğitmen Kotası</label>
                         <input

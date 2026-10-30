@@ -98,25 +98,25 @@ export const translateError = (error: any, isUnlimited: boolean = false): string
 
   if (message.includes("429") || message.includes("RESOURCE_EXHAUSTED") || message.includes("Quota exceeded") || message.includes("prepayment credits")) {
     if (isUnlimited) {
-      return "Google AI kotasÄ± veya anlÄ±k istek limiti aÅŸÄ±ldÄ±. EÄŸer anahtarlarÄ±nÄ±zÄ±n kotasÄ± varsa, lÃ¼tfen Google AI Studio Ã¼zerinden 'Prepaid Credits' (Ã–n Ã¶demeli Kredi) durumunuzu kontrol edin.";
+      return "Google AI kotası veya anlık istek limiti aşıldı. Eğer anahtarlarınızın kotası varsa, lütfen Google AI Studio üzerinden 'Prepaid Credits' (Ön ödemeli Kredi) durumunuzu kontrol edin.";
     }
-    return "ÃœzgÃ¼nÃ¼z, gÃ¼nlÃ¼k kullanÄ±m limitinizi veya API kotanÄ±zÄ± doldurdunuz. LÃ¼tfen 1 dakika sonra tekrar deneyin veya farklÄ± bir anahtar tanÄ±mlayÄ±n.";
+    return "Üzgünüz, günlük kullanım limitinizi veya API kotanızı doldurdunuz. Lütfen 1 dakika sonra tekrar deneyin veya farklı bir anahtar tanımlayın.";
   }
 
   if (message.includes("503") || message.includes("Service Unavailable")) {
-    return "Yapay zeka sunucusu ÅŸu an geÃ§ici olarak hizmet dÄ±ÅŸÄ±. LÃ¼tfen birkaÃ§ saniye sonra tekrar deneyin.";
+    return "Yapay zeka sunucusu şu an geçici olarak hizmet dışı. Lütfen birkaç saniye sonra tekrar deneyin.";
   }
 
-  if (message.includes("API key") || message.includes("API AnahtarÄ±")) {
-    return "Sistem yapÄ±landÄ±rma hatasÄ±: API anahtarÄ± geÃ§ersiz veya eksik.";
+  if (message.includes("API key") || message.includes("API Anahtarı")) {
+    return "Sistem yapılandırma hatası: API anahtarı geçersiz veya eksik.";
   }
 
   if (message.includes("JSON") || message.includes("Unexpected token") || message.includes("Unexpected non-whitespace character")) {
-    return "Sistem yanÄ±tÄ± iÅŸlenirken bir sorun oluÅŸtu, lÃ¼tfen tekrar deneyin.";
+    return "Sistem yanıtı işlenirken bir sorun oluştu, lütfen tekrar deneyin.";
   }
 
   if (message.includes("safety") || message.includes("HARM_CATEGORY")) {
-    return "GirdiÄŸiniz metin gÃ¼venlik filtrelerimize takÄ±ldÄ±. LÃ¼tfen iÃ§eriÄŸi gÃ¶zden geÃ§irip tekrar deneyin.";
+    return "Girdiğiniz metin güvenlik filtrelerimize takıldı. Lütfen içeriği gözden geçirip tekrar deneyin.";
   }
 
   // Firebase Auth Error Translations
@@ -151,18 +151,18 @@ export const translateError = (error: any, isUnlimited: boolean = false): string
     return "Ağ bağlantısı hatası. Lütfen internet bağlantınızı kontrol edin.";
   }
   if (message.includes("API key not valid")) {
-    return "API anahtarÄ±nÄ±z geÃ§ersiz. LÃ¼tfen Admin panelindeki anahtarlarÄ± kontrol edin.";
+    return "API anahtarınız geçersiz. Lütfen Admin panelindeki anahtarları kontrol edin.";
   }
   if (message.includes("not enabled")) {
-    return "Generative Language API bu projede aktif edilmemiÅŸ. LÃ¼tfen Google Cloud Console'dan aktif edin.";
+    return "Generative Language API bu projede aktif edilmemiş. Lütfen Google Cloud Console'dan aktif edin.";
   }
   const currentModel = (error as any)?.model || "Belirlenemeyen Model";
 
   if (message.includes("model not found") || message.includes("404")) {
-    return `SeÃ§ilen model (${currentModel}) bu anahtar ile kullanÄ±lamÄ±yor. LÃ¼tfen Admin panelinden farklÄ± bir model seÃ§in (Ã–rn: Gemini 3.5 Flash).`;
+    return `Seçilen model (${currentModel}) bu anahtar ile kullanılamıyor. Lütfen Admin panelinden farklı bir model seçin (Örn: Gemini 3.5 Flash).`;
   }
 
-  console.error("KRÄ°TÄ°K API HATASI DETAYLARI:", {
+  console.error("KRİTİK API HATASI DETAYLARI:", {
     rawError: error,
     message,
     status: error?.status,
@@ -208,7 +208,7 @@ const robustParse = (text: string) => {
       const firstBrace = text.indexOf('{');
       const lastBrace = text.lastIndexOf('}');
 
-      if (firstBrace === -1) throw new Error("JSON bulunamadÄ±");
+      if (firstBrace === -1) throw new Error("JSON bulunamadı");
 
       let cleaned = text.substring(firstBrace, lastBrace + 1);
 
@@ -235,7 +235,7 @@ const robustParse = (text: string) => {
       console.error("Robust parse failed:", innerE, "Original text:", text);
 
       let fallbackText = text.replace(/```json|```/g, '').trim();
-      if (!fallbackText) fallbackText = "Metin iÅŸlenirken bir sorun oluÅŸtu.";
+      if (!fallbackText) fallbackText = "Metin işlenirken bir sorun oluştu.";
 
       let extractedHumanized = fallbackText;
 
@@ -300,16 +300,16 @@ export const analyzeAndHumanize = async (
       }
     }
   } catch (backendError: any) {
-    console.warn("[Backend] Vercel API Ã§aÄŸrÄ±sÄ± baÅŸarÄ±sÄ±z, yerel fallback kullanÄ±lÄ±yor:", backendError?.message);
+    console.warn("[Backend] Vercel API çağrısı başarısız, yerel fallback kullanılıyor:", backendError?.message);
   }
 
   const maxRetries = Math.max(1, apiKeyManager.getActiveKeysCount('gemini'));
   if (retryCount >= maxRetries) {
-    throw new Error("TÃ¼m Gemini API anahtarlarÄ± denendi fakat hiÃ§biri yanÄ±t vermedi veya kotalarÄ± dolu.");
+    throw new Error("Tüm Gemini API anahtarları denendi fakat hiçbiri yanıt vermedi veya kotaları dolu.");
   }
   assertApiKey();
 
-  // --- AKTÄ°VÄ°TE BAÅLADI ---
+  // --- AKTİVİTE BAŞLADI ---
   await apiKeyManager.setKeyActivity('gemini', true);
 
   const validModel = validateModelName(modelName);
@@ -334,79 +334,79 @@ export const analyzeAndHumanize = async (
       console.log(`Model deneniyor: ${validModel}`);
       let styleInstruction = "";
       if (options.customToneName || options.customToneDescription) {
-        styleInstruction = `Ã–zel Tarz: ${options.customToneName ? `[${options.customToneName}] ` : ""}${options.customToneDescription || ""}`;
+        styleInstruction = `Özel Tarz: ${options.customToneName ? `[${options.customToneName}] ` : ""}${options.customToneDescription || ""}`;
       } else {
         styleInstruction = `Ton: ${options.tone}`;
       }
 
       let intensityInstruction = "";
       let temp = 0.5;
-      if (options.tone === 'Ã–zet') {
-        intensityInstruction = "Ã–ZETLEME GÃ–REVÄ°: Metnin ana fikirlerini koruyarak kÄ±sa ve Ã¶z bir Ã¶zet oluÅŸtur.";
+      if (options.tone === 'Özet') {
+        intensityInstruction = "ÖZETLEME GÖREVİ: Metnin ana fikirlerini koruyarak kısa ve öz bir özet oluştur.";
         temp = 0.3;
       } else if (options.intensity >= 70) {
-        intensityInstruction = "RADÄ°KAR Ä°NSANLAÅTIRMA (YÃ¼ksek YoÄŸunluk): CÃ¼mle yapÄ±larÄ±nÄ± tamamen deÄŸiÅŸtir, yepyeni bir metin yarat.";
+        intensityInstruction = "RADİKAL İNSANLAŞTIRMA (Yüksek Yoğunluk): Cümle yapılarını tamamen değiştir, yepyeni bir metin yarat.";
         temp = 1.0;
       } else if (options.intensity >= 30) {
-        intensityInstruction = "DENGELÄ° DÃ–NÃœÅÃœM (Orta YoÄŸunluk): AkÄ±cÄ±lÄ±ÄŸÄ± artÄ±r, sentaks varyasyonlarÄ± ekle.";
+        intensityInstruction = "DENGELİ DÖNÜŞÜM (Orta Yoğunluk): Akıcılığı artır, sentaks varyasyonları ekle.";
         temp = 0.7;
       } else {
-        intensityInstruction = "DOÄAL Ä°YÄ°LEÅTÄ°RME (DÃ¼ÅŸÃ¼k YoÄŸunluk): Gramer hatalarÄ±nÄ± dÃ¼zelt, kÃ¼Ã§Ã¼k akÄ±cÄ±lÄ±k dokunuÅŸlarÄ± yap.";
+        intensityInstruction = "DOĞAL İYİLEŞTİRME (Düşük Yoğunluk): Gramer hatalarını düzelt, küçük akıcılık dokunuşları yap.";
         temp = 0.4;
       }
 
       const prompt = `
-        GÃ–REV: Metni insanileÅŸtir ve analiz et.
+        GÖREV: Metni insanileştir ve analiz et.
 
-        â–ˆâ–ˆâ–ˆ DÄ°L KURALI (KESÄ°N VE MUTLAK) â–ˆâ–ˆâ–ˆ
-        - ÃœrettiÄŸin "humanizedText" metni DAÄ°MA ve YALNIZCA TÃœRKÃ‡E olmalÄ±dÄ±r.
-        - Ä°ngilizce veya baÅŸka bir dilde Ã§Ä±ktÄ± Ã¼retmek KESÄ°NLÄ°KLE YASAKTIR.
-        - Kaynak metin hangi dilde olursa olsun, Ã§Ä±ktÄ± metni akÄ±cÄ±, doÄŸal ve profesyonel TÃœRKÃ‡E olmalÄ±dÄ±r.
-        - Ã‡eviri kokusundan (translation artifacts) kaÃ§Ä±n: Ä°ngilizce kalÄ±plarÄ±n birebir TÃ¼rkÃ§eye aktarÄ±lmasÄ± yasaktÄ±r.
-        - TÃ¼rkÃ§eye Ã¶zgÃ¼ doÄŸal sÃ¶z dizimi kullan (Ã–zne-Nesne-YÃ¼klem). Devrik cÃ¼mleleri de doÄŸal oranlarda kullan.
-        - "insights", "detail", "sentence" gibi tÃ¼m JSON alanlarÄ±ndaki metinler de TÃœRKÃ‡E olmalÄ±dÄ±r.
+        ███ DİL KURALI (KESİN VE MUTLAK) ███
+        - Ürettiğin "humanizedText" metni DAİMA ve YALNIZCA TÜRKÇE olmalıdır.
+        - İngilizce veya başka bir dilde çıktı üretmek KESİNLİKLE YASAKTIR.
+        - Kaynak metin hangi dilde olursa olsun, çıktı metni akıcı, doğal ve profesyonel TÜRKÇE olmalıdır.
+        - Çeviri kokusundan (translation artifacts) kaçın: İngilizce kalıpların birebir Türkçeye aktarılması yasaktır.
+        - Türkçeye özgü doğal söz dizimi kullan (Özne-Nesne-Yüklem). Devrik cümleleri de doğal oranlarda kullan.
+        - "insights", "detail", "sentence" gibi tüm JSON alanlarındaki metinler de TÜRKÇE olmalıdır.
         
-        â–ˆâ–ˆâ–ˆ YASAKLI Ä°FADELER â€” COPYLEAKS TETÄ°KLEYÄ°CÄ°LERÄ° â–ˆâ–ˆâ–ˆ
-        AÅŸaÄŸÄ±daki geÃ§iÅŸ ifadelerini ve kelimelerini KULLANMA (bunlar YZ metnini aÃ§Ä±kÃ§a iÅŸaret eder):
-        - YasaklÄ± geÃ§iÅŸler: "Ã–nemle belirtmek gerekir ki", "Bu baÄŸlamda", "SonuÃ§ olarak", "Nitekim" (aÅŸÄ±rÄ± tekrar), "DolayÄ±sÄ±yla" (paragraf baÅŸÄ±nda), "Ä°lk olarak... Ä°kinci olarak... Son olarak...", "Bununla birlikte" (mekanik tekrar), "Bu Ã§erÃ§evede"
-        - YasaklÄ± slop kelimeler: "kapsamlÄ±", "kritik" (metafor dÄ±ÅŸÄ±), "verimli", "sÃ¼rdÃ¼rÃ¼lebilir", "bÃ¼tÃ¼nleÅŸik", "optimize etmek", "sinerji", "Ã¶nemli Ã¶lÃ§Ã¼de", "belirgin ÅŸekilde"
-        - YasaklÄ± hedging: "genellikle dÃ¼ÅŸÃ¼nÃ¼lÃ¼r ki", "yaygÄ±n kanÄ±ya gÃ¶re", "muhtemelen sÃ¶ylenebilir ki", "kanÄ±mca ifade etmek gerekirse"
-        - YasaklÄ± yapÄ±lar: Ãœst Ã¼ste 3+ benzer uzunlukta (Â±5 kelime) cÃ¼mle dizisi. "Bu nedenle... Bu baÄŸlamda... Bu doÄŸrultuda..." kalÄ±plarÄ±.
+        ███ YASAKLI İFADELER — COPYLEAKS TETİKLEYİCİLERİ ███
+        Aşağıdaki geçiş ifadelerini ve kelimelerini KULLANMA (bunlar YZ metnini açıkça işaret eder):
+        - Yasaklı geçişler: "Önemle belirtmek gerekir ki", "Bu bağlamda", "Sonuç olarak", "Nitekim" (aşırı tekrar), "Dolayısıyla" (paragraf başında), "İlk olarak... İkinci olarak... Son olarak...", "Bununla birlikte" (mekanik tekrar), "Bu çerçevede"
+        - Yasaklı slop kelimeler: "kapsamlı", "kritik" (metafor dışı), "verimli", "sürdürülebilir", "bütünleşik", "optimize etmek", "sinerji", "önemli ölçüde", "belirgin şekilde"
+        - Yasaklı hedging: "genellikle düşünülür ki", "yaygın kanıya göre", "muhtemelen söylenebilir ki", "kanımca ifade etmek gerekirse"
+        - Yasaklı yapılar: Üst üste 3+ benzer uzunlukta (±5 kelime) cümle dizisi. "Bu nedenle... Bu bağlamda... Bu doğrultuda..." kalıpları.
 
         KURALLAR:
-        1. FORMATI KORU: Kaynak metindeki tÃ¼m baÅŸlÄ±klarÄ± (#, ##), alt baÅŸlÄ±klarÄ±, numaralandÄ±rÄ±lmÄ±ÅŸ listeleri (1., 2.), madde iÅŸaretlerini (-, *) ve Ã¶zel noktalamalarÄ± AYNEN KORU.
-        2. Ä°NSANÄ°LEÅTÄ°RME: Metni YZ tespitinden kaÃ§acak ÅŸekilde, doÄŸal bir TÃ¼rkÃ§e ile yeniden yaz. Perplexity ve Burstiness deÄŸerlerini insan standartlarÄ±na Ã§ek.
+        1. FORMATI KORU: Kaynak metindeki tüm başlıkları (#, ##), alt başlıkları, numaralandırılmış listeleri (1., 2.), madde işaretlerini (-, *) ve özel noktalamaları AYNEN KORU.
+        2. İNSANİLEŞTİRME: Metni YZ tespitinden kaçacak şekilde, doğal bir Türkçe ile yeniden yaz. Perplexity ve Burstiness değerlerini insan standartlarına çek.
            - ${styleInstruction}
            - ${intensityInstruction}
-        3. TÃœRKÃ‡E YAZIM KALÄ°TESÄ° â€” BURSTINESS KURALLARI (KRÄ°TÄ°K):
-           - Her 3 uzun cÃ¼mleden sonra en az 1 kÄ±sa cÃ¼mle (maksimum 8 kelime) gelmelidir. Ã–rn: "Bu durumun sonuÃ§larÄ± aÄŸÄ±rdÄ±r." veya "Oysa tablo farklÄ±dÄ±r."
-           - Paragraf baÅŸlangÄ±Ã§ cÃ¼mleleri birbirinden yapÄ±sal olarak farklÄ± olmalÄ±dÄ±r: soru, eylem, sonuÃ§ veya gÃ¶zlem cÃ¼mlesi ile baÅŸla.
-           - Ãœst Ã¼ste aynÄ± uzunluktaki iki cÃ¼mle YASAKTIR (cÃ¼mle uzunluklarÄ± Â±5 kelimenin Ã¼zerinde farklÄ±lÄ±k gÃ¶stermeli).
-           - Edilgen ve etken yapÄ±larÄ± dengeli kullan.
-           - Akademik ve resmi metinlerde bile doÄŸal TÃ¼rkÃ§e akÄ±ÅŸÄ±nÄ± koru.
-           - Gereksiz yabancÄ± kelime kullanma; TÃ¼rkÃ§e karÅŸÄ±lÄ±ÄŸÄ± varsa onu tercih et.
-        4. TÃœRKÃ‡E Ã–ZGÃœNLÃœK â€” PERPLEXITY ARTIRMA:
-           - En az 1 TÃ¼rkÃ§e deyim veya atasÃ¶zÃ¼ uyarlamasÄ± ekle (baÄŸlam uygunsa): "taÅŸÄ± gediÄŸine koymak", "gÃ¶zden uzak olan gÃ¶nÃ¼lden de uzaklaÅŸÄ±r", "aÄŸaÃ§ yaÅŸken eÄŸilir" gibi.
-           - DoÄŸal TÃ¼rkÃ§e kuvvetlendirici kalÄ±plar kullan: "Sanki...", "Adeta...", "Tam da bu noktada...", "Ne var ki...", "Oysa..."
-           - Anadil konuÅŸuruna Ã¶zgÃ¼ dolaylÄ± anlatÄ±m: "...demek ki" yerine "bu bizi ÅŸu sonuca gÃ¶tÃ¼rÃ¼yor" gibi Ã¶zgÃ¼n kuruluÅŸlar.
-           - Akademik metinde bile kiÅŸisel gÃ¶zlem cÃ¼mlesi ekle: "Bu bulgu pratikte ÅŸunu gÃ¶steriyor:" veya "AraÅŸtÄ±rmacÄ±lar iÃ§in bu, ÅŸu anlama geliyor:"
-        5. AKADEMÄ°K ETÄ°K VE Ä°NTÄ°HAL (KRÄ°TÄ°K):
-           - DERÄ°N Ã–ZÃœMSEME: Sadece kelime deÄŸiÅŸtirme deÄŸil, kavramsal analiz yapÄ±p bilgiyi sentezle.
-           - %15 LÄ°MÄ°TÄ°: Ãœretilen metnin orijinal kaynaklarla benzerliÄŸi %15'i geÃ§memelidir.
-           - ALINTILAR: Kanun maddeleri ve teknik tanÄ±mlarÄ± tÄ±rnak iÃ§inde ("...") koru.
-           - Ã‡OKLU SENTEZ: MÃ¼mkÃ¼nse bilgiyi 3-4 farklÄ± perspektifi birleÅŸtirerek sun.
-           - HÄ°LE YASAK: GÃ¶rÃ¼nmez karakter veya harf deÄŸiÅŸikliÄŸi gibi teknik hileler ASLA kullanma.
-        6. CÃœMLE ANALÄ°ZÄ°: Metni CÃœMLE CÃœMLE analiz et ve her cÃ¼mle iÃ§in YZ olasÄ±lÄ±ÄŸÄ±nÄ± belirle.
-        7. METRÄ°KLER: Metnin okunabilirliÄŸini, karmaÅŸÄ±klÄ±ÄŸÄ±nÄ± ve ton gÃ¼cÃ¼nÃ¼ profesyonel bir denetÃ§i gibi hesapla.
+        3. TÜRKÇE YAZIM KALİTESİ — BURSTINESS KURALLARI (KRİTİK):
+           - Her 3 uzun cümleden sonra en az 1 kısa cümle (maksimum 8 kelime) gelmelidir. Örn: "Bu durumun sonuçları ağırdır." veya "Oysa tablo farklıdır."
+           - Paragraf başlangıç cümleleri birbirinden yapısal olarak farklı olmalıdır: soru, eylem, sonuç veya gözlem cümlesi ile başla.
+           - Üst üste aynı uzunluktaki iki cümle YASAKTIR (cümle uzunlukları ±5 kelimenin üzerinde farklılık göstermeli).
+           - Edilgen ve etken yapıları dengeli kullan.
+           - Akademik ve resmi metinlerde bile doğal Türkçe akışını koru.
+           - Gereksiz yabancı kelime kullanma; Türkçe karşılığı varsa onu tercih et.
+        4. TÜRKÇE ÖZGÜNLÜK — PERPLEXITY ARTIRMA:
+           - En az 1 Türkçe deyim veya atasözü uyarlaması ekle (bağlam uygunsa): "taşı gediğine koymak", "gözden uzak olan gönülden de uzaklaşır", "ağaç yaşken eğilir" gibi.
+           - Doğal Türkçe kuvvetlendirici kalıplar kullan: "Sanki...", "Adeta...", "Tam da bu noktada...", "Ne var ki...", "Oysa..."
+           - Anadil konuşuruna özgü dolaylı anlatım: "...demek ki" yerine "bu bizi şu sonuca götürüyor" gibi özgün kuruluşlar.
+           - Akademik metinde bile kişisel gözlem cümlesi ekle: "Bu bulgu pratikte şunu gösteriyor:" veya "Araştırmacılar için bu, şu anlama geliyor:"
+        5. AKADEMİK ETİK VE İNTİHAL (KRİTİK):
+           - DERİN ÖZÜMSEME: Sadece kelime değiştirme değil, kavramsal analiz yapıp bilgiyi sentezle.
+           - %15 LİMİTİ: Üretilen metnin orijinal kaynaklarla benzerliği %15'i geçmemelidir.
+           - ALINTILAR: Kanun maddeleri ve teknik tanımları tırnak içinde ("...") koru.
+           - ÇOKLU SENTEZ: Mümkünse bilgiyi 3-4 farklı perspektifi birleştirerek sun.
+           - HİLE YASAK: Görünmez karakter veya harf değişikliği gibi teknik hileler ASLA kullanma.
+        6. CÜMLE ANALİZİ: Metni CÜMLE CÜMLE analiz et ve her cümle için YZ olasılığını belirle.
+        7. METRİKLER: Metnin okunabilirliğini, karmaşıklığını ve ton gücünü profesyonel bir denetçi gibi hesapla.
         
-        Ã–NEMLÄ° (JSON GÃœVENLÄ°ÄÄ°): 
-        - YanÄ±tÄ±nÄ± SADECE geÃ§erli bir JSON nesnesi olarak ver. 
-        - JSON iÃ§indeki metinlerde Ã§ift tÄ±rnak (") kullanman gerekiyorsa mutlaka ters eÄŸik Ã§izgi (\\") ile kaÃ§Ä±ÅŸ yap.
-        - Metinlerde satÄ±r sonu karakterleri yerine \\n kullan.
+        ÖNEMLİ (JSON GÜVENLİĞİ): 
+        - Yanıtını SADECE geçerli bir JSON nesnesi olarak ver. 
+        - JSON içindeki metinlerde çift tırnak (") kullanman gerekiyorsa mutlaka ters eğik çizgi (\\") ile kaçış yap.
+        - Metinlerde satır sonu karakterleri yerine \\n kullan.
         
-        JSON ÅEMASI:
+        JSON ŞEMASI:
         {
-          "humanizedText": "TÃ¼rkÃ§e olarak dÃ¶nÃ¼ÅŸtÃ¼rÃ¼lmÃ¼ÅŸ metin buraya gelecek",
+          "humanizedText": "Türkçe olarak dönüştürülmüş metin buraya gelecek",
           "aiScore": 0.15,
           "metrics": {
             "readability": 0.85,
@@ -417,12 +417,12 @@ export const analyzeAndHumanize = async (
             "readingTime": "2 dk"
           },
           "insights": [
-            {"sentence": "Ä°ncelenen TÃ¼rkÃ§e cÃ¼mle", "score": 0.8, "detail": "Neden YZ olduÄŸu veya neden baÅŸarÄ±lÄ± olduÄŸu detayÄ± (TÃ¼rkÃ§e)."}
+            {"sentence": "İncelenen Türkçe cümle", "score": 0.8, "detail": "Neden YZ olduğu veya neden başarılı olduğu detayı (Türkçe)."}
           ],
           "sentenceScores": [
-            {"sentence": "TÃ¼rkÃ§e CÃ¼mle 1", "score": 0.1, "type": "human"},
-            {"sentence": "TÃ¼rkÃ§e CÃ¼mle 2", "score": 0.9, "type": "ai"},
-            {"sentence": "TÃ¼rkÃ§e CÃ¼mle 3", "score": 0.5, "type": "mixed"}
+            {"sentence": "Türkçe Cümle 1", "score": 0.1, "type": "human"},
+            {"sentence": "Türkçe Cümle 2", "score": 0.9, "type": "ai"},
+            {"sentence": "Türkçe Cümle 3", "score": 0.5, "type": "mixed"}
           ]
         }
       `;
@@ -494,7 +494,7 @@ export const analyzeAndHumanize = async (
         insights: Array.isArray(parsed.insights) ? parsed.insights.map((ins: any) => ({
           sentence: typeof ins === 'string' ? ins : (ins.sentence || ""),
           score: typeof ins.score === 'number' ? ins.score : 0.5,
-          detail: ins.detail || (typeof ins === 'string' ? "CÃ¼mle analizi yapÄ±ldÄ±." : "")
+          detail: ins.detail || (typeof ins === 'string' ? "Cümle analizi yapıldı." : "")
         })) : [],
         sentenceScores: Array.isArray(parsed.sentenceScores) ? parsed.sentenceScores : []
       };
@@ -503,15 +503,15 @@ export const analyzeAndHumanize = async (
       
       const wasHandled = await handleApiKeyError(error);
       if (wasHandled) {
-        console.log(`Kota aÅŸÄ±ldÄ± veya geÃ§ersiz anahtar, otomatik rotasyon yapÄ±ldÄ±. Tekrar deneniyor... (Deneme: ${retryCount + 1}/${maxRetries})`);
+        console.log(`Kota aşıldı veya geçersiz anahtar, otomatik rotasyon yapıldı. Tekrar deneniyor... (Deneme: ${retryCount + 1}/${maxRetries})`);
         return analyzeAndHumanize(text, options, modelName, retryCount + 1);
       }
-      console.warn(`Model ${currentModel} denemesi baÅŸarÄ±sÄ±z:`, error.message || error);
+      console.warn(`Model ${currentModel} denemesi başarısız:`, error.message || error);
       lastError = error;
     }
   }
 
-  throw new Error(`YZ Ä°ÅŸlemi BaÅŸarÄ±sÄ±z. Son hata: ${translateError(lastError)}`);
+  throw new Error(`YZ İşlemi Başarısız. Son hata: ${translateError(lastError)}`);
 };
 
 export const checkGrammar = async (text: string, _options?: GrammarOptions, retryCount: number = 0): Promise<GrammarSuggestion[]> => {
@@ -531,7 +531,7 @@ export const checkGrammar = async (text: string, _options?: GrammarOptions, retr
 
   const maxRetries = Math.max(1, apiKeyManager.getActiveKeysCount('gemini'));
   if (retryCount >= maxRetries) {
-    throw new Error("TÃ¼m Gemini API anahtarlarÄ± denendi fakat hiÃ§biri dilbilgisi denetimi iÃ§in yanÄ±t vermedi veya kotalarÄ± dolu.");
+    throw new Error("Tüm Gemini API anahtarları denendi fakat hiçbiri dilbilgisi denetimi için yanıt vermedi veya kotaları dolu.");
   }
   assertApiKey();
   const models = ["gemini-3.1-flash-lite", "gemini-2.0-flash"];
@@ -544,26 +544,26 @@ export const checkGrammar = async (text: string, _options?: GrammarOptions, retr
       const client = getGeminiClient();
       const result = await client.models.generateContent({
         model: validModel,
-        contents: [{ role: 'user', parts: [{ text: `AÅŸaÄŸÄ±daki metni TÃ¼rkÃ§e dilbilgisi aÃ§Ä±sÄ±ndan denetle ve JSON formatÄ±nda suggestions listesi dÃ¶n. Format: {"suggestions": [{"original": "...", "suggestion": "...", "explanation": "..."}]}. Metin: ${text}` }] }],
+        contents: [{ role: 'user', parts: [{ text: `Aşağıdaki metni Türkçe dilbilgisi açısından denetle ve JSON formatında suggestions listesi dön. Format: {"suggestions": [{"original": "...", "suggestion": "...", "explanation": "..."}]}. Metin: ${text}` }] }],
         config: { 
           responseMimeType: "application/json", 
           temperature: 0.1 
         }
       });
       const parsed = robustParse(result.text || '{}');
-      console.log(`[Grammar] ${modelName} baÅŸarÄ±lÄ±.`);
+      console.log(`[Grammar] ${modelName} başarılı.`);
       return parsed.suggestions || [];
     } catch (e: any) {
       const wasHandled = await handleApiKeyError(e);
       if (wasHandled) {
-        console.log("[Grammar] Kota doldu veya geÃ§ersiz anahtar, anahtar rotasyonu yapÄ±ldÄ±. Tekrar deneniyor...");
+        console.log("[Grammar] Kota doldu veya geçersiz anahtar, anahtar rotasyonu yapıldı. Tekrar deneniyor...");
         return checkGrammar(text, _options, retryCount + 1);
       }
-      console.warn(`[Grammar] ${modelName} baÅŸarÄ±sÄ±z:`, e.message);
+      console.warn(`[Grammar] ${modelName} başarısız:`, e.message);
       lastErr = e.message;
     }
   }
-  throw new Error(`Dilbilgisi hatasÄ±: ${lastErr}`);
+  throw new Error(`Dilbilgisi hatası: ${lastErr}`);
 };
 
 export interface DetectAIResult {
@@ -700,14 +700,14 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
       }
     }
   } catch (backendError: any) {
-    console.warn("[Backend] Vercel API detectAI Ã§aÄŸrÄ±sÄ± baÅŸarÄ±sÄ±z, yerel fallback kullanÄ±lÄ±yor:", backendError?.message);
+    console.warn("[Backend] Vercel API detectAI çağrısı başarısız, yerel fallback kullanılıyor:", backendError?.message);
   }
 
   const maxRetries = Math.max(1, apiKeyManager.getActiveKeysCount('gemini'));
   if (retryCount >= maxRetries) {
     return {
       score: 0.5,
-      reasoning: "TÃ¼m API anahtarlarÄ± kotalÄ± veya geÃ§ersiz olduÄŸu iÃ§in analiz yapÄ±lamadÄ±.",
+      reasoning: "Tüm API anahtarları kotalı veya geçersiz olduğu için analiz yapılamadı.",
       sentenceScores: [],
       metrics: {
         plagiarism: 0,
@@ -735,9 +735,9 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
 
   let lastError: any = null;
 
-  const sensitivityDesc = sensitivity > 70 ? "Ã‡OK HASSAS (En kÃ¼Ã§Ã¼k YZ izini bile yakala)" :
-    sensitivity < 30 ? "HOÅGÃ–RÃœLÃœ (Sadece bariz YZ metinlerini iÅŸaretle)" :
-      "DENGELÄ° (Standart profesyonel denetim)";
+  const sensitivityDesc = sensitivity > 70 ? "ÇOK HASSAS (En küçük YZ izini bile yakala)" :
+    sensitivity < 30 ? "HOŞGÖRÜLÜ (Sadece bariz YZ metinlerini işaretle)" :
+      "DENGELİ (Standart profesyonel denetim)";
 
   for (const currentModel of modelsToTry) {
     try {
@@ -746,36 +746,36 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
       const client = getGeminiClient();
       const result = await client.models.generateContent({
         model: validatedModel,
-        contents: [{ role: 'user', parts: [{ text: `AÅŸaÄŸÄ±daki metni bir "Originality Auditor" (YZ DedektÃ¶rÃ¼) olarak derinlemesine analiz et. 
+        contents: [{ role: 'user', parts: [{ text: `Aşağıdaki metni bir "Originality Auditor" (YZ Dedektörü) olarak derinlemesine analiz et. 
       
-        ANALÄ°Z AYARI: ${sensitivityDesc} (Hassasiyet DeÄŸeri: ${sensitivity}/100)
-        SEÃ‡Ä°LÄ° ANALÄ°Z MOTORU: ${currentModel}
+        ANALİZ AYARI: ${sensitivityDesc} (Hassasiyet Değeri: ${sensitivity}/100)
+        SEÇİLİ ANALİZ MOTORU: ${currentModel}
 
-        GÃ–REV:
-        1. Metnin genel YZ olasÄ±lÄ±k skorunu belirle (0.0 - 1.0).
-        2. Ä°NTÄ°HAL VE ETÄ°K DENETÄ°MÄ° (SENTENCE LEVEL):
-           - %15'lik benzerlik sÄ±nÄ±rÄ±nÄ±n aÅŸÄ±lÄ±p aÅŸÄ±lmadÄ±ÄŸÄ±nÄ± kontrol et.
-           - Metinde hileli karakter (gÃ¶rÃ¼nmez boÅŸluk vb.) olup olmadÄ±ÄŸÄ±nÄ± denetle.
-           - AtÄ±f sisteminin (APA/MLA vb.) doÄŸruluÄŸunu ve teknik tanÄ±mlarÄ±n tÄ±rnak iÃ§inde olup olmadÄ±ÄŸÄ±nÄ± incele.
-        3. Metni CÃœMLE CÃœMLE analiz et. Her cÃ¼mle iÃ§in:
+        GÖREV:
+        1. Metnin genel YZ olasılık skorunu belirle (0.0 - 1.0).
+        2. İNTİHAL VE ETİK DENETİMİ (SENTENCE LEVEL):
+           - %15'lik benzerlik sınırının aşılıp aşılmadığını kontrol et.
+           - Metinde hileli karakter (görünmez boşluk vb.) olup olmadığını denetle.
+           - Atıf sisteminin (APA/MLA vb.) doğruluğunu ve teknik tanımların tırnak içinde olup olmadığını incele.
+        3. Metni CÜMLE CÜMLE analiz et. Her cümle için:
            - Bir skor (0.0 - 1.0) ata.
            - Bir tip ('ai', 'human', 'mixed') belirle.
-           - DetaylÄ± bir "reason" (neden) yaz (Ã–rn: "DÃ¼ÅŸÃ¼k perplexity ve tekdÃ¼ze cÃ¼mle yapÄ±sÄ±", "Beklenen insan varyasyonlarÄ± mevcut", "AÅŸÄ±rÄ± tahmin edilebilir kelime dizilimi").
-        4. YapÄ±sal metrikleri hesapla (Burstiness, Punctuation, Complexity).
-        5. Metnin genel "Reasoning" (MantÄ±ksal GerekÃ§e) kÄ±smÄ±nda neden bu karara vardÄ±ÄŸÄ±nÄ± aÃ§Ä±kla.
+           - Detaylı bir "reason" (neden) yaz (Örn: "Düşük perplexity ve tekdüze cümle yapısı", "Beklenen insan varyasyonları mevcut", "Aşırı tahmin edilebilir kelime dizilimi").
+        4. Yapısal metrikleri hesapla (Burstiness, Punctuation, Complexity).
+        5. Metnin genel "Reasoning" (Mantıksal Gerekçe) kısmında neden bu karara vardığını açıkla.
 
-        Ã–NEMLÄ°: YanÄ±tÄ± SADECE JSON olarak dÃ¶n.
+        ÖNEMLİ: Yanıtı SADECE JSON olarak dön.
 
-        JSON ÅEMASI:
+        JSON ŞEMASI:
         {
           "score": 0.85,
-          "reasoning": "Metnin geneli iÃ§in detaylÄ± analiz Ã¶zeti...",
+          "reasoning": "Metnin geneli için detaylı analiz özeti...",
           "sentenceScores": [
             {
-              "sentence": "CÃ¼mle iÃ§eriÄŸi", 
+              "sentence": "Cümle içeriği", 
               "score": 0.9, 
               "type": "ai", 
-              "reason": "Bu cÃ¼mle neden YZ olarak iÅŸaretlendi? (Ã–rn: 'Tipik GPT-4 giriÅŸ yapÄ±sÄ±', 'Sentaktik tekrarlar')"
+              "reason": "Bu cümle neden YZ olarak işaretlendi? (Örn: 'Tipik GPT-4 giriş yapısı', 'Sentaktik tekrarlar')"
             }
           ],
           "metrics": {
@@ -788,7 +788,7 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
           },
           "highlights": [
             {
-              "text": "AlÄ±ntÄ± veya intihal ÅŸÃ¼phesi olan metin kÄ±smÄ±",
+              "text": "Alıntı veya intihal şüphesi olan metin kısmı",
               "type": "plagiarism",
               "score": 0.95,
               "source": "https://example.com/kaynak"
@@ -804,16 +804,16 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
       });
 
       const parsed = robustParse(result.text || '{}');
-      console.log(`[Auditor] ${currentModel} baÅŸarÄ±lÄ±.`);
+      console.log(`[Auditor] ${currentModel} başarılı.`);
 
       return {
         score: typeof parsed.score === 'number' ? parsed.score : 0.5,
-        reasoning: parsed.reasoning || "Analiz tamamlandÄ±.",
+        reasoning: parsed.reasoning || "Analiz tamamlandı.",
         sentenceScores: Array.isArray(parsed.sentenceScores) ? parsed.sentenceScores.map((s: any) => ({
           sentence: s.sentence || "",
           score: typeof s.score === 'number' ? s.score : 0.5,
           type: s.type || (s.score > 0.6 ? 'ai' : s.score < 0.4 ? 'human' : 'mixed'),
-          reason: s.reason || "CÃ¼mle yapÄ±sÄ± incelendi."
+          reason: s.reason || "Cümle yapısı incelendi."
         })) : [],
         metrics: {
           plagiarism: parsed.metrics?.plagiarism ?? 0,
@@ -834,10 +834,10 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
     } catch (error: any) {
       const wasHandled = await handleApiKeyError(error);
       if (wasHandled) {
-        console.log("[Auditor] Kota veya geÃ§ersiz anahtar, anahtar rotasyonu yapÄ±ldÄ±. Tekrar deneniyor...");
+        console.log("[Auditor] Kota veya geçersiz anahtar, anahtar rotasyonu yapıldı. Tekrar deneniyor...");
         return detectAI(text, sensitivity, modelName, retryCount + 1);
       }
-      console.warn(`[Auditor] ${currentModel} baÅŸarÄ±sÄ±z:`, error.message);
+      console.warn(`[Auditor] ${currentModel} başarısız:`, error.message);
       lastError = error;
     }
   }
@@ -846,7 +846,7 @@ export const detectAI = async (text: string, sensitivity: number = 50, modelName
 
   return {
     score: 0.5,
-    reasoning: "TÃ¼m modeller baÅŸarÄ±sÄ±z oldu. Temel analiz yapÄ±ldÄ±.",
+    reasoning: "Tüm modeller başarısız oldu. Temel analiz yapıldı.",
     sentenceScores: [],
     metrics: {
       plagiarism: 0,

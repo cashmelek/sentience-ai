@@ -587,12 +587,12 @@ export function EditorPanel(props: EditorPanelProps) {
               </span>
               <span className="text-white/10">|</span>
               {isAdmin ? (
-                <span className="text-emerald-600">&#x221e; Admin</span>
+                <span className="text-emerald-600">∞ Admin</span>
               ) : (
                 <span className={cn(
                   remainingChars < inputText.length ? 'text-red-500 font-bold animate-shake' : remainingChars < currentLimit * 0.2 ? 'text-amber-500' : 'text-emerald-600'
                 )}>
-                  {remainingChars === Infinity ? '&#x221e;' : remainingChars.toLocaleString()} <span className="text-gray-700">kalan</span>
+                  {remainingChars === Infinity ? '∞' : remainingChars.toLocaleString()} <span className="text-gray-700">kalan</span>
                 </span>
               )}
               {!isAdmin && (

@@ -312,7 +312,7 @@ export function LoginView({ isAdmin, onBack }: LoginViewProps) {
                 {!isLoginView && (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">KULLANICI TİPİ</label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => setAccountRole('academic')}

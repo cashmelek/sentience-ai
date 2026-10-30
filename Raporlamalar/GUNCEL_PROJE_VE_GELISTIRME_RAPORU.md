@@ -710,5 +710,18 @@ Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve ida
 - **Test ve Canlı Dağıtım:**
   - 13 test dosyasında 81/81 birim testi başarıyla geçti, `npm run build` tamamlandı ve Firebase Hosting (`https://sentience-ai-free-2026.web.app`) üzerine canlıya alındı.
 
+### 7.8 Tasarım, Izgaralama (Responsive Grids) ve Türkçe Karakter / Encoding Denetimi (30 Ekim 2026)
+- **Türkçe Karakter ve Mojibake Restorasyonu (`geminiService.ts` & `EditorPanel.tsx`):**
+  - `src/services/geminiService.ts` dosyasında geçmişte çift UTF-8/Windows-1252 bozulmasına uğrayan tüm Türkçe hata mesajları, Copyleaks kural setleri ve Gemini sistem istemleri (`Ã–zet` -> `Özet`, `GÃ–REV` -> `GÖREV`, `Ä°NSANLAÅžTIRMA` -> `İNSANLAŞTIRMA`, `aÅŸÄ±ldÄ±` -> `aşıldı`) saf Türkçe UTF-8 karakterleriyle tamamen onarıldı.
+  - `EditorPanel.tsx` içindeki ham HTML entity olan `&#x221e;` ifadesi doğal `∞` sonsuzluk sembolüyle değiştirildi.
+- **Web, Tablet ve Mobil Izgaralama (Grid) Düzeltmeleri:**
+  - `LoginView.tsx`: Giriş ekranındaki rol seçim butonları (`grid-cols-3`), mobil ekranlarda metinlerin iç içe girmesini önleyecek şekilde `grid-cols-1 sm:grid-cols-3` duyarlı ızgarasına çevrildi.
+  - `AdminPanel.tsx`: Lisans modalındaki kota girişleri `grid-cols-1 sm:grid-cols-3` yapılarak dar ekranlarda taşma riski ortadan kaldırıldı.
+  - `InstituteQueueView.tsx`, `ExportPreviewModal.tsx`, `PeerMatrixModal.tsx`: Mobil ve tabletlerde 3 kolonluk sıkışan karar ve özet kutuları `grid-cols-1 sm:grid-cols-3` esnek ızgarasına bağlandı.
+- **Mobil Ekran Taşma ve Kaydırma Koruması (Modal Viewport):**
+  - `PlansModal.tsx`, `CustomToneModal.tsx`, `JoinClassModal.tsx`, `ClassFormModal.tsx`, `CitationGenealogyModal.tsx` modallarına `max-h-[90dvh] overflow-y-auto custom-scrollbar` eklenerek küçük ekranlı telefonlarda ve klavye açıldığında butonların ekran dışına taşması engellendi.
+- **Canlı Dağıtım & Doğrulama:**
+  - 13 test dosyasında 81/81 test geçti, `npm run build` hatasız tamamlandı ve `https://sentience-ai-free-2026.web.app` adresine deploy edildi.
+
 ---
 *Rapor Sonu — Sentience AI Yönetim ve Geliştirme Dokümantasyonu*

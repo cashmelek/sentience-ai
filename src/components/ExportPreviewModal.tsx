@@ -69,7 +69,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
             </div>
 
             {/* Score Strip */}
-            <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-black/40 border border-white/5 text-center">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-black/40 border border-white/5 text-center">
               <div className="flex flex-col items-center">
                 <span className="text-[9px] font-black uppercase text-gray-500 flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-red-400" /> YZ Tespiti
