@@ -14,6 +14,7 @@ namespace SentienceAI.WordSetup
         private Label lblDesc;
         private Label lblStatus;
         private Button btnInstall;
+        private Button btnLaunchWord;
         private Button btnUninstall;
         private Button btnExit;
         private ProgressBar progressBar;
@@ -118,6 +119,25 @@ namespace SentienceAI.WordSetup
             btnInstall.FlatAppearance.BorderSize = 0;
             btnInstall.Click += BtnInstall_Click;
 
+            btnLaunchWord = new Button
+            {
+                Text = "Word'ü Başlat",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(59, 130, 246),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(24, 215),
+                Size = new Size(135, 42),
+                Cursor = Cursors.Hand,
+                Visible = false
+            };
+            btnLaunchWord.FlatAppearance.BorderSize = 0;
+            btnLaunchWord.Click += (s, e) =>
+            {
+                try { Process.Start("winword.exe"); } catch { }
+                this.Close();
+            };
+
             btnUninstall = new Button
             {
                 Text = "Eklentiyi Kaldır",
@@ -150,6 +170,7 @@ namespace SentienceAI.WordSetup
             this.Controls.Add(lblStatus);
             this.Controls.Add(progressBar);
             this.Controls.Add(btnInstall);
+            this.Controls.Add(btnLaunchWord);
             this.Controls.Add(btnUninstall);
             this.Controls.Add(btnExit);
         }
@@ -337,6 +358,8 @@ namespace SentienceAI.WordSetup
                 PerformInstall();
 
                 progressBar.Value = 100;
+                btnInstall.Visible = false;
+                btnLaunchWord.Visible = true;
                 lblStatus.Text = "Başarılı: Sentience AI Word eklentisi kuruldu!\nWord'ü açıp Ekle -> Eklentilerim kısmından kontrol edebilirsiniz.";
                 lblStatus.ForeColor = Color.FromArgb(52, 211, 153);
 
