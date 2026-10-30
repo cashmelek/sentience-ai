@@ -602,21 +602,56 @@ export const GUIDE_SECTIONS: GuideSectionItem[] = [
     ]
   },
   {
+    id: 'kurumsal-lisans-ve-enstitu-yonetimi',
+    category: 'enterprise-integration',
+    roles: ['instructor', 'institute'],
+    title: 'Kurumsal Lisans Anahtarları (INST-...) & Üniversite Yetkilendirmesi',
+    badge: 'Kurumsal Lisans',
+    description: 'Üniversiteler, enstitüler ve fakülteler için tanımlanan kurumsal lisans anahtarlarının yönetimi, akademisyen yetkilendirmesi ve kota tahsisi.',
+    steps: [
+      'Lisans Edinimi: Kurum yönetimi (Rektörlük / Dekanlık / Enstitü) için Admin Paneli "Kurumsal Lisanslar" sekmesinden özel bir yetki kodu (örn: INST-ITU-2026) oluşturulur.',
+      'Kayıt ve Yetkilendirme: Akademisyenler kurumsal (.edu.tr) e-postaları ile kayıt olurken bu anahtarı girerek "Eğitmen / Akademisyen" profilini ve sınıf açma yetkisini anında aktive eder.',
+      'Otomatik Kontenjan Takibi: Lisans üzerinde belirlenen eğitmen ve öğrenci kontenjanları, kurum üyeleri katıldıkça sistem tarafından canlı olarak düşülür.',
+      'Sınırsız Analiz & Öncelikli Kuyruk: Kurumsal lisansa bağlı sınıflarda öğrenci ve akademisyenler için kotalar esnetilir, intihal ve YZ analizleri öncelikli işlenir.',
+      'Süre ve Güvenlik: Lisansın son geçerlilik tarihi geldiğinde sistem güvenli biçimde standart kota moduna geçer; arşivdeki eski teslimler ve raporlar korunur.'
+    ],
+    tips: [
+      'Yanlışlıkla öğrenci olarak kaydolan akademisyenlerin rolü, Admin Paneli Kullanıcı Yönetimi üzerinden tek tıkla "Eğitmen" olarak düzeltilebilir.'
+    ]
+  },
+  {
+    id: 'pano-koken-damgasi-ve-kacak-tespiti',
+    category: 'verification-security',
+    roles: ['student', 'instructor', 'institute'],
+    title: 'Pano Köken Damgası (Origin Token) & Harici Editör Adli İzleme Kalkanı',
+    badge: 'Pano Kalkanı',
+    description: 'Platformdan kopyalanıp harici kelime işlemcilere (Word, Docs) yapıştırılan sentetik metinlerin görünmez kriptografik damgalarla saptanması.',
+    steps: [
+      'Görünmez Kriptografik İmza: Kullanıcı platform üzerinden metin kopyaladığında, panoya (Clipboard API) insan gözüyle görünmeyen özel HTML meta damgası (data-sentience-origin, imza hash ve zaman damgası) yerleştirilir.',
+      'Düz Metin Bütünlüğü: Kopyalanan metin kullanıcı açısından sıradan metin gibi görünür; biçim bozulması veya yabancı karakter içermez.',
+      'Word Adli Yakalama: Öğrenci metni Word veya Docs üzerine yapıştırıp ardından ödev olarak sisteme .docx yüklediğinde, adli bilişim motoru (docxForensicService) bu damgayı belgenin XML dokusunda tespit eder.',
+      'Otomatik Adli Alarm: Sistem "Platform İçi Sentetik Üretim Pano Köken Damgası Saptandı" uyarısı verir ve metnin hangi kullanıcı hesabından çıktığını raporlar.',
+      'Sıfır-Kaçak Prensibi: Başka hesapta insanlaştırıp öğrenci hesabından teslim etme hilesi bu yöntemle tamamen engellenir.'
+    ],
+    warning: 'Kişisel hesaplardan yapılan insanlaştırma kopyaları, ödev teslim dosyalarında kriptografik olarak tespit edilir ve disiplin incelemesine konu olabilir.'
+  },
+  {
     id: 'word-eklentisi-masaustu-kurulumu',
     category: 'enterprise-integration',
     roles: ['student', 'instructor', 'author'],
-    title: 'Word Eklentisi (Word Add-in) Masaüstü Kurulumu ve Kullanımı',
+    title: 'Word Eklentisi (.exe Setup Sihirbazı) Masaüstü Kurulumu ve Kullanımı',
     badge: 'Word Eklentisi',
-    description: 'Microsoft Word masaüstü uygulaması içine Sentience AI eklentisinin yüklenmesi ve adli telemetri mühürleme adımları.',
+    description: 'Microsoft Word (2016/2019/2021/365) için tek tıkla çalışan SentienceWordSetup.exe kurulum paketi ve adli telemetri mühürleme adımları.',
     steps: [
-      'Platform üzerinden "Sentience Word Eklentisi" kurulum paketini veya PowerShell betiğini indirin.',
-      'Word uygulamasını kapatıp kurulum betiğini çalıştırın; eklenti Office Güvenilen Eklentiler Kataloğuna tescil edilir.',
-      'Microsoft Word ü açın; "Ekle (Insert)" menüsünden "Eklentilerim" sekmesine tıklayarak Sentience AI yı etkinleştirin.',
-      'Sessiz Adli Mühürleme: Eklenti Word içinde çalışırken yazma oturumu sürelerini ve klavye telemetrisini arka planda şifreli olarak belgeye kaydeder.',
-      'Belgenizi kaydedip Sentience web platformuna yüklediğinizde, bu telemetri mührü otomatik çözülerek ödevinizin %100 özgün yazıldığını doğrular.'
+      'Kurulum Paketini İndirme: Kullanıcı Rehberi "Belgeler & İndirmeler" bölümünden SentienceWordSetup.zip dosyasını indirin ve zipten çıkarın.',
+      'Tek Tıkla Kurulum (SentienceWordSetup.exe): Programı çalıştırın; sihirbaz bilgisayarınızdaki Word sürümünü otomatik algılar ve Office Güvenilen Eklentiler Kataloğunu (TrustedCatalogs) yapılandırır.',
+      'Word İçinden Etkinleştirme: Microsoft Word uygulamasını açın; "Ekle (Insert)" menüsünden "Eklentilerim (My Add-ins)" seçeneğine girerek "Sentience AI" eklentisini seçin.',
+      'Sessiz Adli Mühürleme: Eklenti Word içinde çalışırken yazma oturumu sürelerini, revizyon sıklığını ve organik klavye temposunu belgenin adli meta katmanına kaydeder.',
+      'Webde Otomatik Doğrulama: Hazırladığınız .docx dosyasını Sentience Öğrenci Masasına yüklediğinizde, adli mühür çözülür ve ödevinizin %100 özgün emekle yazıldığı doğrulanır.',
+      'Kaldırma (Uninstaller): Dilediğiniz zaman SentienceWordSetup.exe uygulamasını tekrar açıp "Eklentiyi Kaldır" butonuyla eklentiyi tek tıkla sistemden temizleyebilirsiniz.'
     ],
     tips: [
-      'Word eklentisi butonsuz doğal modda çalışarak dikkatinizi dağıtmaz; yalnızca çalışmanızın arkasındaki emeği kanıtlar.'
+      'Kurulum sihirbazı ayrıca komut satırından sessiz kurulumu (SentienceWordSetup.exe /silent) destekler; üniversite laboratuvarları için toplu kuruluma uygundur.'
     ]
   },
   {

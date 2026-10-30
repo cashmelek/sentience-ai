@@ -600,6 +600,13 @@ Akademik dürüstlük ile yapay zeka içerik üretimi/insanlaştırma arasındak
 - **Test ve Canlı Dağıtım:**
   - 12 test dosyasında 73/73 test başarıyla geçti, `npm run build` tamamlandı ve Firebase Hosting'e deploy edildi.
 
+### 1.42 Kullanıcı Rehberine Son Güncellemelerin (Lisans, Pano Damgası, Word Setup) İşlenmesi (30 Ekim 2026)
+- **Eklenen 3 Yeni Rehber Konusu (`UserGuideView.tsx`):**
+  1. *Kurumsal Lisans Anahtarları (INST-...) & Üniversite Yetkilendirmesi:* Admin panelinden lisans oluşturma, akademisyen kayıt yetkilendirmesi, kota ve enstitü ağları.
+  2. *Pano Köken Damgası (Origin Token) & Harici Editör Adli İzleme Kalkanı:* Clipboard API ile yerleştirilen görünmez meta damgalar ve `.docx` adli bilişim yakalama prensibi.
+  3. *Word Eklentisi (.exe Setup Sihirbazı) Masaüstü Kurulumu ve Kullanımı:* `SentienceWordSetup.exe` kurulum adımları, Word içinden etkinleştirme, arka plan telemetri mühürleme ve kaldırma.
+- **Canlı Dağıtım:** 73/73 birim testi başarıyla geçti, `npm run build` tamamlandı ve Firebase Hosting'e deploy edildi.
+
 ### 5. AKTİF YAPILACAKLAR LİSTESİ VE ÖNCELİKLENDİRİLMİŞ ÇALIŞMA PLANI
 
 Aşağıdaki sıra, sistemin mevcut kararlılığı, kullanıcı deneyimi ve idari yönetim gereksinimleri gözetilerek **Kritik (P1) -> Yüksek (P2) -> Orta (P3)** şeklinde önceliklendirilmiştir:
