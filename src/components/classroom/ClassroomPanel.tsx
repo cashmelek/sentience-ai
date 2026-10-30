@@ -41,7 +41,7 @@ type View =
 const subKey = (classId: string, assignmentId: string) => `${classId}/${assignmentId}`;
 
 export function ClassroomPanel({ appUser, scoringConfig, onClose }: ClassroomPanelProps) {
-  const isStudent = appUser.academicProfile === 'student';
+  const isStudent = appUser.academicProfile === 'student' || appUser.role === 'student';
   const [consent, setConsent] = useState(!!appUser.kvkkAcceptedAt);
   const [tab, setTab] = useState<'teaching' | 'enrolled' | 'institute_queue'>(isStudent ? 'enrolled' : 'teaching');
   const [data, setData] = useState<{ teaching: ClassRoom[]; enrolled: ClassRoom[] }>({ teaching: [], enrolled: [] });
