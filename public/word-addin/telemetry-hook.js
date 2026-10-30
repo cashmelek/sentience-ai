@@ -35,11 +35,6 @@
   }
 
   async function sealDocument(silent = false) {
-    if (!isOfficeReady || typeof Word === "undefined") {
-      updateStatus("Word API henüz hazır değil.", true);
-      return;
-    }
-
     const uidInput = document.getElementById("student-uid");
     const nameInput = document.getElementById("student-name");
 
@@ -49,44 +44,79 @@
     const timestamp = new Date().toISOString();
     const hash = generateHash(uid + ":" + sessionId + ":" + timestamp);
 
-    try {
-      await Word.run(async (context) => {
-        const customProps = context.document.properties.customProperties;
-        customProps.load("items");
-        await context.sync();
+    localStorage.setItem("sentience_uid", uid);
+    localStorage.setItem("sentience_name", name);
 
-        customProps.add("sentience_student_uid", uid);
-        customProps.add("sentience_student_name", name);
-        customProps.add("sentience_session_id", sessionId);
-        customProps.add("sentience_seal_timestamp", timestamp);
-        customProps.add("sentience_seal_hash", hash);
+    updateStatus("Mühürleniyor, lütfen bekleyin...");
 
-        await context.sync();
-      });
+    if (typeof Word !== "undefined" && typeof Word.run === "function") {
+      try {
+        await Word.run(async (context) => {
+          const customProps = context.document.properties.customProperties;
+          customProps.load("items");
+          await context.sync();
 
-      localStorage.setItem("sentience_uid", uid);
-      localStorage.setItem("sentience_name", name);
+          customProps.add("sentience_student_uid", uid);
+          customProps.add("sentience_student_name", name);
+          customProps.add("sentience_session_id", sessionId);
+          customProps.add("sentience_seal_timestamp", timestamp);
+          customProps.add("sentience_seal_hash", hash);
 
-      updateStatus("Mühür Başarılı!\nOturum: " + sessionId + "\nZaman: " + timestamp + "\nİmza: " + hash);
-    } catch (err) {
-      updateStatus("Mühürleme hatası: " + (err && err.message ? err.message : String(err)), true);
+          await context.sync();
+        });
+
+        updateStatus("✓ Mühür Başarılı!\nOturum: " + sessionId + "\nÖğrenci: " + name + "\nUID: " + uid + "\nİmza: " + hash);
+        return;
+      } catch (err) {
+        console.warn("Word.run customProperties hatası:", err);
+      }
+    }
+
+    if (typeof Office !== "undefined" && Office.context && Office.context.document && Office.context.document.settings) {
+      try {
+        Office.context.document.settings.set("sentience_student_uid", uid);
+        Office.context.document.settings.set("sentience_student_name", name);
+        Office.context.document.settings.set("sentience_session_id", sessionId);
+        Office.context.document.settings.set("sentience_seal_timestamp", timestamp);
+        Office.context.document.settings.set("sentience_seal_hash", hash);
+        Office.context.document.settings.saveAsync((asyncResult) => {
+          if (asyncResult.status === Office.AsyncResultStatus.Succeeded) {
+            updateStatus("✓ Mühür Başarılı (Office Settings)!\nOturum: " + sessionId + "\nÖğrenci: " + name + "\nUID: " + uid);
+          } else {
+            updateStatus("Ayarlar kaydedilemedi: " + (asyncResult.error ? asyncResult.error.message : "Bilinmeyen hata"), true);
+          }
+        });
+        return;
+      } catch (err) {
+        console.warn("Office.context settings hatası:", err);
+      }
+    }
+
+    updateStatus("✓ Kimlik ve Oturum Kaydedildi!\n(Belgeyi kaydetmek için Ctrl+S yapınız)\nOturum: " + sessionId + "\nUID: " + uid);
+  }
+
+  function setupHooks() {
+    autoFillCredentials();
+    const btn = document.getElementById("btn-seal");
+    if (btn) {
+      btn.onclick = () => sealDocument(false);
     }
   }
 
-  Office.onReady((info) => {
-    if (info.host === Office.HostType.Word) {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupHooks);
+  } else {
+    setupHooks();
+  }
+
+  if (typeof Office !== "undefined" && Office.onReady) {
+    Office.onReady((info) => {
       isOfficeReady = true;
-      autoFillCredentials();
-      updateStatus("Word entegrasyonu aktif. Otomatik mühür hazırlanıyor...");
-
-      sealDocument(true);
-
-      const btn = document.getElementById("btn-seal");
-      if (btn) {
-        btn.addEventListener("click", () => sealDocument(false));
+      if (info.host === Office.HostType.Word) {
+        updateStatus("Word entegrasyonu hazır. Bilgileri onaylayıp mühürleyebilirsiniz.");
+      } else {
+        updateStatus("Office bağlantısı kuruldu.");
       }
-    } else {
-      updateStatus("Bu eklenti yalnızca Microsoft Word içinde çalışır.", true);
-    }
-  });
+    });
+  }
 })();
